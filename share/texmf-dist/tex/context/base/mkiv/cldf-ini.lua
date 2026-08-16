@@ -20,16 +20,8 @@ if not modules then modules = { } end modules ['cldf-ini'] = {
 -- more efficient approach is stable enough to move the original code to the obsolete
 -- module.
 --
--- to be considered:
---
--- 0.528 local foo = tex.ctxcatcodes
--- 0.651 local foo = getcount("ctxcatcodes")
--- 0.408 local foo = getcount(ctxcatcodes) -- local ctxcatcodes = tex.iscount("ctxcatcodes")
-
 -- maybe:  (escape) or 0x2061 (apply function) or 0x2394 (software function ⎔) (old)
 -- note : tex.print == line with endlinechar appended
--- todo : context("%bold{total: }%s",total)
--- todo : context.documentvariable("title")
 --
 -- During the crited project we ran into the situation that luajittex was 10-20 times
 -- slower that luatex ... after 3 days of testing and probing we finally figured out that
@@ -98,16 +90,21 @@ local texsprint         = tex.sprint    -- just appended (no space,eol treatment
 local texprint          = tex.print     -- each arg a separate line (not last in directlua)
 ----- texwrite          = tex.write     -- all 'space' and 'character'
 
-local isnode            = node.is_node
+-- In this stage we don't yet have nodes populated so we access the library directly ...
+
+local isnode            = node.isnode   or node.is_node
+local copynodelist      = node.copylist or node.copy_list
 local writenode         = node.write
-local copynodelist      = node.copy_list
 local tonut             = node.direct.todirect
 local tonode            = node.direct.tonode
 
-local istoken           = token.is_token
 local newtoken          = token.new
-local createtoken       = token.create
-local setluatoken       = token.set_lua
+----- createtoken       = token.create
+
+local istoken           = token.istoken or token.is_token
+local setluatoken       = token.setlua  or token.set_lua
+
+-- ... till here.
 
 local isprintable       = tex.isprintable or function(n)
     return n and (type(n) == "string" or isnode(n) or istoken(n))
@@ -225,7 +222,7 @@ local p_resolve = ((1-lpegP("."))^1 / function(s) f_resolve = f_resolve[s] end *
 
 local function resolvestoredfunction(str)
     if type(str) == "string" then
-        f_resolve = global -- namespace
+        f_resolve = _G
         lpegmatch(p_resolve,str)
         return f_resolve
     else
@@ -284,7 +281,7 @@ local registerfunction = function(f,direct,slot) -- either f=code or f=namespace
     end
     if direct then
         if initex then
-            func = function(...) expose(slot,f,...) end
+            func = function(...) return expose(slot,f,...) end
             storedfunctions[slot] = f
         else
             func = resolvestoredfunction(f)
@@ -386,60 +383,14 @@ interfaces.namesofscanners = namesofscanners
 
 storage.register("interfaces/storedscanners", storedscanners, "interfaces.storedscanners")
 
--- local function registerscanner(name,action,protected,public,usage) -- todo: combine value and condition
---     rawset(interfacescanners,name,action)
---     local n = storedscanners[name]
---     n = registerfunction("interfaces.scanners."..name,true,n)
---     storedscanners[name] = n
---     namesofscanners[n] = name
---     name = public and name or (privatenamespace .. name)
---  -- print(">>",name,protected and "protected" or "",usage or "macro")
---     setluatoken(name,n,"global",protected and "protected" or "",usage or "macro")
--- end
-
--- todo: bitmap
-
-local registerscanner if CONTEXTLMTXMODE > 0 then
-
-    -- always permanent but we can consider to obey permanent==false
-
-    local function toflags(specification)
-        local protected = specification.protected and "protected" -- or ""
-        local usage     = specification.usage
-        if usage == "value" then
-            return "global", "value", "permanent", protected
-        elseif usage == "condition" then
-            return "global", "conditional", "permanent", protected
-        elseif specification.frozen then
-            return "global", "frozen", protected
-        elseif specification.permanent == false or specification.onlyonce then -- for now onlyonce here
-            return "global", protected
-        else
-            return "global", "permanent", protected
-        end
-    end
-
-    registerscanner = function(name,action,specification)
-        rawset(interfacescanners,name,action)
-        local n = registerfunction("interfaces.scanners."..name,true,storedscanners[name])
-        storedscanners[name] = n
-        namesofscanners[n] = name
-        name = specification.public and name or (privatenamespace .. name)
-        setluatoken(name,n,toflags(specification))
-    end
-
-else
-
-    registerscanner = function(name,action,specification)
-        rawset(interfacescanners,name,action)
-        local n = storedscanners[name]
-        n = registerfunction("interfaces.scanners."..name,true,n)
-        storedscanners[name] = n
-        namesofscanners[n] = name
-        name = specification.public and name or (privatenamespace .. name)
-        setluatoken(name,n,"global",specification.protected and "protected" or "")
-    end
-
+local function registerscanner(name,action,specification)
+    rawset(interfacescanners,name,action)
+    local n = storedscanners[name]
+    n = registerfunction("interfaces.scanners."..name,true,n)
+    storedscanners[name] = n
+    namesofscanners[n] = name
+    name = specification.public and name or (privatenamespace .. name)
+    setluatoken(name,n,"global",specification.protected and "protected" or "")
 end
 
 interfaces.registerscanner = registerscanner
@@ -450,16 +401,6 @@ end
 
 function interfaces.nameofscanner(slot)
     return namesofscanners[slot] or slot
-end
-
-if CONTEXTLMTXMODE > 0 then
-
-    callback.register("show_lua_call", function(what, slot)
-        local name = namesofscanners[slot]
-     -- return name and formatters["%s: \\%s, slot: %i"](what,name,slot) or ""
-        return name and formatters["%s \\%s"](what,name) or ""
-    end)
-
 end
 
 setmetatablenewindex(interfacescanners, function(t,k,v)
@@ -491,11 +432,14 @@ end
 
 local function dummy() end
 
+local texsetmacro = token.setmacro or token.set_macro
+
 function commands.ctxresetter(name) -- to be checked
     return function()
         if storedscanners[name] then
             rawset(interfacescanners,name,dummy)
-            context.resetctxscanner(privatenamespace .. name)
+         -- context.resetctxscanner(privatenamespace .. name)
+            texsetmacro(privatenamespace .. name,"","global")
         end
     end
 end
@@ -577,6 +521,7 @@ local space         = patterns.spacer
 local spacing       = newline * space^0
 local content       = lpegC((1-spacing)^1)            -- texsprint
 local emptyline     = space^0 * newline^2             -- texprint("")
+                    + newline * space^1 * newline^1
 local endofline     = space^0 * newline * space^0     -- texsprint(" ")
 local simpleline    = endofline * lpegP(-1)           --
 
@@ -622,7 +567,8 @@ function context.newtexthandler(specification)
     local pattern
     if f_space then
         if p_exception then
-            local content = lpegC((1-spacing-p_exception)^1)
+         -- local content = lpegC((1-spacing-p_exception)^1)
+            local content = lpegC((1-space-endofline-p_exception)^1)
             pattern =
               (
                     justaspace   / f_space
@@ -796,7 +742,7 @@ local function writer(parent,command,...) -- already optimized before call
                     flush(currentcatcodes,"}")
                 end
             elseif typ == "number" then
-                -- numbers never have funny catcodesz
+                -- numbers never have funny catcodes
                 flush(currentcatcodes,"{",ti,"}")
             elseif typ == "table" then
                 local tn = #ti
@@ -850,7 +796,7 @@ local function writer(parent,command,...) -- already optimized before call
                     else
                         flush(currentcatcodes,"[",tj,"]")
                     end
-                else -- is concat really faster than flushes here? probably needed anyway (print artifacts)
+                else
                     flush(currentcatcodes,"[")
                     for j=1,tn do
                         local tj = ti[j]
@@ -1126,7 +1072,7 @@ local visualizer = lpeg.replacer {
     { "\r", "<<par>>" },
 }
 
-statistics.register("traced context", function()
+statistics.register("traced context lua functions", function()
     local used, freed = usedstack()
     local unreachable = used - freed
     if nofwriters > 0 or nofflushes > 0 then
@@ -1138,10 +1084,12 @@ end)
 
 -- The cmd names were synchronized with the normal call cmd names.
 
-local luacalls = {              --  luatex     luametatex
-    lua_expandable_call = true, --  normal
-    lua_call            = true, --  protected  normal
-    lua_protected_call  = true, --             protected
+local luacalls = {
+    lua_function_call  = true,
+    lua_protected_call = true,
+    lua_value          = true,
+    lua_local_call     = true,
+    lua_call           = true,
 }
 
 local function userdata(argument)
@@ -1153,7 +1101,7 @@ local function userdata(argument)
          -- return formatters["<<\\%s>>"](csname)
             return formatters["\\%s"](csname)
         end
-        if luacall[argument.cmdname] then
+        if luacalls[argument.cmdname] then
             return "<<function>>" -- argument.mode
         end
         return "<<token>>"
@@ -1660,22 +1608,13 @@ do
     end
 
     local p_texescape = patterns.texescape
+    local p_ctxescape = patterns.ctxescape
 
-    function context.escaped(s)
-        if s then
-            context(lpegmatch(p_texescape,s) or s)
-        else
-         -- context("")
-        end
-    end
+    function context.escaped   (s) if s then context(lpegmatch(p_texescape,s) or s) end end
+    function context.ctxescaped(s) if s then context(lpegmatch(p_ctxescape,s) or s) end end
 
-    function context.escape(s)
-        if s then
-            return lpegmatch(p_texescape,s) or s
-        else
-            return ""
-        end
-    end
+    function context.escape   (s) return (s and lpegmatch(p_texescape,s)) or s or "" end
+    function context.ctxescape(s) return (s and lpegmatch(p_ctxescape,s)) or s or "" end
 
 end
 
@@ -1793,13 +1732,9 @@ do
 
     for i=1,#t do local k = t[i] modelevels[-k] = modelevels[k] end
 
-    if CONTEXTLMTXMODE > 0 then
+end
 
-        -- also elsewhere
-
-        local flagcodes = tex.getflagvalues()
-        tex.flagcodes   = table.swapped(flagcodes,flagcodes) -- utilities.storage.allocate()
-
-    end
-
+function lua.registerglobal(k,v)
+    rawset(_G,k,v)
+    return v
 end

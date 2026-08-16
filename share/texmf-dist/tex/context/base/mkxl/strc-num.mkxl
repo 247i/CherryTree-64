@@ -53,7 +53,7 @@
         \edef\p_start{\counterparameter\c!start}%
         \clf_definecounter
            name    {\currentcounter}%
-           start   \ifempty\p_start\zerocount\else\numexpr\p_start\relax\fi
+           start   \ifempty\p_start\zerocount\else{\p_start}\fi
            counter {\counterparameter\s!counter}%
            method  {\counterparameter\c!method}%
         \relax
@@ -69,11 +69,11 @@
     \ifempty\currentcounter \else
         \edef\p_number{\counterparameter\c!number}%
         \ifempty\p_number \else
-          \clf_setcounter{\counterparameter\s!name}\numexpr\p_number\relax
-          \letcounterparameter\c!number\empty
+          \clf_setcounter{\counterparameter\s!name}{\p_number}%
+          \resetcounterparameter\c!number
         \fi
         \edef\p_start{\counterparameter\c!start}%
-        \setexpandedcounterparameter\c!start{\ifempty\p_start0\else\number\p_start\fi}%
+        \setexpandedcounterparameter\c!start{\ifempty\p_start0\else\tointeger{\p_start}\fi}%
         \strc_counters_check_setup
     \fi
 \to \everysetupcounter
@@ -92,8 +92,8 @@
      \edef\p_start{\counterparameter\c!start}%
      \clf_checkcountersetup
        {\currentcounter}%
-       \numexpr\currentcounterlevel\relax
-       \numexpr\ifempty\p_start\zerocount\else\p_start\fi\relax % bug in scanner
+       {\currentcounterlevel}%
+       {\ifempty\p_start\zerocount\else\p_start\fi}% bug in scanner
        {\counterparameter\c!state}%
    \fi}
 
@@ -105,30 +105,30 @@
 
 \permanent\tolerant\protected\def\setcounter[#1]#*[#2]#*[#3]%
   {\ifarguments\or\or
-     \clf_setcounter   {\namedcounterparameter{#1}\s!name}\numexpr#2\relax
+     \clf_setcounter   {\namedcounterparameter{#1}\s!name}{#2}%
    \else
-     \clf_setsubcounter{\namedcounterparameter{#1}\s!name}\numexpr#2\relax\numexpr#3\relax
+     \clf_setsubcounter{\namedcounterparameter{#1}\s!name}{#2}{#3}%
    \fi}
 
 \permanent\tolerant\protected\def\setcounterown[#1]#*[#2]#*[#3]%
   {\ifarguments\or\or
      \clf_setowncounter   {\namedcounterparameter{#1}\s!name}{#2}%
    \else
-     \clf_setownsubcounter{\namedcounterparameter{#1}\s!name}\numexpr#2\relax{#3}%
+     \clf_setownsubcounter{\namedcounterparameter{#1}\s!name}{#2}{#3}%
    \fi}
 
 \permanent\tolerant\protected\def\restartcounter[#1]#*[#2]#*[#3]%
   {\ifarguments\or\or
-     \clf_restartcounter   {\namedcounterparameter{#1}\s!name}\numexpr#2\relax
+     \clf_restartcounter   {\namedcounterparameter{#1}\s!name}{#2}%
    \else
-     \clf_restartsubcounter{\namedcounterparameter{#1}\s!name}\numexpr#2\relax\numexpr#3\relax
+     \clf_restartsubcounter{\namedcounterparameter{#1}\s!name}{#2}{#3}%
    \fi}
 
 \permanent\tolerant\protected\def\resetcounter[#1]#*[#2]%
   {\ifarguments\or
      \clf_resetcounter   {\namedcounterparameter{#1}\s!name}%
    \else
-     \clf_resetsubcounter{\namedcounterparameter{#1}\s!name}\numexpr#2\relax
+     \clf_resetsubcounter{\namedcounterparameter{#1}\s!name}{#2}%
    \fi}
 
 \permanent\tolerant\protected\def\incrementcounter[#1]#*[#2]%
@@ -142,49 +142,49 @@
   {\ifarguments\or
      \clf_decrementcounter   {\namedcounterparameter{#1}\s!name}%
    \else
-     \clf_decrementsubcounter{\namedcounterparameter{#1}\s!name}\numexpr#2\relax
+     \clf_decrementsubcounter{\namedcounterparameter{#1}\s!name}{#2}%
    \fi}
 
 \permanent\tolerant\protected\def\rawcounter[#1]#*[#2]%
   {\ifarguments\or
      \clf_countervalue   {\namedcounterparameter{#1}\s!name}%
    \else
-     \clf_subcountervalue{\namedcounterparameter{#1}\s!name}\numexpr#2\relax\or
+     \clf_subcountervalue{\namedcounterparameter{#1}\s!name}{#2}\or
    \fi}
 
 \permanent\tolerant\protected\def\lastcounter[#1]#*[#2]%
   {\ifarguments\or
      \clf_lastcountervalue   {\namedcounterparameter{#1}\s!name}%
    \else
-     \clf_lastsubcountervalue{\namedcounterparameter{#1}\s!name}\numexpr#2\relax\or
+     \clf_lastsubcountervalue{\namedcounterparameter{#1}\s!name}{#2}\or
    \fi}
 
 \permanent\tolerant\protected\def\firstcounter[#1]#*[#2]%
   {\ifarguments\or
      \clf_firstcountervalue   {\namedcounterparameter{#1}\s!name}%
    \else
-     \clf_firstsubcountervalue{\namedcounterparameter{#1}\s!name}\numexpr#2\relax\or
+     \clf_firstsubcountervalue{\namedcounterparameter{#1}\s!name}{#2}\or
    \fi}
 
 \permanent\tolerant\protected\def\prevcounter[#1]#*[#2]%
   {\ifarguments\or
      \clf_previouscountervalue   {\namedcounterparameter{#1}\s!name}%
    \else
-     \clf_previoussubcountervalue{\namedcounterparameter{#1}\s!name}\numexpr#2\relax\or
+     \clf_previoussubcountervalue{\namedcounterparameter{#1}\s!name}{#2}\or
    \fi}
 
 \permanent\tolerant\protected\def\nextcounter[#1]#*[#2]%
   {\ifarguments\or
      \clf_nextcountervalue   {\namedcounterparameter{#1}\s!name}%
    \else
-     \clf_nextsubcountervalue{\namedcounterparameter{#1}\s!name}\numexpr#2\relax\or
+     \clf_nextsubcountervalue{\namedcounterparameter{#1}\s!name}{#2}\or
    \fi}
 
 \permanent\tolerant\protected\def\countersubs[#1]#*[#2]%
   {\ifarguments\or
     \clf_subcountervalues   {\namedcounterparameter{#1}\s!name}%
    \else
-    \clf_subsubcountervalues{\namedcounterparameter{#1}\s!name}\numexpr#2\relax\or
+    \clf_subsubcountervalues{\namedcounterparameter{#1}\s!name}{#2}\or
    \fi}
 
 \permanent\tolerant\protected\def\savecounter[#1]%
@@ -197,9 +197,9 @@
      \clf_restorecounter{\namedcounterparameter{#1}\s!name}%
    \fi}
 
-\protected\def\strc_counters_set            #1#2{\clf_setcounter             {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
+\protected\def\strc_counters_set            #1#2{\clf_setcounter             {\namedcounterparameter{#1}\s!name}{#2}}
 \protected\def\strc_counters_setown         #1#2{\clf_setowncounter          {\namedcounterparameter{#1}\s!name}{#2}}
-\protected\def\strc_counters_restart        #1#2{\clf_restartcounter         {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
+\protected\def\strc_counters_restart        #1#2{\clf_restartcounter         {\namedcounterparameter{#1}\s!name}{#2}}
 \protected\def\strc_counters_reset            #1{\clf_resetcounter           {\namedcounterparameter{#1}\s!name}}
 \protected\def\strc_counters_decrement        #1{\clf_decrementcounter       {\namedcounterparameter{#1}\s!name}}
 
@@ -210,18 +210,18 @@
           \def\strc_counters_prev             #1{\clf_previouscountervalue   {\namedcounterparameter{#1}\s!name}}
           \def\strc_counters_subs             #1{\clf_subcountervalues       {\namedcounterparameter{#1}\s!name}}
 
-\protected\def\strc_counters_set_sub      #1#2#3{\clf_setsubcounter          {\namedcounterparameter{#1}\s!name}\numexpr#2\relax\numexpr#3\relax}
-\protected\def\strc_counters_setown_sub   #1#2#3{\clf_setownsubcounter       {\namedcounterparameter{#1}\s!name}\numexpr#2\relax{#3}}
-\protected\def\strc_counters_restart_sub  #1#2#3{\clf_restartsubcounter      {\namedcounterparameter{#1}\s!name}\numexpr#2\relax\numexpr#3\relax}
-\protected\def\strc_counters_reset_sub      #1#2{\clf_resetsubcounter        {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
-\protected\def\strc_counters_decrement_sub  #1#2{\clf_decrementsubcounter    {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
+\protected\def\strc_counters_set_sub      #1#2#3{\clf_setsubcounter          {\namedcounterparameter{#1}\s!name}{#2}{#3}}
+\protected\def\strc_counters_setown_sub   #1#2#3{\clf_setownsubcounter       {\namedcounterparameter{#1}\s!name}{#2}{#3}}
+\protected\def\strc_counters_restart_sub  #1#2#3{\clf_restartsubcounter      {\namedcounterparameter{#1}\s!name}{#2}{#3}}
+\protected\def\strc_counters_reset_sub      #1#2{\clf_resetsubcounter        {\namedcounterparameter{#1}\s!name}{#2}}
+\protected\def\strc_counters_decrement_sub  #1#2{\clf_decrementsubcounter    {\namedcounterparameter{#1}\s!name}{#2}}
 
-          \def\strc_counters_raw_sub        #1#2{\clf_subcountervalue        {\namedcounterparameter{#1}\s!name}\numexpr#2\relax} % maybe raw
-          \def\strc_counters_last_sub       #1#2{\clf_lastsubcountervalue    {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
-          \def\strc_counters_first_sub      #1#2{\clf_firstsubcountervalue   {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
-          \def\strc_counters_next_sub       #1#2{\clf_nextsubcountervalue    {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
-          \def\strc_counters_prev_sub       #1#2{\clf_previoussubcountervalue{\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
-          \def\strc_counters_subs_sub       #1#2{\clf_subsubcountervalues    {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
+          \def\strc_counters_raw_sub        #1#2{\clf_subcountervalue        {\namedcounterparameter{#1}\s!name}{#2}} % maybe raw
+          \def\strc_counters_last_sub       #1#2{\clf_lastsubcountervalue    {\namedcounterparameter{#1}\s!name}{#2}}
+          \def\strc_counters_first_sub      #1#2{\clf_firstsubcountervalue   {\namedcounterparameter{#1}\s!name}{#2}}
+          \def\strc_counters_next_sub       #1#2{\clf_nextsubcountervalue    {\namedcounterparameter{#1}\s!name}{#2}}
+          \def\strc_counters_prev_sub       #1#2{\clf_previoussubcountervalue{\namedcounterparameter{#1}\s!name}{#2}}
+          \def\strc_counters_subs_sub       #1#2{\clf_subsubcountervalues    {\namedcounterparameter{#1}\s!name}{#2}}
 
 \protected\def\strc_counters_save             #1{\clf_savecounter            {\namedcounterparameter{#1}\s!name}}
 \protected\def\strc_counters_restore          #1{\clf_restorecounter         {\namedcounterparameter{#1}\s!name}}
@@ -242,14 +242,16 @@
 \permanent\def\nextcountervalue [#1]{\clf_nextcountervalue    {\namedcounterparameter{#1}\s!name}}
 \permanent\def\prevcountervalue [#1]{\clf_previouscountervalue{\namedcounterparameter{#1}\s!name}}
 
-\permanent\def\rawsubcountervalue  [#1]#*[#2]{\clf_subcountervalue        {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
-\permanent\def\lastsubcountervalue [#1]#*[#2]{\clf_lastsubcountervalue    {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
-\permanent\def\firstsubcountervalue[#1]#*[#2]{\clf_firstsubcountervalue   {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
-\permanent\def\nextsubcountervalue [#1]#*[#2]{\clf_nextsubcountervalue    {\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
-\permanent\def\prevsubcountervalue [#1]#*[#2]{\clf_previoussubcountervalue{\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
+\permanent\def\rawsubcountervalue  [#1]#*[#2]{\clf_subcountervalue        {\namedcounterparameter{#1}\s!name}{#2}}
+\permanent\def\lastsubcountervalue [#1]#*[#2]{\clf_lastsubcountervalue    {\namedcounterparameter{#1}\s!name}{#2}}
+\permanent\def\firstsubcountervalue[#1]#*[#2]{\clf_firstsubcountervalue   {\namedcounterparameter{#1}\s!name}{#2}}
+\permanent\def\nextsubcountervalue [#1]#*[#2]{\clf_nextsubcountervalue    {\namedcounterparameter{#1}\s!name}{#2}}
+\permanent\def\prevsubcountervalue [#1]#*[#2]{\clf_previoussubcountervalue{\namedcounterparameter{#1}\s!name}{#2}}
 
 % The bypage check needs a multipass reference and therefore we only check for it when we increment
 % and know that some content will be placed. We could also check for spreads.
+
+\lettonothing\m_strc_counters_way
 
 \protected\def\strc_counters_increment_sub#1#2%
   {% this will be combined into one lua call
@@ -260,16 +262,16 @@
        \strc_counters_reset{#1}%
      \fi
    \fi
-   \clf_incrementsubcounter{\namedcounterparameter{#1}\s!name}\numexpr#2\relax}
+   \clf_incrementsubcounter{\namedcounterparameter{#1}\s!name}{#2}}
 
 \protected\def\strc_counters_increment#1%
   {\strc_counters_increment_sub{#1}\plusone}
 
 % so far for the hack
 
-\permanent\tolerant\protected\def\convertedcounter[#1]#*[#2]%
+\permanent\tolerant\protected\def\convertedcounter[#1]#*[#S#2]%
   {\begingroup
-   \edef\currentcounter{#1}%
+   \cdef\currentcounter{#1}%
    \ifparameter#2\or\setupcurrentcounter[#2]\fi
    \clf_prefixedconverted
      {\counterparameter\s!name}
@@ -378,14 +380,13 @@
 
 % currentstructurecomponent => \strc_current_ or just \m_strc_
 
-\mutable\let\currentname   \empty
-\mutable\let\currentcounter\empty
+\mutable\lettonothing\currentname
+\mutable\lettonothing\currentcounter
 
 \protected\def\strc_counters_register_component#1#2#3#4#5#6#7[#8][#9]% maybe also nolist
   {\begingroup
    %
-   #2[\s!haslevel=1,#8]%
-   \edef\p_haslevel  {#3\s!haslevel}%
+   #2[\s!level=1,#8]%
    \edef\p_hascaption{#3\s!hascaption}%
    \edef\p_hastitle  {#3\s!hastitle}%
    \edef\p_hasnumber {#3\s!hasnumber}%
@@ -399,7 +400,7 @@
    \ifempty\currentname
      \edef\currentname{#1}%
    \fi
-   \edef\currentcounter{#3\s!counter}%
+   \cdef\currentcounter{#3\s!counter}%
    \ifempty\currentcounter
      \let\currentcounter\currentname
    \fi
@@ -426,7 +427,7 @@
      \let\currentstructurecomponentreferenceprefix\referenceprefix
    \fi
    \ifdefined\currentstructurecomponentreferenceprefix\else
-     \let\currentstructurecomponentreferenceprefix\empty
+     \lettonothing\currentstructurecomponentreferenceprefix
    \fi}
 
 \def\strc_counters_register_component_page#1%
@@ -444,7 +445,7 @@
                   reference {\currentstructurecomponentreference}%
             }%
             metadata {%
-                kind {\s!page}%
+                kind \s!page % argument
             }%
         }%
    \relax
@@ -454,13 +455,17 @@
 
 \def\strc_counters_register_component_list#1#2#3#4%
   {\xdef\currentstructurecomponentname           {#2\s!name}%
-   \xdef\currentstructurecomponentlevel          {#2\c!level}%
+   \xdef\currentstructurecomponentcounter        {#2\s!counter}%
+   \xdef\currentstructurecomponentlevel          {#2\s!level}%
    \edef\currentstructurecomponentexpansion      {#2\c!expansion}%
    \xdef\currentstructurecomponentxmlsetup       {#2\c!xmlsetup}%
    \xdef\currentstructurecomponentcatcodes       {#2\s!catcodes}%
    \xdef\currentstructurecomponentlabel          {#2\c!label}%
    \xdef\currentstructurecomponentreference      {#2\c!reference}%
    \xdef\currentstructurecomponentreferenceprefix{#2\c!referenceprefix}%
+   \ifempty\currentstructurecomponentcounter
+      \glet\currentstructurecomponentcounter\currentcounter
+   \fi
    \strc_counters_register_component_check_prefix
    \ifx\currentstructurecomponentexpansion\s!xml
      \xmlstartraw
@@ -487,7 +492,7 @@
        \iflocation \ifempty\currentstructurecomponentbookmark
          \begingroup
          \simplifycommands
-         \xdef\currentstructurecomponentbookmark{\detokenize\expandafter{\normalexpanded{#2\c!title}}}%
+         \xdef\currentstructurecomponentbookmark{\detokenize\expandafter{\expanded{#2\c!title}}}%
         \endgroup
        \fi \fi
      \fi
@@ -501,7 +506,7 @@
    \scratchcounter\clf_addtolist %{
       metadata {
           kind     {#1}
-          name     {\currentname}
+          name     \currentname
         % level    structures.sections.currentlevel()
           catcodes \ifempty\currentstructurecomponentcatcodes\catcodetable\else\csname\currentstructurecomponentcatcodes\endcsname\fi
           coding   {\currentstructurecomponentcoding}
@@ -533,7 +538,7 @@
           list     {\detokenize\expandafter{\currentstructurecomponentlist}}
       \fi
       }
-  \ifx\p_hasnumber\v!yes
+  \ifx\p_hasnumber\v!yes\ifempty\currentstructurecomponentcounter\else
       prefixdata {
           prefix        {#2\c!prefix}
           separatorset  {#2\c!prefixseparatorset}
@@ -545,10 +550,13 @@
           connector     {#2\c!prefixconnector}
       }
       numberdata { % more helpers here, like compact elsewhere
-          numbers       {\currentcounter}
+        \ifempty\currentstructurecomponentlevel\else
+          level         \currentstructurecomponentlevel
+        \fi
+          numbers       {\currentstructurecomponentcounter}
           group         {#2\c!group}
           groupsuffix   {#2\c!groupsuffix}
-          counter       {\currentcounter}
+          counter       {\currentstructurecomponentcounter}
           separatorset  {#2\c!numberseparatorset}
           conversion    {#2\c!numberconversion}
           conversionset {#2\c!numberconversionset}
@@ -556,7 +564,7 @@
           stopper       {#2\c!numberstopper}
           segments      {#2\c!numbersegments}
       }
-  \fi
+  \fi\fi
       userdata {\detokenize{#4}}
    %}
    \relax
@@ -592,7 +600,7 @@
      \c!numbersegments     =#2\c!numbersegments]}
 
 \protected\def\strc_counter_setup_using_parameter#1#2% name \someparameter
-  {\edef\currentcounter{#1}%
+  {\cdef\currentcounter{#1}%
    %
    \setcounterparameter              \c!start{#2\c!start}%
    \setcounterparameter              \c!state{#2\c!state}% % beware, "" == start
@@ -616,16 +624,16 @@
    \setcounterparameter      \c!numberstopper{#2\c!numberstopper}%
    \setcounterparameter     \c!numbersegments{#2\c!numbersegments}%
    %
-   \the\everysetupcounter}
+   \expand\everysetupcounter}
 
 \protected\def\mult_interfaces_counter_association#1#2#3#4#5#6#7% tag current setup parameter list sync register
   {\strc_counter_preset_using_parameter#3\rootcounterparameter
    \newtoks#5%
    \permanent\protected\def   #6{\ifempty#2\the#5\else\strc_counter_setup_using_parameter#2#4\fi}% sync
-   \permanent\protected\def#7##1{\normalexpanded{#5{\the#5\strc_counter_setup_using_parameter{##1}\noexpand#4}}}} % register
+   \permanent\protected\def#7##1{\expanded{#5{\the#5\strc_counter_setup_using_parameter{##1}\noexpand#4}}}} % register
 
 \permanent\protected\def\installcounterassociation#1% => synchronize#1counters register#1counter
-  {\normalexpanded
+  {\expanded
      {\mult_interfaces_counter_association
         {#1}% not \??xx but xx
         \expandafter\noexpand\csname current#1\endcsname
@@ -659,12 +667,12 @@
 %       \ifempty#2%
 %         \the#5%
 %       \else
-%         \let\currentcounter\empty
-%         \the\everysetupcounter
+%         \lettonothing\currentcounter
+%         \expand\everysetupcounter
 %       \fi
 %       \strc_counter_setup_pop}%
 %    \protected\def#7##1% register
-%       {\normalexpanded{#5{\the#5\edef\noexpand\currentcounter{##1}\noexpand\the\everysetupcounter}}}}
+%       {\expanded{#5{\the#5\edef\noexpand\currentcounter{##1}\noexpand\expand\everysetupcounter}}}}
 
 %D For good old times (easier to explain in manuals):
 %D
@@ -681,7 +689,7 @@
 %         \edef\p_number{\counterparameter\c!number}%
 %         \ifempty\p_number \else
 %             \strc_counters_set\currentcounter\p_number
-%             \letcounterparameter\c!number\empty
+%             \resetcounterparameter\c!number
 %         \fi
 %     \fi
 % \to \everysetupcounter

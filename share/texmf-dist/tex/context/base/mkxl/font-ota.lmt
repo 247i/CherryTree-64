@@ -36,17 +36,18 @@ local getprev             = nuts.getprev
 local getprev             = nuts.getprev
 local getprop             = nuts.getprop
 local setprop             = nuts.setprop
-local getsubtype          = nuts.getsubtype
 local getchar             = nuts.getchar
+local getdisc             = nuts.getdisc
 local ischar              = nuts.ischar
 local isnextchar          = nuts.isnextchar
 ----- isprevchar          = nuts.isprevchar
 
-local end_of_math         = nuts.end_of_math
+local endofmath           = nuts.endofmath
+local nextglyph           = nuts.traversers.glyph
 
 local nodecodes           = nodes.nodecodes
-local disc_code           = nodecodes.disc
-local math_code           = nodecodes.math
+local disc_code           <const> = nodecodes.disc
+local math_code           <const> = nodecodes.math
 
 local fontdata            = fonts.hashes.identifiers
 local descriptiondata     = fonts.hashes.descriptions
@@ -56,10 +57,8 @@ local chardata            = characters and characters.data
 local otffeatures         = fonts.constructors.features.otf
 local registerotffeature  = otffeatures.register
 
---[[ldx--
-<p>Analyzers run per script and/or language and are needed in order to
-process features right.</p>
---ldx]]--
+-- Analyzers run per script and/or language and are needed in order to process
+-- features right.
 
 local setstate = nuts.setstate
 local getstate = nuts.getstate
@@ -171,7 +170,7 @@ end
 local is_letter = characters.is_letter
 local is_mark   = characters.is_mark
 
-function analyzers.setstate(head,font) -- latin
+local function setstate_latn(head,font) -- latin
     local useunicodemarks = analyzers.useunicodemarks
     local descriptions    = descriptiondata[font]
     local first           = false
@@ -186,10 +185,11 @@ function analyzers.setstate(head,font) -- latin
             if not getstate(current) then
              -- local d = descriptions[char]
              -- if d then
+                    local category = categories[char]
                  -- if d.class == "mark" or (useunicodemarks and categories[char] == "mn") then
-                    if is_mark[char] then
+                    if is_mark[category] then
                         setstate(current,s_mark)
-                    elseif is_letter[char] then
+                    elseif is_letter[category] then
                         if first then
                             setstate(current,s_medi)
                         else
@@ -216,14 +216,22 @@ function analyzers.setstate(head,font) -- latin
             end
             first = false
             if id == math_code then
-             -- current = end_of_math(current)
-                nxt = getnext(end_of_math(current))
+             -- current = endofmath(current)
+                nxt = getnext(endofmath(current))
             end
         elseif id == disc_code then
-            -- always in the middle .. it doesn't make much sense to assign a property
-            -- here ... we might at some point decide to flag the components when present
-            -- but even then it's kind of bogus
-            setstate(current,s_medi)
+            -- We're always in the middle .. it doesn't make much sense to assign a property
+            -- here ... we might at some point decide to flag the components when present but
+            -- even then it's kind of bogus. Just don't hyphenate in handwriting.
+            --
+         -- setstate(current,s_medi) -- doesn't do anything .. no glyph
+            --
+            local pre, post, replace = getdisc(current)
+            if pre     then for g in nextglyph, pre     do setstate(g,s_medi) end end
+            if post    then for g in nextglyph, post    do setstate(g,s_medi) end end
+            if replace then for g in nextglyph, replace do setstate(g,s_medi) end end
+            -- We abuse the fact that discs have no state so when we setstate(last,...) it
+            -- will just be ignored.
             last = current
         else -- finish
             if first then
@@ -231,7 +239,7 @@ function analyzers.setstate(head,font) -- latin
             end
             first = false
             if id == math_code then
-                current = end_of_math(current)
+                current = endofmath(current)
             end
         end
       ::NEXT::
@@ -243,6 +251,8 @@ function analyzers.setstate(head,font) -- latin
     end
     return head, done
 end
+
+analyzers.setstate = setstate_latn
 
 -- in the future we will use language/script attributes instead of the
 -- font related value, but then we also need dynamic features which is
@@ -430,8 +440,8 @@ function methods.arab(head,font,attr)
                 first = nil
             end
             if id == math_code then -- a bit duplicate as we test for glyphs twice
-             -- current = end_of_math(current)
-                nxt = getnext(end_of_math(current))
+             -- current = endofmath(current)
+                nxt = getnext(endofmath(current))
             end
         end
      -- current = getnext(current)
@@ -560,8 +570,8 @@ do
                     wrapup()
                 end
                 if id == math_code then -- a bit duplicate as we test for glyphs twice
-                 -- current = end_of_math(current)
-                    nxt = getnext(end_of_math(current))
+                 -- current = endofmath(current)
+                    nxt = getnext(endofmath(current))
                 end
             end
          -- current = getnext(current)

@@ -10,6 +10,9 @@ if not modules then modules = { } end modules ['typo-mar'] = {
 --
 -- * autoleft/right depending on available space (or distance to margin)
 -- * floating margin data, with close-to-call anchoring
+--
+-- Maybe I should redo this one using a few options available in luametatex
+-- but it's easy to break this.
 
 local format, validstring = string.format, string.valid
 local insert, remove, sortedkeys, fastcopy = table.insert, table.remove, table.sortedkeys, table.fastcopy
@@ -39,31 +42,31 @@ local variables          = interfaces.variables
 local conditionals       = tex.conditionals
 local systemmodes        = tex.systemmodes
 
-local v_top              = variables.top
-local v_depth            = variables.depth
-local v_local            = variables["local"]
-local v_global           = variables["global"]
-local v_left             = variables.left
-local v_right            = variables.right
-local v_inner            = variables.inner
-local v_outer            = variables.outer
-local v_margin           = variables.margin
-local v_edge             = variables.edge
-local v_default          = variables.default
-local v_normal           = variables.normal
-local v_yes              = variables.yes
-local v_continue         = variables.continue
-local v_first            = variables.first
-local v_text             = variables.text
-local v_paragraph        = variables.paragraph
-local v_line             = variables.line
+local v_top              <const> = variables.top
+local v_depth            <const> = variables.depth
+local v_local            <const> = variables["local"]
+local v_global           <const> = variables["global"]
+local v_left             <const> = variables.left
+local v_right            <const> = variables.right
+local v_inner            <const> = variables.inner
+local v_outer            <const> = variables.outer
+local v_margin           <const> = variables.margin
+local v_edge             <const> = variables.edge
+local v_default          <const> = variables.default
+local v_normal           <const> = variables.normal
+local v_yes              <const> = variables.yes
+local v_continue         <const> = variables.continue
+local v_first            <const> = variables.first
+local v_text             <const> = variables.text
+local v_paragraph        <const> = variables.paragraph
+local v_line             <const> = variables.line
 
 local nuts               = nodes.nuts
 local tonode             = nuts.tonode
 
-local hpack_nodes        = nuts.hpack
-local traverse_id        = nuts.traverse_id
-local flush_node_list    = nuts.flush_list
+local hpacknodes         = nuts.hpack
+local traverseid         = nuts.traverseid
+local flushnodelist      = nuts.flushlist
 
 local getnext            = nuts.getnext
 local getprev            = nuts.getprev
@@ -80,10 +83,16 @@ local setshift           = nuts.setshift
 local getwidth           = nuts.getwidth
 local setwidth           = nuts.setwidth
 local getheight          = nuts.getheight
+local getexcept          = nuts.getexcept
+local setexcept          = nuts.setexcept
+
+local margin_excepts     = false
+
+directives.register("typesetters.margindata.excepts",function(v)
+    margin_excepts = v
+end)
 
 local setattrlist        = nuts.setattrlist
-
-local getbox             = nuts.getbox
 local takebox            = nuts.takebox
 
 local setprop            = nuts.setprop
@@ -93,10 +102,10 @@ local nodecodes          = nodes.nodecodes
 local listcodes          = nodes.listcodes
 local whatsitcodes       = nodes.whatsitcodes
 
-local hlist_code         = nodecodes.hlist
-local vlist_code         = nodecodes.vlist
-local whatsit_code       = nodecodes.whatsit
-local userdefined_code   = whatsitcodes.userdefined
+local hlist_code         <const> = nodecodes.hlist
+local vlist_code         <const> = nodecodes.vlist
+local whatsit_code       <const> = nodecodes.whatsit
+local userdefined_code   <const> = whatsitcodes.userdefined
 
 local nodepool           = nuts.pool
 
@@ -105,6 +114,7 @@ local new_usernode       = nodepool.usernode
 local latelua            = nodepool.latelua
 
 local texgetdimen        = tex.getdimen
+
 local texgetcount        = tex.getcount
 local texget             = tex.get
 
@@ -116,9 +126,9 @@ local addtoline          = paragraphs.addtoline
 local moveinline         = paragraphs.moveinline
 local calculatedelta     = paragraphs.calculatedelta
 
-local a_linenumber       = attributes.private('linenumber')
+local a_linenumber       <const> = attributes.private('linenumber')
 
-local inline_mark        = nodepool.userids["margins.inline"]
+local inline_mark        <const> = nodepool.userids["margins.inline"]
 
 local jobpositions       = job.positions
 local getposition        = jobpositions.get
@@ -215,7 +225,8 @@ function margins.save(t)
         report_margindata("ignoring empty margin data %a",location or "unknown")
         return
     end
-    setprop(content,"specialcontent","margindata")
+ -- setprop(content,"specialcontent","margindata")
+ -- setoptions(content,noprofiling_code)
     local store
     if inline then
         store = inlinestore
@@ -251,7 +262,7 @@ function margins.save(t)
                 local si = store[i]
                 if si.name == name then
                     local s = remove(store,i)
-                    flush_node_list(s.box)
+                    flushnodelist(s.box)
                 end
             end
         else
@@ -259,7 +270,7 @@ function margins.save(t)
                 local si = store[i]
                 if si.name == name then
                     local s = remove(store,i)
-                    flush_node_list(s.box)
+                    flushnodelist(s.box)
                 end
             end
         end
@@ -270,8 +281,8 @@ function margins.save(t)
     if t.number then
         local leftmargindistance  = texgetdimen("naturalleftmargindistance")
         local rightmargindistance = texgetdimen("naturalrightmargindistance")
-        local strutbox            = getbox("strutbox")
-        local _, strutht, strutdp = getwhd(strutbox)
+        local strutht = texgetdimen("strutht")
+        local strutdp = texgetdimen("strutdp")
         -- better make a new table and make t entry in t
         t.box                 = content
         t.n                   = nofsaved
@@ -285,11 +296,11 @@ function margins.save(t)
         --
         t.leftmargindistance  = leftmargindistance -- todo:layoutstatus table
         t.rightmargindistance = rightmargindistance
-        t.leftedgedistance    = texgetdimen("naturalleftedgedistance")
-                              + texgetdimen("leftmarginwidth")
+        t.leftedgedistance    = texgetdimen("naturalleftedgedistance")  -- can be swapped
+                              + texgetdimen("leftmarginwidth")          -- can be swapped
                               + leftmargindistance
-        t.rightedgedistance   = texgetdimen("naturalrightedgedistance")
-                              + texgetdimen("rightmarginwidth")
+        t.rightedgedistance   = texgetdimen("naturalrightedgedistance") -- can be swapped
+                              + texgetdimen("rightmarginwidth")         -- can be swapped
                               + rightmargindistance
         t.lineheight          = texgetdimen("lineheight")
         --
@@ -492,9 +503,9 @@ local function markovershoot(current) -- todo: alleen als offset > line
     v_anchors = v_anchors + 1
     cache[v_anchors] = fastcopy(stacked)
     local anchor = setanchor(v_anchors)
- -- local list = hpack_nodes(setlink(anchor,getlist(current))) -- not ok, we need to retain width
+ -- local list = hpacknodes(setlink(anchor,getlist(current))) -- not ok, we need to retain width
  -- local list = setlink(anchor,getlist(current)) -- why not this ... better play safe
-    local list = hpack_nodes(setlink(anchor,getlist(current)),getwidth(current),"exactly")--
+    local list = hpacknodes(setlink(anchor,getlist(current)),getwidth(current),"exactly")--
     if trace_marginstack then
         report_margindata("marking anchor %a",v_anchors)
     end
@@ -507,7 +518,7 @@ local function inject(parent,head,candidate)
         return head, nil, false -- we can have empty texts
     end
     local width, height, depth
-                       = getwhd(box)
+                       = getwhd(box) -- use getlistdimensions instead
     local shift        = getshift(box)
     local stack        = candidate.stack
     local stackname    = candidate.stackname
@@ -617,6 +628,14 @@ local function inject(parent,head,candidate)
         offset = offset + candidate.dy -- always
         shift  = shift + offset
     end
+    --
+    if margin_excepts then
+        -- This is not (yet) ok when continue is used.
+        local except, exdepth = getexcept(parent)
+        exdepth = exdepth + height + depth -- + candidate.dy
+        setexcept(parent,except,exdepth)
+    end
+    --
     -- Maybe we also need to patch offset when we apply methods, but how ...
     -- This needs a bit of playing as it depends on the stack setting of the
     -- following which we don't know yet ... so, consider stacking partially
@@ -790,7 +809,7 @@ local function flushed(scope,parent) -- current is hlist
     if done then
         local a = getattr(head,a_linenumber) -- hack .. we need a more decent critical attribute inheritance mechanism
         if false then
-            local l = hpack_nodes(head,getwidth(parent),"exactly")
+            local l = hpacknodes(head,getwidth(parent),"exactly")
             setlist(parent,l)
             if a then
                 setattr(l,a_linenumber,a)
@@ -806,7 +825,7 @@ local function flushed(scope,parent) -- current is hlist
     return done, continue
 end
 
--- only when group   : vbox|vmode_par
+-- only when group   : vbox|vmodepar
 -- only when subtype : line, box (no indent alignment cell)
 
 local function handler(scope,head,group)
@@ -884,9 +903,9 @@ function margins.globalhandler(head,group) -- check group
             report_margindata("ignored 1, group %a, stored %s, inhibit %a",group,nofstored,inhibit)
         end
         return head
-    elseif group == "hmode_par" then
+    elseif group == "hmodepar" then
         return handler(v_global,head,group)
-    elseif group == "vmode_par" then              -- experiment (for alignments)
+    elseif group == "vmodepar" then              -- experiment (for alignments)
         return handler(v_global,head,group)
      -- this needs checking as we then get quite some one liners to process and
      -- we cannot look ahead then:
@@ -905,7 +924,7 @@ end
 local function finalhandler(head)
     if nofdelayed > 0 then
         local current = head
-        while current and nofdelayed > 0 do -- traverse_list
+        while current and nofdelayed > 0 do
             local id = getid(current)
             if id == hlist_code then -- only lines?
                 local a = getprop(current,"margindata")

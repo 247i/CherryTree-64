@@ -19,7 +19,7 @@
 %D it as core functionality. For the moment this an experiment that
 %D Alan and I conduct so it might evolve.
 
-\registerctxluafile{strc-lev}{}
+\registerctxluafile{strc-lev}{autosuffix}
 
 \unprotect
 
@@ -42,7 +42,7 @@
 \permanent\protected\def\stopsubjectlevel
   {\clf_stopsectionlevel} % we could use public at the lua end
 
-\permanent\tolerant\protected\def\nostarthead[#category]#spacer[#settings]#spacer[#userdata]%
+\permanent\tolerant\protected\def\nostarthead[#category]#spacer[#S#settings]#spacer[#S#userdata]%
   {\blank
    \noindentation{\tttf[start missing section level #category]}
    \blank}

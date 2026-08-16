@@ -78,18 +78,19 @@ function statistics.savefmtstatus(texname,formatbanner,sourcefile,banner) -- tex
             sourcehash    = md5.hex(io.loaddata(findfile(sourcefile)) or "unknown"),
             sourcefile    = sourcefile,
             luaversion    = LUAVERSION,
+            luaformat     = LUAFORMAT or 0,
             formatid      = LUATEXFORMATID,
             functionality = LUATEXFUNCTIONALITY,
         }
         io.savedata(luvname,table.serialize(luvdata,true))
-        lua.registerfinalizer(function()
+        lua.registerinitexfinalizer(function()
             if jit then
                 logs.report("format banner","%s  lua: %s jit",banner,LUAVERSION)
             else
-                logs.report("format banner","%s  lua: %s",banner,LUAVERSION)
+                logs.report("format banner","%s  lua: %s, format: %s",banner,LUAVERSION,LUAFORMAT)
             end
             logs.newline()
-        end)
+        end, "show banner")
     end
 end
 
@@ -118,6 +119,13 @@ function statistics.checkfmtstatus(texname)
                 if luvluaversion ~= engluaversion then
                     return format("lua mismatch (luv: %s <> bin: %s)",luvluaversion,engluaversion)
                 end
+
+                local luvluaformat = luv.luaformat or 0
+                local engluaformat = LUAFORMAT or 0
+                if luvluaformat ~= engluaformat then
+                    return format("lua bytecode format mismatch (luv: %s <> bin: %s)",luvluaformat,engluaformat)
+                end
+
                 local luvfunctionality = luv.functionality or 0
                 local engfunctionality = status.development_id or 0
                 if luvfunctionality ~= engfunctionality then

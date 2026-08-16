@@ -6,8 +6,12 @@ if not modules then modules = { } end modules ['s-fonts-tables'] = {
     license   = "see context related readme files"
 }
 
+-- This file needs to be updated to LMTX!
+
 moduledata.fonts          = moduledata.fonts        or { }
 moduledata.fonts.tables   = moduledata.fonts.tables or { }
+
+require("font-cft")
 
 local rawget, type = rawget, type
 
@@ -27,7 +31,7 @@ local setlink             = nodes.setlink
 local hpack               = nodes.hpack
 local applyvisuals        = nodes.applyvisuals
 
-local lefttoright_code    = nodes.dirvalues.lefttoright
+local lefttoright_code    = (tex.directioncodes and tex.directioncodes.lefttoright) or nodes.dirvalues.lefttoright -- LMTX
 
 local handle_positions    = fonts.handlers.otf.datasetpositionprocessor
 local handle_injections   = nodes.injections.handler
@@ -284,7 +288,6 @@ end
 function tabletracers.showpositionings(specification)
 
     local tfmdata, fontid, resources = checked(specification)
-
     if resources then
 
         local direction = lefttoright_code -- not that relevant probably
@@ -676,18 +679,28 @@ end
 
 local function collectligatures(steps)
 
+    -- Mostly the same as s-fonts-features so we should make a helper.
+
     local series = { }
     local stack  = { }
     local max    = 0
 
+    local function add(v)
+        local n = #stack
+        if n > max then
+            max = n
+        end
+        series[#series+1] = { v, unpack(stack) }
+    end
+
     local function make(tree)
         for k, v in sortedhash(tree) do
             if k == "ligature" then
-                local n = #stack
-                if n > max then
-                    max = n
-                end
-                series[#series+1] = { v, unpack(stack) }
+                add(v)
+            elseif tonumber(v) then
+                insert(stack,k)
+                add(v)
+                remove(stack)
             else
                 insert(stack,k)
                 make(v)

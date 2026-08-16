@@ -12,11 +12,16 @@ local givenfiles  = environment.files
 
 local suffix, addsuffix, removesuffix, replacesuffix = file.suffix, file.addsuffix, file.removesuffix, file.replacesuffix
 local nameonly, basename, joinpath, collapsepath = file.nameonly, file.basename, file.join, file.collapsepath
-local lower = string.lower
+local lower, gsub = string.lower, string.gsub
 local concat = table.concat
 local write_nl = (logs and logs.writer) or (texio and texio.write_nl) or print
 
-local otlversion  = 3.113
+local versions = {
+    otl = 3.150,
+    one = 1.541,
+    afm = 1.541,
+    pfb = 1.003,
+}
 
 local helpinfo = [[
 <?xml version="1.0"?>
@@ -24,7 +29,7 @@ local helpinfo = [[
  <metadata>
   <entry name="name">mtx-fonts</entry>
   <entry name="detail">ConTeXt Font Database Management</entry>
-  <entry name="version">1.00</entry>
+  <entry name="version">1.21</entry>
  </metadata>
  <flags>
   <category name="basic">
@@ -51,6 +56,10 @@ local helpinfo = [[
     <flag name="names"><short>use name instead of unicodes</short></flag>
     <flag name="cache" value="str"><short>use specific cache (otl or otf)</short></flag>
    </subcategory>
+   <subcategory>
+    <flag name="pattern" value="str"><short>filter files using pattern</short></flag>
+    <flag name="coverage" value="str"><short>character list</short></flag>
+   </subcategory>
   </category>
  </flags>
  <examples>
@@ -58,6 +67,10 @@ local helpinfo = [[
    <title>Examples</title>
    <subcategory>
     <example><command>mtxrun --script font --list somename (== --pattern=*somename*)</command></example>
+   </subcategory>
+   <subcategory>
+    <example><command>mtxrun --script font --list --file filename</command></example>
+    <example><command>mtxrun --script font --list --name --pattern=*somefile*</command></example>
    </subcategory>
    <subcategory>
     <example><command>mtxrun --script font --list --name somename</command></example>
@@ -81,6 +94,10 @@ local helpinfo = [[
     <example><command>mtxrun --script font --convert texgyrepagella-regular.otf</command></example>
     <example><command>mtxrun --script font --convert --names texgyrepagella-regular.otf</command></example>
    </subcategory>
+   <subcategory>
+    <example><command>mtxrun --script font --coverage="U+123 U+124" --pattern=texgyre*</command></example>
+    <example><command>mtxrun --script font --coverage="✓"</command></example>
+   </subcategory>
   </category>
  </examples>
 </application>
@@ -88,7 +105,7 @@ local helpinfo = [[
 
 local application = logs.application {
     name     = "mtx-fonts",
-    banner   = "ConTeXt Font Database Management 0.21",
+    banner   = "ConTeXt Font Database Management 1.22",
     helpinfo = helpinfo,
 }
 
@@ -123,7 +140,7 @@ loadmodule("font-otr.lua")
 loadmodule("font-cff.lua")
 loadmodule("font-ttf.lua")
 loadmodule("font-tmp.lua")
-loadmodule("font-dsp.lua")
+loadmodule("font-dsp.lua") -- autosuffix
 loadmodule("font-oup.lua")
 
 loadmodule("font-otl.lua")
@@ -183,6 +200,9 @@ function fonts.names.simple(alsotypeone)
     local simplelist = { "ttf", "otf", "ttc", alsotypeone and "afm" or nil }
     local name = "luatex-fonts-names.lua"
     local path = collapsepath(caches.getwritablepath("..","..","generic","fonts","data"))
+
+    path = gsub(path, "luametatex%-cache", "luatex-cache") -- maybe have an option to force it
+
     fonts.names.filters.list = simplelist
     fonts.names.version = simpleversion -- this number is the same as in font-dum.lua
     report("generating font database for 'luatex-fonts' version %s",fonts.names.version)
@@ -281,14 +301,19 @@ local function showfeatures(tag,specification)
                 for f,ff in table.sortedhash(data) do
                     local done = false
                     for s, ss in table.sortedhash(ff) do
-                        if s == "*"  then s       = "all" end
-                        if ss  ["*"] then ss["*"] = nil ss.all = true end
+                        local s = s == "*" and all or s
+                        if ss["*"] then
+                            ss["*"] = nil
+                            ss.all  = true
+                        end
+                        local name
                         if done then
-                            f = ""
+                            name = ""
                         else
                             done = true
+                            name = f
                         end
-                        report("  % -8s % -8s % -8s",f,s,concat(table.sortedkeys(ss), " ")) -- todo: padd 4
+                        report("  %-8s %-8s %-8s",name,s,concat(table.sortedkeys(ss), " ")) -- todo: padd 4
                     end
                 end
             end
@@ -310,7 +335,7 @@ local function showfeatures(tag,specification)
             report("  method   feature         formats")
             report()
             for k, v in table.sortedhash(methods) do
-                report("  % -8s % -14s  %s",k,v.feature,v.format)
+                report("  %-8s %-14s  %s",k,v.feature,v.format)
             end
         end
     end
@@ -351,9 +376,14 @@ local function list_specifications(t,info)
                     fontweight(entry.fontweight),
                 }
             end
-            table.insert(s,1,{"familyname","weight","style","width","variant","fontname","filename","subfont","fontweight"})
-            table.insert(s,2,{"","","","","","","","",""})
-            utilities.formatters.formatcolumns(s)
+            local h = {
+                {"familyname","weight","style","width","variant","fontname","filename","subfont","fontweight"},
+                {"","","","","","","","",""}
+            }
+            utilities.formatters.formatcolumns(s,false,h)
+            for k=1,#h do
+                write_nl(h[k])
+            end
             for k=1,#s do
                 write_nl(s[k])
             end
@@ -406,46 +436,46 @@ function scripts.fonts.list()
 
     if getargument("name") then
         if pattern then
-            --~ mtxrun --script font --list --name --pattern=*somename*
+            -- mtxrun --script font --list --name --pattern=*somename*
             list_matches(fonts.names.list(string.topattern(pattern,true),reload,all),info)
         elseif filter then
             report("not supported: --list --name --filter",name)
         elseif given then
-            --~ mtxrun --script font --list --name somename
+            -- mtxrun --script font --list --name somename
             list_matches(fonts.names.list(given,reload,all),info)
         else
             report("not supported: --list --name <no specification>",name)
         end
     elseif getargument("spec") then
         if pattern then
-            --~ mtxrun --script font --list --spec --pattern=*somename*
+            -- mtxrun --script font --list --spec --pattern=*somename*
             report("not supported: --list --spec --pattern",name)
         elseif filter then
-            --~ mtxrun --script font --list --spec --filter="fontname=somename"
+            -- mtxrun --script font --list --spec --filter="fontname=somename"
             list_specifications(fonts.names.getlookups(filter),info)
         elseif given then
-            --~ mtxrun --script font --list --spec somename
+            -- mtxrun --script font --list --spec somename
             list_specifications(fonts.names.collectspec(given,reload,all),info)
         else
             report("not supported: --list --spec <no specification>",name)
         end
     elseif getargument("file") then
         if pattern then
-            --~ mtxrun --script font --list --file --pattern=*somename*
+            -- mtxrun --script font --list --file --pattern=*somename*
             list_specifications(fonts.names.collectfiles(string.topattern(pattern,true),reload,all),info)
         elseif filter then
             report("not supported: --list --spec",name)
         elseif given then
-            --~ mtxrun --script font --list --file somename
+            -- mtxrun --script font --list --file somename
             list_specifications(fonts.names.collectfiles(given,reload,all),info)
         else
             report("not supported: --list --file <no specification>",name)
         end
     elseif pattern then
-        --~ mtxrun --script font --list --pattern=*somename*
+        -- mtxrun --script font --list --pattern=*somename*
         list_matches(fonts.names.list(string.topattern(pattern,true),reload,all),info)
     elseif given then
-        --~ mtxrun --script font --list somename
+        -- mtxrun --script font --list somename
         list_matches(fonts.names.list(given,reload,all),info)
     elseif all then
         pattern = "*"
@@ -456,13 +486,115 @@ function scripts.fonts.list()
 
 end
 
+-- For Mikael S:
+
+function scripts.fonts.coverage()
+
+    local coverage = getargument("coverage")
+    local reload   = getargument("reload")
+    local pattern  = getargument("pattern")
+
+    if type(coverage) ~= "string" or coverage == "" then
+        return
+    end
+
+    coverage = string.gsub(coverage,"0x([0-9A-Fa-f]+)",function(s)
+        return utf.char(tonumber(s,16))
+    end)
+
+    coverage = string.gsub(coverage,"U%+([0-9A-F]+)",function(s)
+        return utf.char(tonumber(s,16))
+    end)
+
+    coverage = string.gsub(coverage,"%s+","")
+
+    local chars = table.unique(utf.split(coverage))
+    local bytes = { }
+
+    for i=1,#chars do
+        bytes[#bytes+1] = utf.byte(chars[i])
+    end
+
+    local f_c = string.formatters["%C"]
+
+    local function okay(data)
+        if data then
+            local descriptions = data.descriptions
+            if descriptions then
+                local f = { }
+                local d = false
+                for i=1,#bytes do
+                    local b = bytes[i]
+                    if descriptions[b] then
+                        f[i] = f_c(b)
+                        d = true
+                    else
+                        f[i] = "[" .. f_c(b) .. "]"
+                    end
+                end
+                return d and f or false
+            end
+        end
+    end
+
+    reloadbase(reload)
+
+    local files = fonts.names.list(pattern and string.topattern(pattern,true) or "",reload,true)
+    local found = { }
+    local done  = { }
+
+--     inspect(files)
+
+    if files then
+        for id, specification in next, files do
+            if specification.format == "otf" or specification.format == "ttf" then
+                if not done[specification.filename] then
+                    local fullname = resolvers.findfile(specification.filename) or ""
+                    if fullname ~= "" then
+                        local data = fonts.handlers.otf.load(fullname)
+                        local list = okay(data)
+                        if list then
+                            found[id] = list
+                        end
+                    end
+                    done[specification.filename] = true
+                end
+            end
+    --     collectgarbage("collect")
+        end
+    end
+
+    if next(found) then
+        report()
+        for id, found in table.sortedhash(found) do
+            local specification = files[id]
+            indeed("filename  : %s",specification.filename)
+            indeed("fontname  : %s",specification.fontname)
+            indeed("coverage  : % t",found)
+            report()
+        end
+    end
+end
+
 function scripts.fonts.unpack()
     local name = removesuffix(basename(givenfiles[1] or ""))
     if name and name ~= "" then
-        local cacheid   = getargument("cache") or "otl"
-        local cache     = containers.define("fonts", cacheid, otlversion, true) -- cache is temp
-        local cleanname = containers.cleanname(name)
-        local data = containers.read(cache,cleanname)
+        local cacheid   = false
+        local cache     = false
+        local cleanname = false
+        local data      = false
+        local list = { getargument("cache") or false, "otl", "one" }
+        for i=1,#list do
+            cacheid   = list[i]
+            if cacheid then
+                cache     = containers.define("fonts", cacheid, versions[cacheid], true) -- cache is temp
+                cleanname = containers.cleanname(name)
+                data      = containers.read(cache,cleanname)
+                if data then
+                    break
+                end
+            end
+        end
         if data then
             local savename = addsuffix(cleanname .. "-unpacked","tma")
             report("fontsave, saving data in %s",savename)
@@ -522,6 +654,8 @@ elseif getargument("reload") then
     scripts.fonts.reload()
 elseif getargument("convert") then
     scripts.fonts.convert()
+elseif getargument("coverage") then
+    scripts.fonts.coverage()
 elseif getargument("unpack") then
     scripts.fonts.unpack()
 elseif getargument("statistics") then

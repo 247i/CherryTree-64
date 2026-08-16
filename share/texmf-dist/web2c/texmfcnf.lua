@@ -44,7 +44,7 @@ return {
 
             -- only used for FONTCONFIG_PATH & TEXMFCACHE in TeX Live
 
-            TEXMFSYSVAR     = "C:/msys64/mingw64/var/lib/texmf",
+            TEXMFSYSVAR     = "D:/a/_temp/msys64/ucrt64/var/lib/texmf",
             TEXMFVAR        = "home:.texlive/texmf-var",
 
             -- We have only one cache path but there can be more. The first writable one
@@ -65,7 +65,7 @@ return {
             TEXMFDIST       = "selfautodir:share/texmf-dist",
 
             TEXMFLOCAL      = texmflocal,
-            TEXMFSYSCONFIG  = "C:/msys64/mingw64/etc/texmf",
+            TEXMFSYSCONFIG  = "D:/a/_temp/msys64/ucrt64/etc/texmf",
             TEXMFFONTS      = "selfautoparent:texmf-fonts",
             TEXMFPROJECT    = "selfautoparent:texmf-project",
 

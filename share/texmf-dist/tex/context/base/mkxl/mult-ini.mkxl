@@ -19,8 +19,10 @@
 
 \unprotect
 
-\registerctxluafile{mult-ini}{autosuffix}
-\registerctxluafile{mult-fmt}{initexonly}
+\pushoverloadmode
+    \registerctxluafile{mult-ini}{autosuffix}
+    \registerctxluafile{mult-fmt}{initexonly}
+\popoverloadmode
 
 %D \macros
 %D   [constanten,variabelen,commands]
@@ -53,14 +55,14 @@
 %D \type {!!!!}. In the meantime some of these are obsolete (we had some 12
 %D originally).
 
-\immutable\def\c!prefix!{c!}
-\immutable\def\k!prefix!{k!}
-\immutable\def\e!prefix!{e!}
-\immutable\def\f!prefix!{f!} % for the moment we keep this one
-\immutable\def\m!prefix!{m!}
-\immutable\def\s!prefix!{s!}
-\immutable\def\v!prefix!{v!}
-\immutable\def\t!prefix!{t!}
+\permanent\cdef\c!prefix!{c!}
+\permanent\cdef\k!prefix!{k!}
+\permanent\cdef\e!prefix!{e!}
+\permanent\cdef\f!prefix!{f!} % for the moment we keep this one
+\permanent\cdef\m!prefix!{m!}
+\permanent\cdef\s!prefix!{s!}
+\permanent\cdef\v!prefix!{v!}
+\permanent\cdef\t!prefix!{t!}
 
 %D \macros
 %D   [constants,variables,commands]
@@ -71,22 +73,22 @@
 %D \type {??}, and a system constant, which has the prefix \type {c!}. We'll se some
 %D more of this.
 
-\immutable\def\??prefix  {??}
-\immutable\def\@@prefix  {@@}
+\permanent\cdef\??prefix  {??}
+\permanent\cdef\@@prefix  {@@}
 
 %D Just to be complete we repeat some of the already defined system constants here.
 %D Maybe their prefix \type {\s!} now falls into place.
 
-\def\s!next    {next}         \def\s!default {default}
-\def\s!dummy   {dummy}        \def\s!unknown {unknown}
+\cdef\s!next    {next}         \cdef\s!default {default}
+\cdef\s!dummy   {dummy}        \cdef\s!unknown {unknown}
 
-\def\s!do      {do}           \def\s!dodo    {dodo}
+\cdef\s!do      {do}           \cdef\s!dodo    {dodo}
 
-\def\s!complex {complex}      \def\s!start   {start}
-\def\s!simple  {simple}       \def\s!stop    {stop}
+\cdef\s!complex {complex}      \cdef\s!start   {start}
+\cdef\s!simple  {simple}       \cdef\s!stop    {stop}
 
-\def\s!true    {true}
-\def\s!false   {false}
+\cdef\s!true    {true}
+\cdef\s!false   {false}
 
 %D The word \type {height} takes 6~token memory cells. The control sequence \type
 %D {\height} on the other hand uses only one. Knowing this, we can improve the
@@ -107,32 +109,34 @@
 %D than once. Savings like this should of course be implemented in english, just
 %D because \TEX\ is english.
 
-\def\s!width      {width}
-\def\s!height     {height}
-\def\s!depth      {depth}
-\def\s!spread     {spread}
-\def\s!plus       {plus}
-\def\s!minus      {minus}
-\def\s!to         {to}
+% system constants
 
-\def\s!fil        {fil}
-\def\s!fill       {fill}
-\def\s!filll      {filll}
+\cdef\s!width      {width}
+\cdef\s!height     {height}
+\cdef\s!depth      {depth}
+\cdef\s!spread     {spread}
+\cdef\s!plus       {plus}
+\cdef\s!minus      {minus}
+\cdef\s!to         {to}
 
-\def\s!attr       {attr}
-\def\s!axis       {axis}
-\def\s!both       {both}
-\def\s!bottom     {bottom}
-\def\s!left       {left}
-\def\s!options    {options}
-\def\s!orientation{orientation}
-\def\s!reverse    {reverse}
-\def\s!right      {right}
-\def\s!top        {top}
-\def\s!xmove      {xmove}
-\def\s!xoffset    {xoffset}
-\def\s!ymove      {ymove}
-\def\s!yoffset    {yoffset}
+\cdef\s!fil        {fil}
+\cdef\s!fill       {fill}
+\cdef\s!filll      {filll}
+
+\cdef\s!attr       {attr}
+\cdef\s!axis       {axis}
+\cdef\s!both       {both}
+\cdef\s!bottom     {bottom}
+\cdef\s!left       {left}
+\cdef\s!options    {options}
+\cdef\s!orientation{orientation}
+\cdef\s!reverse    {reverse}
+\cdef\s!right      {right}
+\cdef\s!top        {top}
+\cdef\s!xmove      {xmove}
+\cdef\s!xoffset    {xoffset}
+\cdef\s!ymove      {ymove}
+\cdef\s!yoffset    {yoffset}
 
 %D \macros
 
@@ -169,9 +173,9 @@
 %D \def\e!name{meaning}
 %D \stoptyping
 
-%permanent\protected\def\defineinterfaceconstant#1#2{\immutable\defcsname\c!prefix!#1\endcsname{#2}}
-\permanent\protected\def\defineinterfacevariable#1#2{\immutable\defcsname\v!prefix!#1\endcsname{#2}}
-\permanent\protected\def\defineinterfaceelement #1#2{\immutable\defcsname\e!prefix!#1\endcsname{#2}}
+%permanent\protected\def\defineinterfaceconstant#1#2{\permanent\cdefcsname\c!prefix!#1\endcsname{#2}}
+\permanent\protected\def\defineinterfacevariable#1#2{\permanent\cdefcsname\v!prefix!#1\endcsname{#2}}
+\permanent\protected\def\defineinterfaceelement #1#2{\permanent\cdefcsname\e!prefix!#1\endcsname{#2}}
 
 %D Next come some interface independant constants:
 %D
@@ -179,7 +183,7 @@
 %D \definefileconstant      {name} {meaning}
 %D \stoptyping
 
-\permanent\protected\def\definefileconstant#1#2{\immutable\defcsname\f!prefix!#1\endcsname{#2}}
+\permanent\protected\def\definefileconstant#1#2{\permanent\cdefcsname\f!prefix!#1\endcsname{#2}}
 
 %D And finaly we have the one argument, space saving constants
 %D
@@ -188,13 +192,13 @@
 %D \definemessageconstant {name}
 %D \stoptyping
 
-\permanent\protected\def\definesystemconstant #1{\immutable\defcsname\s!prefix!#1\endcsname{#1}}
-\permanent\protected\def\definemessageconstant#1{\immutable\defcsname\m!prefix!#1\endcsname{#1}}
+\permanent\protected\def\definesystemconstant #1{\permanent\cdefcsname\s!prefix!#1\endcsname{#1}}
+\permanent\protected\def\definemessageconstant#1{\permanent\cdefcsname\m!prefix!#1\endcsname{#1}}
 
 %D For now here:
 
-\permanent\protected\def\definetagconstant  #1{\immutable\defcsname\t!prefix!#1\endcsname{#1}}
-\permanent\protected\def\aliastagconstant #1#2{\aliased  \letcsname\t!prefix!#1\expandafter\endcsname\csname\t!prefix!#2\endcsname}
+\permanent\protected\def\definetagconstant  #1{\permanent\cdefcsname\t!prefix!#1\endcsname{#1}}
+\permanent\protected\def\aliastagconstant #1#2{\aliased   \letcsname\t!prefix!#1\expandafter\endcsname\csname\t!prefix!#2\endcsname}
 
 %D In a parameter driven system, some parameters are shared by more system
 %D components. In \CONTEXT\ we can distinguish parameters by a unique prefix. Such a
@@ -204,7 +208,7 @@
 %D \definesystemvariable {name}
 %D \stoptyping
 
-\permanent\protected\def\definesystemvariable#1{\immutable\edefcsname\??prefix#1\endcsname{\@@prefix#1}}
+\permanent\protected\def\definesystemvariable#1{\permanent\cdefcsname\??prefix#1\endcsname{\@@prefix#1}}
 
 \definesystemvariable{ms}
 
@@ -232,7 +236,7 @@
 
 \else
 
-  \immutable\def\defaultinterface{english}
+  \permanent\cdef\defaultinterface{english}
 
   \permanent\overloaded\protected\def\selectinterface
     {\enforced\permanent\protected\def\selectinterface##1##2%
@@ -240,8 +244,11 @@
         \endlinechar\minusone
         \global\read16 to ##1
         \egroup
-        \doifnothing\currentinterface{\let##1=##2}%
-        \doifundefined{\s!prefix!##1}{\let##1=##2}}%
+        \ifempty\currentinterface
+          \let##1=##2%
+        \orelse\ifcsname\s!prefix!##1\endcsname\else
+          \let##1=##2
+        \fi}%
      \selectinterface\currentinterface\defaultinterface
      \writestatus{interface}{defining \currentinterface\space interface}%
     %\writeline
@@ -270,7 +277,13 @@
 %D \stoptyping
 
 \permanent\protected\def\startinterface #1
-  {\doifnot{#1}{all}{\doifnotinset\currentinterface{#1}{\gobbleuntil\stopinterface}}}
+  {\iftok{#1}{all}%
+     % okay
+   \orelse\ifinset\currentinterface{#1}%
+     % okay
+   \else
+     \expandafter\ignoreupto\expandafter\stopinterface
+   \fi}
 
 \aliased\let\stopinterface\relax
 
@@ -355,7 +368,7 @@
 
 \permanent\protected\def\startmessages #1 library: #2 %
   {\begingroup
-   \ifcsname\m!prefix!#2\endcsname\else\immutable\setgvalue{\m!prefix!#2}{#2}\fi
+   \ifcsname\m!prefix!#2\endcsname\else\permanent\gdefcsname\m!prefix!#2\endcsname{#2}\fi
    \catcode\endoflineasciicode\othercatcode
    \doifelseinset{#1}{\currentresponses,all}\mult_messages_start_yes\mult_messages_start_nop{#2}}
 
@@ -368,10 +381,10 @@
 
 \aliased\let\stopmessages\relax
 
-\mutable\let\currentmessagetext\empty
+\mutable\lettonothing\currentmessagetext
 
 \permanent\protected\def\setinterfacemessage#1#2#3%
-  {\ifcsname\m!prefix!#1\endcsname\else\immutable\gdefcsname\m!prefix!#1\endcsname{#1}\fi
+  {\ifcsname\m!prefix!#1\endcsname\else\permanent\gdefcsname\m!prefix!#1\endcsname{#1}\fi
    \clf_setinterfacemessage{#1}{#2}{#3}}
 
 % \getmessage       % {tag} {index} -> \currentmessagetext
@@ -683,11 +696,11 @@
 
 \permanent\overloaded\protected\def\setinterfaceconstant#1#2%
   {\clf_setinterfaceconstant{#1}{#2}%
-   \immutable\defcsname\c!prefix!#1\endcsname{#1}}
+   \permanent\cdefcsname\c!prefix!#1\endcsname{#1}}
 
 \permanent\overloaded\protected\def\setinterfacevariable#1#2%
   {\clf_setinterfacevariable{#1}{#2}%
-   \immutable\defcsname\v!prefix!#1\endcsname{#2}}
+   \permanent\cdefcsname\v!prefix!#1\endcsname{#2}}
 
 %D \macros
 %D   {defineinterfaceconstant}
@@ -697,7 +710,7 @@
 %D c||version, but for documentation purposes the x||alternative comes in handy.
 
 \permanent\overloaded\protected\def\defineinterfaceconstant#1#2%
-  {\immutable\defcsname\c!prefix!#1\endcsname{#2}}
+  {\permanent\cdefcsname\c!prefix!#1\endcsname{#2}}
 
 %D \macros
 %D   {startelements}
@@ -714,46 +727,49 @@
 \permanent\overloaded\protected\def\setinterfaceelement#1#2%
   {\clf_setinterfaceelement{#1}{#2}%
    \ifcsname\e!prefix!#1\endcsname
-     \doifnotvalue{\e!prefix!#1}{#2}{\enforced\immutable\setvalue{\e!prefix!#1}{#2}}%
+     \doifnotvalue{\e!prefix!#1}{#2}{\enforced\permanent\defcsname\e!prefix!#1\endcsname{#2}}%
    \else
-     \enforced\immutable\setvalue{\e!prefix!#1}{#2}%
+     \enforced\permanent\defcsname\e!prefix!#1\endcsname{#2}%
    \fi}
 
 \permanent\protected\def\setinterfacecommand#1#2% \frozen ? \permanent ?
-  {\doifnot{#1}{#2}% todo: let when already defined
-     {\defcsname#2\expandafter\endcsname\expandafter{\csname#1\endcsname}}}
+  {\iftok{#1}{#2}%
+     % todo: maybe let when already defined
+   \else
+     \defcsname#2\expandafter\endcsname\expandafter{\csname#1\endcsname}%
+   \fi}
 
 %D We just ignore these:
 
-\permanent\protected\def\startvariables{\gobbleuntil\stopvariables} \aliased\let\stopvariables\relax
-\permanent\protected\def\startconstants{\gobbleuntil\stopconstants} \aliased\let\stopconstants\relax
-\permanent\protected\def\startelements {\gobbleuntil\stopelements } \aliased\let\stopelements \relax
-\permanent\protected\def\startcommands {\gobbleuntil\stopcommands } \aliased\let\stopcommands \relax
+\permanent\protected\def\startvariables{\ignoreupto\stopvariables} \aliased\let\stopvariables\relax
+\permanent\protected\def\startconstants{\ignoreupto\stopconstants} \aliased\let\stopconstants\relax
+\permanent\protected\def\startelements {\ignoreupto\stopelements } \aliased\let\stopelements \relax
+\permanent\protected\def\startcommands {\ignoreupto\stopcommands } \aliased\let\stopcommands \relax
 
 %D For at the \LUA\ end (experiment):
 
-% \def\ui_c#1#2{\immutable\gdefcsname\c!prefix!#1\endcsname{#1}%
-%               \immutable\gdefcsname\k!prefix!#2\endcsname{#1}} % backmapping from non english
-% \def\ui_s  #1{\immutable\gdefcsname\c!prefix!#1\endcsname{#1}%
-%               \immutable\gdefcsname\k!prefix!#1\endcsname{#1}} % backmapping from non english
-% \def\ui_v#1#2{\immutable\gdefcsname\v!prefix!#1\endcsname{#2}}
-% \def\ui_e#1#2{\immutable\gdefcsname\e!prefix!#1\endcsname{#2}}
+% \def\ui_c#1#2{\permanent\gdefcsname\c!prefix!#1\endcsname{#1}%
+%               \permanent\gdefcsname\k!prefix!#2\endcsname{#1}} % backmapping from non english
+% \def\ui_s  #1{\permanent\gdefcsname\c!prefix!#1\endcsname{#1}%
+%               \permanent\gdefcsname\k!prefix!#1\endcsname{#1}} % backmapping from non english
+% \def\ui_v#1#2{\permanent\gdefcsname\v!prefix!#1\endcsname{#2}}
+% \def\ui_e#1#2{\permanent\gdefcsname\e!prefix!#1\endcsname{#2}}
 % \def\ui_a#1#2{\frozen\protected\def#2{#1}} % will go away
 %
 % \startinterface english
 %
-%     \def\ui_c#1#2{\immutable\gdefcsname\c!prefix!#1\endcsname{#1}}
-%     \def\ui_s  #1{\immutable\gdefcsname\c!prefix!#1\endcsname{#1}}
+%     \def\ui_c#1#2{\permanent\gdefcsname\c!prefix!#1\endcsname{#1}}
+%     \def\ui_s  #1{\permanent\gdefcsname\c!prefix!#1\endcsname{#1}}
 %
 % \stopinterface
 
 %D So much for the basic multi||lingual interface commands. The macro's can be
 %D enhanced with more testing facilities, but for the moment they suffice.
 
-% use \Uchar
+% use \tocharacter
 
-\ifdefined\zwnj \else \immutable\edef\zwnj{\directlua{utf.char(\number"200C)}} \fi % needed for cont-pe % maybe to char-utf.mkiv
-\ifdefined\zwj  \else \immutable\edef\zwj {\directlua{utf.char(\number"200D)}} \fi % needed for cont-pe % maybe to char-utf.mkiv
+\ifdefined\zwnj \else \permanent\cdef\zwnj{\tocharacter"200C} \fi % needed for cont-pe % maybe to char-utf.mkiv
+\ifdefined\zwj  \else \permanent\cdef\zwj {\tocharacter"200D} \fi % needed for cont-pe % maybe to char-utf.mkiv
 
 %D \macros
 %D   {contextversion, contextversionnumber, contextversionno,
@@ -774,18 +790,18 @@
    \writestatus\m!system\contextbanner
    \writestatus\m!system\empty}
 
-\immutable\overloaded\edef\formatversion
+\permanent\overloaded\cdef\formatversion
   {\the\normalyear.\the\normalmonth.\the\normalday}
 
 \newcount\contextversionno
 
 \ifdefined\contextversion \else
-    \immutable\edef\contextversion{\the\normalyear.\the\normalmonth.\the\normalday\space 00:00}
+    \permanent\edef\contextversion{\the\normalyear.\the\normalmonth.\the\normalday\space 00:00}
 \fi
 
 \permanent\overloaded\protected\def \contextversionnumber #1.#2.#3 #4:#5\relax{#1#2#3}
                                     \contextversionno     \expandafter\contextversionnumber\contextversion\relax
-\immutable\overloaded          \edef\contextversionnumber {\the\contextversionno\space\contextmark}
+\permanent\overloaded          \edef\contextversionnumber {\the\contextversionno\space\contextmark}
 
 \popoverloadmode
 

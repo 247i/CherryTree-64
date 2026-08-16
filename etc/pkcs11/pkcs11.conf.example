@@ -1,4 +1,4 @@
-# This is an example /mingw64/etc/pkcs11/pkcs11.conf file. Copy it into
+# This is an example /ucrt64/etc/pkcs11/pkcs11.conf file. Copy it into
 # place before use.
 
 # This setting controls whether to load user configuration from the

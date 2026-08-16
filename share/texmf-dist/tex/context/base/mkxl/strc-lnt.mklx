@@ -23,10 +23,10 @@
 
 \aliased\let\setuplinenote\setupnote
 
-\newcount\c_strc_linenotes
-\newtoks\everydefinelinenote
+\newinteger\c_strc_linenotes
+\newtoks   \everydefinelinenote
 
-\permanent\tolerant\protected\def\definelinenote[#1]#*[#2]#*[#3]%
+\permanent\tolerant\protected\def\definelinenote[#1]#*[#S#2]#*[#S#3]%
   {\ifarguments
      % error
    \orelse\ifcsname\??linenote#1\endcsname
@@ -45,23 +45,23 @@
        \definenote[#1][#2][#3]%
      \fi
      \pushmacro\currentnote
-     \edef\currentnote{#1}
+     \cdef\currentnote{#1}
      \letcsname\??linenote\currentnote\expandafter\endcsname\csname\currentnote\endcsname % use copy command
-     \frozen\instance\setuevalue        {\currentnote}{\strc_linenotes_direct{\currentnote}}%
-     \frozen\instance\setuevalue{\e!start\currentnote}{\strc_linenotes_start {\currentnote}}%
-     \frozen\instance\setuevalue{\e!stop \currentnote}{\strc_linenotes_stop                }%
-     \the\everydefinelinenote
+     \protected\frozen\instance\edefcsname        \currentnote\endcsname{\strc_linenotes_direct{\currentnote}}%
+     \protected\frozen\instance\edefcsname\e!start\currentnote\endcsname{\strc_linenotes_start {\currentnote}}%
+     \protected\frozen\instance\edefcsname\e!stop \currentnote\endcsname{\strc_linenotes_stop                }%
+     \expand\everydefinelinenote
      \popmacro\currentnote
    \fi}
 
 \protected\def\strc_linenotes_direct#1#2%
-  {\global\advance\c_strc_linenotes\plusone
+  {\global\advanceby\c_strc_linenotes\plusone
    \strc_linenotes_indeed{#1}{\the\c_strc_linenotes}{#2}%
    \strc_linenotes_traced\empty
-   \normalexpanded{\someline[\the\c_strc_linenotes]}}
+   \expanded{\someline[\the\c_strc_linenotes]}}
 
 \protected\def\strc_linenotes_start#1[#2]#3%
-  {\global\advance\c_strc_linenotes\plusone
+  {\global\advanceby\c_strc_linenotes\plusone
    \keepunwantedspaces
    \strc_linenotes_indeed{#1}{#2}{#3}%
    \strc_linenotes_traced{#2}%
@@ -70,11 +70,11 @@
 \protected\def\strc_linenotes_stop[#1]%
   {\stopline[#1]}
 
-\let\m_page_lines_previous_to  \relax
-\let\m_page_lines_previous_from\relax
+\lettonothing\m_page_lines_previous_to
+\lettonothing\m_page_lines_previous_from
 
-\let\m_page_lines_current_to   \relax
-\let\m_page_lines_current_from \relax
+\lettonothing\m_page_lines_current_to
+\lettonothing\m_page_lines_current_from
 
 \newconditional\c_page_lines_current_to
 \newconditional\c_page_lines_current_from
@@ -82,21 +82,25 @@
 \installcorenamespace{linenotespreviousfrom}
 \installcorenamespace{linenotespreviousto}
 
-\letvalue\??linenotespreviousfrom\empty
-\letvalue\??linenotespreviousto  \empty
+\letcsname\??linenotespreviousfrom\endcsname\empty
+\letcsname\??linenotespreviousto  \endcsname\empty
 
 % maybe do this in lua
 
-\mutable\let\currentlinenotereference\empty
+\mutable\lettonothing\currentlinenotereference
 
 \def\page_lines_in_from{\in[lr:b:\currentlinenotereference]}
 \def\page_lines_in_to  {\in[lr:e:\currentlinenotereference]}
 
 \protected\def\strc_linenotes_range_normal#1% order
-  {\doifelsereferencefound{lr:b:\currentlinenotereference}\settrue\setfalse\c_page_lines_current_from
+  {\doifelsereferencefound{lr:b:\currentlinenotereference}%
+     {\c_page_lines_current_from\conditionaltrue}%
+     {\c_page_lines_current_from\conditionalfalse}%
    \ifconditional\c_page_lines_current_from
       \xdef\m_page_lines_current_from{\currentreferencelinenumber}%
-      \doifelsereferencefound{lr:e:\currentlinenotereference}\settrue\setfalse\c_page_lines_current_to
+      \doifelsereferencefound{lr:e:\currentlinenotereference}%
+        {\c_page_lines_current_to\conditionaltrue}%
+        {\c_page_lines_current_to\conditionalfalse}%
       \ifconditional\c_page_lines_current_to
         \xdef\m_page_lines_current_to{\currentreferencelinenumber}%
         \page_lines_in_from
@@ -112,10 +116,14 @@
    \fi}
 
 \protected\def\strc_linenotes_range_sparse#1% order
-  {\doifelsereferencefound{lr:b:\currentlinenotereference}\settrue\setfalse\c_page_lines_current_from
+  {\doifelsereferencefound{lr:b:\currentlinenotereference}%
+     {\c_page_lines_current_from\conditionaltrue}%
+     {\c_page_lines_current_from\conditionalfalse}%
    \ifconditional\c_page_lines_current_from
      \xdef\m_page_lines_current_from{\currentreferencelinenumber}%
-     \doifelsereferencefound{lr:e:\currentlinenotereference}\settrue\setfalse\c_page_lines_current_to
+     \doifelsereferencefound{lr:e:\currentlinenotereference}%
+       {\c_page_lines_current_to\conditionaltrue}%
+       {\c_page_lines_current_to\conditionalfalse}%
      \ifconditional\c_page_lines_current_to
        \xdef\m_page_lines_current_to{\currentreferencelinenumber}%
        \ifx\m_page_lines_previous_from\m_page_lines_current_from
@@ -136,14 +144,14 @@
      \fi
    \fi}
 
-\let\currentlinenotereference\empty
+\lettonothing\currentlinenotereference
 
 \mutable\let\linenotelinenumber\relax
 
 \protected\def\strc_linenotes_indeed#1#2#3%
   {\begingroup
    % we keep things local so we can use it as regular note too
-   \edef\currentnotation{#1}%
+   \cdef\currentnotation{#1}%
    \edef\currentlinenotereference{#2}%
    \xdef\m_page_lines_previous_from{\begincsname\??linenotespreviousfrom\currentnotation\endcsname}%
    \xdef\m_page_lines_previous_to  {\begincsname\??linenotespreviousto  \currentnotation\endcsname}%
@@ -163,9 +171,9 @@
 % compress=yes|no
 % compressmethod=separator|stopper
 
-\setvalue{\??linenotescompressmethod\v!separator}%
+\defcsname\??linenotescompressmethod\v!separator\endcsname
   {\edef\p_compressseparator{\noteparameter\c!compressseparator}%
-   \scratchskip\noteparameter\c!compressdistance\relax
+   \scratchskip\glueexpr\noteparameter\c!compressdistance\relax
    \ifempty\p_compressseparator
      \hskip\scratchskip
    \else
@@ -174,9 +182,9 @@
      \hskip.5\scratchskip
    \fi}
 
-\setvalue{\??linenotescompressmethod\v!stopper}%
+\defcsname\??linenotescompressmethod\v!stopper\endcsname
   {\edef\p_compressstopper{\noteparameter\c!compressstopper}%
-   \scratchskip\noteparameter\c!compressdistance\relax
+   \scratchskip\glueexpr\noteparameter\c!compressdistance\relax
    \ifempty\p_compressstopper
      \hskip\scratchskip
    \else
@@ -184,13 +192,14 @@
      \hskip.5\scratchskip
    \fi}
 
-\setvalue{\??linenotescompressmethod\v!space}%
-  {\hskip\noteparameter\c!compressdistance\relax}
+\defcsname\??linenotescompressmethod\v!space\endcsname
+  {\hskip\glueexpr\noteparameter\c!compressdistance\relax}
+
+\lettonothing\p_linenotes_compressmethod
 
 \def\strc_linenotes_check_compression
-  {\edef\p_linenotes_compress      {\noteparameter\c!compress}%
-   \edef\p_linenotes_compressmethod{\noteparameter\c!compressmethod}%
-   \ifx\p_linenotes_compress\v!yes
+  {\edef\p_linenotes_compressmethod{\noteparameter\c!compressmethod}%
+   \ifcstok{\noteparameter\c!compress}\v!yes
      \let\linenotelinenumber\strc_linenotes_range_sparse
    \else
      \let\linenotelinenumber\strc_linenotes_range_normal
@@ -200,7 +209,10 @@
    \fi}
 
 \def\strc_linenotes_inbetween % \ifcsname\??linenote\currentnote\expandafter\endcsname
-  {\begincsname\??linenotescompressmethod\p_linenotes_compressmethod\endcsname}
+  {\begingroup
+   \strc_linenotes_check_compression
+   \begincsname\??linenotescompressmethod\p_linenotes_compressmethod\endcsname
+   \endgroup}
 
 \def\strc_notes_compress_distance{\emwidth \s!plus .5\emwidth \s!minus .25\emwidth}
 

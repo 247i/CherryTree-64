@@ -13,7 +13,6 @@ if not modules then modules = { } end modules ['l-sandbox'] = {
 
 -- if sandbox then return end
 
-local global   = _G
 local next     = next
 local unpack   = unpack or table.unpack
 local type     = type
@@ -181,13 +180,6 @@ function require(name)
     end
 end
 
-function blockrequire(name,lib)
-    if trace then
-        report("preventing reload of: %s",name)
-    end
-    blocked[name] = lib or _G[name] or false
-end
-
 function sandbox.enable()
     if not sandboxed then
         debug = {
@@ -249,10 +241,23 @@ function sandbox.enable()
     end
 end
 
-blockrequire("lfs",lfs)
-blockrequire("io",io)
-blockrequire("os",os)
-blockrequire("ffi",ffi)
+do
+
+    local function blockrequire(name,lib)
+        if trace then
+            report("preventing reload of: %s",name)
+        end
+        blocked[name] = lib or _G[name] or false
+    end
+
+    blockrequire("lfs",lfs)
+    blockrequire("io",io)
+    blockrequire("os",os)
+    blockrequire("ffi",ffi)
+
+    sandbox.blockrequire = blockrequire
+
+end
 
 -- require = register(require,"require")
 

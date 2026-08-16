@@ -31,12 +31,11 @@
 
 \protected\def\startecmacode % \stopecmacode
   {\begingroup
-   \obeylualines
    \obeyluatokens
    \luat_start_ecma_code_indeed}
 
 \def\luat_start_ecma_code_indeed#1\stopecmacode
-  {\normalexpanded{\endgroup\noexpand\ecmacode{#1}}}
+  {\expanded{\endgroup\noexpand\ecmacode{#1}}}
 
 \protect
 

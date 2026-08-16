@@ -16,8 +16,8 @@ local tasks        = nodes.tasks
 local handlers     = nodes.handlers
 
 local nodecodes    = nodes.nodecodes
-local hlist_code   = nodecodes.hlist
-local vlist_code   = nodecodes.vlist
+local hlist_code   <const> = nodecodes.hlist
+local vlist_code   <const> = nodecodes.vlist
 
 local nuts         = nodes.nuts
 local tonut        = nuts.tonut
@@ -28,19 +28,75 @@ local getbox       = nuts.getbox
 
 local implement    = interfaces.implement
 
+local v_yes        <const> = interfaces.variables.yes
+
 local actions = tasks.actions("shipouts")
 
-function handlers.finalizebox(box)
-    actions(getbox(box)) -- nut
+handlers.finalizelist = actions
+
+function handlers.finalizebox(box,ispage)
+    actions(getbox(box),ispage) -- nut
 end
 
-handlers.cleanuppage = nuts.flatten_discretionaries
+function handlers.finalizelist(list,ispage) -- beware of export: block it if needed
+    actions(list,ispage) -- nut
+end
+
+do
+
+    local flattendiscretionaries = nuts.flattendiscretionaries
+    local softenhyphens          = nuts.softenhyphens
+
+    local report  = logs.reporter("shipout")
+
+    local trace   = false
+    local flatten = true -- also done as line option
+    local soften  = true -- true by default
+
+    trackers  .register("backend.cleanup",         function(v) trace   = v end)
+    directives.register("backend.cleanup.flatten", function(v) flatten = v end)
+    directives.register("backend.cleanup.soften",  function(v) soften  = v end)
+
+    -- we do it in normalize but there we only handle lines, so hboxes still
+    -- have them .. so:
+
+    nodes.handlers.cleanuppage = function(head)
+        local count    = 0 -- see below
+        local found    = 0
+        local replaced = 0
+        if flatten then
+            head, count = flattendiscretionaries(head,true) -- nested
+        end
+        if soften then
+            head, found, replaced = softenhyphens(head) -- could have been a lua loop
+        end
+        if trace then
+            report("%i discretionaries flattened, %i of %i discretionary hyphens softened",count,replaced,found)
+        end
+        return head
+    end
+
+    implement {
+        name      = "setsofthyphens",
+        arguments = "string",
+        actions   = function(v)
+            soften = v == v_yes
+        end
+    }
+
+end
 
 -- interface
 
 implement {
-    name      = "finalizebox",
-    arguments = "integer",
+    name      = "finalizeshipoutbox",
+    arguments = { "integer", true },
+    actions   = handlers.finalizebox,
+}
+
+implement {
+    name      = "finalizeobjectbox",
+    arguments = { "integer", false },
     actions   = handlers.finalizebox,
 }
 
@@ -96,14 +152,14 @@ trackers.register("nodes.frequencies",function(v)
     if type(v) == "string" then
         frequencies.filename = v
     end
-    handlers.frequencies_shipouts_before   = register("shipouts",   "begin")
-    handlers.frequencies_shipouts_after    = register("shipouts",   "end")
-    handlers.frequencies_processors_before = register("processors", "begin")
-    handlers.frequencies_processors_after  = register("processors", "end")
-    tasks.prependaction("shipouts",   "before", "nodes.handlers.frequencies_shipouts_before")
-    tasks.appendaction ("shipouts",   "after",  "nodes.handlers.frequencies_shipouts_after")
-    tasks.prependaction("processors", "before", "nodes.handlers.frequencies_processors_before")
-    tasks.appendaction ("processors", "after",  "nodes.handlers.frequencies_processors_after")
+    tracers.frequencies_shipouts_before   = register("shipouts",   "begin")
+    tracers.frequencies_shipouts_after    = register("shipouts",   "end")
+    tracers.frequencies_processors_before = register("processors", "begin")
+    tracers.frequencies_processors_after  = register("processors", "end")
+    tasks.prependaction("shipouts",   "before", "nodes.tracers.frequencies_shipouts_before")
+    tasks.appendaction ("shipouts",   "after",  "nodes.tracers.frequencies_shipouts_after")
+    tasks.prependaction("processors", "before", "nodes.tracers.frequencies_processors_before")
+    tasks.appendaction ("processors", "after",  "nodes.tracers.frequencies_processors_after")
 end)
 
 statistics.register("node frequencies", function()
@@ -113,3 +169,54 @@ statistics.register("node frequencies", function()
         return format("saved in %q",filename)
     end
 end)
+
+do -- no longer used
+
+    local whatsitcodes = nodes.whatsitcodes
+
+    local whatsit_code <const> = nodecodes.whatsit
+
+    local removables   = {
+        [whatsitcodes.open]    = true,
+        [whatsitcodes.close]   = true,
+        [whatsitcodes.write]   = true,
+        [whatsitcodes.savepos] = true,
+        [whatsitcodes.latelua] = true,
+    }
+
+    local setlist = nuts.setlist
+    local getlist = nuts.getlist
+    local remove  = nuts.remove
+
+    local function cleanup(head)
+        for current, id, subtype in nextnode, head do
+            if id == whatsit_code then
+                if removables[subtype] then
+                    head = remove(head,current,true)
+                end
+            elseif id == hlist_code or id == vlist_code then
+                local sl = getlist(current)
+                if sl then
+                    local rl = cleanup(sl)
+                    if rl ~= sl then
+                        setlist(current,rl)
+                    end
+                end
+            end
+        end
+        return head
+    end
+
+    function handlers.cleanupbox(box)
+        cleanup(getbox(box))
+    end
+
+    implement {
+        name      = "cleanupbox",
+        public    = true,
+        protected = true,
+        arguments = "integer",
+        actions   = handlers.cleanupbox,
+    }
+
+end

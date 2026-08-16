@@ -11,13 +11,12 @@ if not modules then modules = { } end modules ['lpdf-epa'] = {
 -- embedded files ... not bound to a page
 
 local type, tonumber, next = type, tonumber, next
-local format, gsub, lower, find = string.format, string.gsub, string.lower, string.find
+local format, gsub, lower, find, match = string.format, string.gsub, string.lower, string.find, string.match
 local formatters = string.formatters
 local concat, merged = table.concat, table.merged
 local abs = math.abs
 local expandname = file.expandname
 local allocate = utilities.storage.allocate
-local bor, band = bit32.bor, bit32.band
 local isfile = lfs.isfile
 
 local trace_links       = false  trackers.register("figures.links",    function(v) trace_links    = v end)
@@ -30,27 +29,22 @@ local report_comment    = logs.reporter("backend","comment")
 local report_field      = logs.reporter("backend","field")
 local report_outline    = logs.reporter("backend","outline")
 
-local lpdf              = lpdf
-local backends          = backends
 local context           = context
 
-local nodeinjections    = backends.pdf.nodeinjections
+local pdfbackend        = backends.registered.pdf
+local nodeinjections    = pdfbackend.nodeinjections
+local codeinjections    = pdfbackend.codeinjections
+----- registrations     = pdfbackend.registrations
 
 local setmacro          = tokens.setters.macro
 
+local lpdf              = lpdf
 local pdfarray          = lpdf.array
 local pdfdictionary     = lpdf.dictionary
 local pdfconstant       = lpdf.constant
 local pdfreference      = lpdf.reference
-
-local pdfreserveobject
-local pdfgetpos
-
-updaters.register("backend.update.lpdf",function()
-    pdfreserveobject = lpdf.reserveobject
-    pdfgetpos        = lpdf.getpos
-end)
-
+local pdfreserveobject  = lpdf.reserveobject
+local pdfgetpos         = lpdf.getpos
 local pdfcopyboolean    = lpdf.copyboolean
 local pdfcopyunicode    = lpdf.copyunicode
 local pdfcopyarray      = lpdf.copyarray
@@ -70,22 +64,20 @@ local loadpdffile       = lpdf.epdf.load
 local nameonly          = file.nameonly
 
 local variables         = interfaces.variables
-local codeinjections    = backends.pdf.codeinjections
 ----- urlescaper        = lpegpatterns.urlescaper
 ----- utftohigh         = lpegpatterns.utftohigh
 local escapetex         = characters.filters.utf.private.escape
 
 local bookmarks         = structures.bookmarks
 
-local maxdimen          = 0x3FFFFFFF -- 2^30-1
-
-local bpfactor          = number.dimenfactors.bp
+local maxdimen          <const> = tex.magicconstants.maxdimen
+local bpfactor          <const> = number.dimenfactors.bp
 
 local layerspec = {
     "epdfcontent"
 }
 
-local getpos = function() getpos = backends.codeinjections.getpos return getpos() end
+local getpos = function() getpos = codeinjections.getpos return getpos() end
 
 local collected = allocate()
 local tobesaved = allocate()
@@ -133,7 +125,7 @@ local function getmediasize(specification,pagedata)
     return llx, lly, urx, ury, width, height, xscale, yscale
 end
 
-local function getdimensions(annotation,llx,lly,xscale,yscale,width,height,report)
+local function getdimensions(annotation,llx,lly,xscale,yscale,width,height,report,minheight)
     local rectangle = annotation.Rect
     local a_llx     = rectangle[1]
     local a_lly     = rectangle[2]
@@ -146,6 +138,13 @@ local function getdimensions(annotation,llx,lly,xscale,yscale,width,height,repor
     if w > width or h > height or w < 0 or h < 0 or abs(x) > (maxdimen/2) or abs(y) > (maxdimen/2) then
         report("broken rectangle [%.6F %.6F %.6F %.6F] (max: %.6F)",a_llx,a_lly,a_urx,a_ury,maxdimen/2)
         return
+    end
+    if minheight and minheight ~= 0 then
+        local dh = minheight - h
+        if dh > 0 then
+            y = y - dh/2
+            h = h + dh
+        end
     end
     return x, y, w, h, a_llx, a_lly, a_urx, a_ury
 end
@@ -207,7 +206,7 @@ local function add_link(x,y,w,h,destination,what)
     )
 end
 
-local function link_goto(x,y,w,h,document,annotation,pagedata,namespace)
+local function link_goto(x,y,w,h,document,annotation,pagedata,namespace,pageoffset)
     local a = annotation.A
     if a then
         local destination = a.D -- [ 18 0 R /Fit ]
@@ -222,7 +221,12 @@ local function link_goto(x,y,w,h,document,annotation,pagedata,namespace)
         if pagedata then
             local destinationpage = pagedata.number
             if destinationpage then
-                add_link(x,y,w,h,namespace .. destinationpage,what)
+                if pageoffset then
+                    destinationpage = "page(" .. (destinationpage+pageoffset) .. ")"
+                else
+                    destinationpage = namespace .. destinationpage
+                end
+                add_link(x,y,w,h,destinationpage,what)
             end
         end
     end
@@ -290,8 +294,32 @@ local function link_file(x,y,w,h,document,annotation)
 end
 
 -- maybe handler per subtype and then one loop but then what about order ...
+--
+-- specification is normally nil
 
-function codeinjections.mergereferences(specification)
+local function getpageoffset(options)
+    if options then
+        for k in next, options do
+            local p = tonumber(match(k,"pageoffset:([%+%-]*%d+)"))
+            if p then
+                return p
+            end
+        end
+    end
+end
+
+local function getminheight(options)
+    if options then
+        for k in next, options do
+            local p = tonumber(match(k,"minheight:([%+%-]*%d+)"))
+            if p then
+                return p
+            end
+        end
+    end
+end
+
+function codeinjections.mergereferences(specification,options)
     local specification, fullname, document = validdocument(specification)
     if not document then
         return ""
@@ -301,6 +329,8 @@ function codeinjections.mergereferences(specification)
     local annotations = pagedata and pagedata.Annots
     local namespace   = makenamespace(fullname)
     local reference   = namespace .. pagenumber
+    local pageoffset  = getpageoffset(options)
+    local minheight   = getminheight(options)
     if annotations and #annotations > 0 then
         local llx, lly, urx, ury, width, height, xscale, yscale = getmediasize(specification,pagedata,xscale,yscale)
         initializelayer(height,width)
@@ -312,17 +342,18 @@ function codeinjections.mergereferences(specification)
                     if not a then
                         local d = annotation.Dest
                         if d then
-                            annotation.A = { S = "GoTo", D = d } -- no need for a dict
+                            a = { S = "GoTo", D = d } -- no need for a dict
+                            annotation.A = a
                         end
                     end
                     if not a then
                         report_link("missing link annotation")
                     else
-                        local x, y, w, h = getdimensions(annotation,llx,lly,xscale,yscale,width,height,report_link)
+                        local x, y, w, h = getdimensions(annotation,llx,lly,xscale,yscale,width,height,report_link,minheight)
                         if x then
                             local linktype = a.S
                             if linktype == "GoTo" then
-                                link_goto(x,y,w,h,document,annotation,pagedata,namespace)
+                                link_goto(x,y,w,h,document,annotation,pagedata,namespace,pageoffset)
                             elseif linktype == "GoToR" then
                                 link_file(x,y,w,h,document,annotation)
                             elseif linktype == "URI" then
@@ -548,7 +579,7 @@ local annotationflags = lpdf.flags.annotations
 
 local function copyF(v,lock) -- todo: bxor 24
     if lock then
-        v = bor(v or 0,annotationflags.ReadOnly + annotationflags.Locked + annotationflags.LockedContents)
+        v = (v or 0) | (annotationflags.ReadOnly + annotationflags.Locked + annotationflags.LockedContents)
     end
     if v then
         return pdfcopyinteger(v)
@@ -556,7 +587,7 @@ local function copyF(v,lock) -- todo: bxor 24
 end
 
 -- Speed is not really an issue so we don't optimize this code too much. In the end (after
--- testing we end up with less code that we started with.
+-- testing) we ended up with less code that we started with.
 
 function codeinjections.mergecomments(specification)
     local specification, fullname, document = validdocument(specification)
@@ -715,7 +746,7 @@ local function flagstoset(flag,flags)
     local t = { }
     if flags then
         for k, v in next, flags do
-            if band(flag,v) ~= 0 then
+            if (flag & v) ~= 0 then
                 t[k] = true
             end
         end
@@ -742,7 +773,7 @@ end
 -- RV : rich
 -- Q  : quadding (0=left 1=middle 2=right)
 
-function codeinjections.mergefields(specification)
+function codeinjections.mergefields(specification,dataonly)
     local specification, fullname, document = validdocument(specification)
     if not document then
         return ""
@@ -780,8 +811,8 @@ function codeinjections.mergefields(specification)
                                 preset = "leftbottom",
                             }
                             --
-                            local aflags = flagstoset(annotation.F or parent.F, annotationflags)
-                            local wflags = flagstoset(annotation.Ff or parent.Ff, widgetflags)
+                            local aflags = flagstoset(annotation.F  or parent.F  or 0, annotationflags)
+                            local wflags = flagstoset(annotation.Ff or parent.Ff or 0, widgetflags)
                             if what == "Tx" then
                                 -- DA DV F FT MaxLen MK Q T V | AA OC
                                 if wflags.MultiLine then
@@ -790,21 +821,58 @@ function codeinjections.mergefields(specification)
                                 else
                                     what = "line"
                                 end
+
                                 -- via context
-                                local fieldspec = {
-                                    width  = w,
-                                    height = h,
-                                    offset = variables.overlay,
-                                    frame  = trace_links and variables.on or variables.off,
-                                    n      = annotation.MaxLen or (parent and parent.MaxLen),
-                                    type   = what,
-                                    option = concat(merged(aflags,wflags),","),
-                                }
-                                context.setlayer (layerspec,locationspec,function()
-                                    context.definefieldbody ( { name } , fieldspec )
-                                    context.fieldbody ( { name } )
-                                end)
-                                --
+                                local frame   = trace_links and variables.on or variables.off
+                                local default = annotation.V or ""
+                                if default == "" then
+                                    local parent = annotation.Parent
+                                    if parent then
+                                        default = parent.V or ""
+                                    end
+                                end
+                                if dataonly then
+                                    if type(default) == "string" and default ~= "" then
+                                        local data = lpdf.epdf.parsecontent(tostring(annotation.DA or "") or "") or { }
+                                        local font = "Normal"
+                                        local size = "10bp"
+                                        for i=1,#data do
+                                            local d = data[i]
+                                            if d[3] == "Tf" then
+                                                font = d[1][2]
+                                                size = d[2][2] .. "bp"
+                                                break
+                                            end
+                                        end
+                                        local fieldspec = {
+                                            width  = w,
+                                            height = h,
+                                            frame  = frame,
+                                            --
+                                            ["epdf:font"] = font,
+                                            ["epdf:size"] = size,
+                                        }
+report_field("field %a, type %a, data %a",name,what,default)
+                                        context.setlayer (layerspec,locationspec,function()
+                                            context["epdf"..what.."field"](fieldspec,default)
+                                        end)
+                                    end
+                                else
+                                    local fieldspec = {
+                                        width   = w,
+                                        height  = h,
+                                        offset  = variables.overlay,
+                                        frame   = frame,
+                                        n       = annotation.MaxLen or (parent and parent.MaxLen),
+                                        type    = what,
+                                        option  = concat(merged(aflags,wflags),","),
+                                        default = default,
+                                    }
+                                    context.setlayer (layerspec,locationspec,function()
+                                        context.definefieldbody ( { name } , fieldspec )
+                                        context.fieldbody ( { name } )
+                                    end)
+                                end
                             elseif what == "Btn" then
                                 if wflags.Radio or wflags.RadiosInUnison then
                                     -- AP AS DA F Ff FT H MK T V | AA OC
@@ -823,30 +891,34 @@ function codeinjections.mergefields(specification)
                                     -- AP AS DA F Ff FT H MK T V | OC AA
                                     what = "check"
                                     -- direct
-                                    local AP = annotation.AP or (parent and parent.AP)
-                                    if AP then
-                                        local a = document.__xrefs__[AP]
-                                        if a and pdfe.copyappearance then
-                                            local o = pdfe.copyappearance(document,a)
-                                            if o then
-                                                AP = pdfreference(o)
+                                    if dataonly then
+                                        report_field("field %a, type %a, todo: render value",name,what)
+                                    else
+                                        local AP = annotation.AP or (parent and parent.AP)
+                                        if AP then
+                                            local a = document.__xrefs__[AP]
+                                            if a and pdfe.copyappearance then
+                                                local o = pdfe.copyappearance(document,a)
+                                                if o then
+                                                    AP = pdfreference(o)
+                                                end
                                             end
                                         end
+                                        local dictionary = pdfdictionary {
+                                            Subtype = pdfconstant("Widget"),
+                                            FT      = pdfconstant("Btn"),
+                                            T       = pdfcopyunicode(annotation.T or parent.T),
+                                            F       = pdfcopyinteger(annotation.F or parent.F),
+                                            Ff      = pdfcopyinteger(annotation.Ff or parent.Ff),
+                                            AS      = pdfcopyconstant(annotation.AS or (parent and parent.AS)),
+                                            AP      = AP and pdfreference(AP),
+                                         -- V       = annotation.V,
+                                        }
+                                        local finalize = dictionary()
+                                        context.setlayer(layerspec,locationspec,function()
+                                            context(hpack_node(nodeinjections.annotation(W/bpfactor,H/bpfactor,0,finalize)))
+                                        end)
                                     end
-                                    local dictionary = pdfdictionary {
-                                        Subtype = pdfconstant("Widget"),
-                                        FT      = pdfconstant("Btn"),
-                                        T       = pdfcopyunicode(annotation.T or parent.T),
-                                        F       = pdfcopyinteger(annotation.F or parent.F),
-                                        Ff      = pdfcopyinteger(annotation.Ff or parent.Ff),
-                                        AS      = pdfcopyconstant(annotation.AS or (parent and parent.AS)),
-                                        AP      = AP and pdfreference(AP),
-                                    }
-                                    local finalize = dictionary()
-                                    context.setlayer(layerspec,locationspec,function()
-                                        context(hpack_node(nodeinjections.annotation(W/bpfactor,H/bpfactor,0,finalize)))
-                                    end)
-                                    --
                                 end
                             elseif what == "Ch" then
                                 -- F Ff FT Opt T | AA OC (rest follows)
@@ -872,6 +944,33 @@ function codeinjections.mergefields(specification)
             end
         end
     end
+end
+
+-- The crappy parts of pdf .. too unpredictable.
+
+function codeinjections.mergerenditions(specification)
+--  local specification, fullname, document = validdocument(specification)
+--  if not document then
+--      return ""
+--  end
+--  local pagenumber  = specification.page or 1
+--  local pagedata    = document.pages[pagenumber]
+--  local annotations = pagedata and pagedata.Annots
+--  if annotations and #annotations > 0 then
+--      local llx, lly, urx, ury, width, height, xscale, yscale = getmediasize(specification,pagedata,xscale,yscale)
+--      initializelayer(height,width)
+--      --
+--      for i=1,#annotations do
+--          -- we keep the order
+--          local annotation = annotations[i]
+--          if annotation then
+--              local subtype = annotation.Subtype
+--              if subtype == "Screen" then
+--                  print("not done")
+--              end
+--          end
+--      end
+--  end
 end
 
 -- Beware, bookmarks can be in pdfdoc encoding or in unicode. However, in mkiv we
@@ -962,6 +1061,9 @@ function codeinjections.getbookmarks(filename)
          -- local title = current.Title
             local title = current("Title") -- can be pdfdoc or unicode
             if title then
+                if type(title) == "table" then
+                    title = lpdf.frombytes(title[2],title[3]) -- hack, we have an indirect one
+                end
                 local entry = {
                     level = depth,
                     title = title,
@@ -969,7 +1071,7 @@ function codeinjections.getbookmarks(filename)
                 list[#list+1] = entry
                 setdestination(current,entry)
                 if trace_outlines then
-                    report_outline("%w%s",2*depth,title)
+                    report_outline("%w%s",2*depth,title) -- not ok
                 end
             end
             local first = current.First
@@ -977,8 +1079,11 @@ function codeinjections.getbookmarks(filename)
                 local current = first
                 while current do
                     local title = current.Title
+                    if type(title) == "table" then
+                        title = lpdf.frombytes(title[2],title[3]) -- hack, we have an indirect one
+                    end
                     if title and trace_outlines then
-                        report_outline("%w%s",2*depth,title)
+                        report_outline("%w%s",2*depth,title) -- not ok
                     end
                     local entry = {
                         level = depth,
@@ -1021,7 +1126,7 @@ function codeinjections.mergebookmarks(specification)
     end
     if specification then
         local fullname  = specification.fullname
-        local bookmarks = backends.codeinjections.getbookmarks(fullname)
+        local bookmarks = codeinjections.getbookmarks(fullname)
         local realpage  = tonumber(specification.page) or 1
         for i=1,#bookmarks do
             local b = bookmarks[i]

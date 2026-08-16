@@ -21,34 +21,30 @@
 %D will keep code outside \TEX\ files as much as possible. The solutions evolved
 %D with the engine but one can find some history in the \MKIV\ files and articles.
 
-%ifdefined\setnaturalcatcodes \else \let\setnaturalcatcodes\relax \fi
-\ifdefined\obeylualines       \else \let\obeylualines      \relax \fi
-\ifdefined\obeyluatokens      \else \let\obeyluatokens     \relax \fi
+\ifdefined\obeyluatokens \else \let\obeyluatokens\relax \fi
 
 %D A few more goodies:
 
-\aliased\let\stoplua    \relax % tex catcodes
-\aliased\let\stopluacode\relax % lua catcodes
+\permanent\protected\lettonothing\stoplua     % tex catcodes
+\permanent\protected\lettonothing\stopluacode % lua catcodes
 
-%D In the meantime the \LUATEX\ interface has become stable but we still
-%D see traces of old here (needs checking).
+%D In the meantime the \LUATEX\ interface has become stable but we still see traces
+%D of old here (needs checking).
 
 \permanent\protected\def\startlua % \stoplua
   {\begingroup
-   \obeylualines
    \luat_start_lua_indeed}
 
 \def\luat_start_lua_indeed#1\stoplua
-  {\normalexpanded{\endgroup\noexpand\directlua{#1}}}
+  {\expanded{\endgroup\noexpand\directlua{#1}}}
 
 \permanent\protected\def\startluacode % \stopluacode
   {\begingroup
-   \obeylualines
    \obeyluatokens
    \luat_start_lua_code_indeed}
 
 \def\luat_start_lua_code_indeed#1\stopluacode
- %{\normalexpanded{\endgroup\noexpand\directlua{#1}}}
+ %{\expanded{\endgroup\noexpand\directlua{#1}}}
   {\directlua{#1\beginlocalcontrol\endgroup\endlocalcontrol}}
 
 %D Some delayed definitions:
@@ -58,14 +54,37 @@
 \ifdefined\obeyspaces  \else \let\obeyspaces  \relax \fi
 \ifdefined\obeyedspace \else \let\obeyedspace \relax \fi
 
-\aliased\let\obeylualines\relax % not used, will go away
-
 \newtoks\everyluacode
 
 %D It is nicer for checking with \type {s-system-macros} if we have some meaning:
 
 \pushoverloadmode
-    \let\-\explicitdiscretionary
+
+    % We anyway need this:
+
+    \permanent\protected\def\superexplicitdiscretionary
+      {\begingroup
+       \hyphenationmode\explicithyphenationcode\explicitdiscretionary
+       \endgroup}
+
+    % Conceptually the best:
+
+    \aliased\let\-\explicitdiscretionary
+
+    % But we could do this to be compatible:
+
+  % \permanent\protected\def\-{\begingroup\hyphenationmode\explicithyphenationmodecode\explicitdiscretionary\endgroup}
+
+    % Or maybe even this:
+
+  % \aliased\let\lang_explicit_discretionary_nop\explicitdiscretionary
+  %
+  % \permanent\protected\def\lang_explicit_discretionary_yes-%
+  %   {\superexplicitdiscretionary}
+  %
+  % \permanent\protected\def\-%
+  %   {\doifelsenextcharcs-\lang_explicit_discretionary_yes\lang_explicit_discretionary_nop}
+
 \popoverloadmode
 
 \ifdefined\n \else \mutable\def\n{n} \fi \ifdefined\r \else \mutable\def\r{r} \fi
@@ -83,20 +102,20 @@
 \ifdefined\7 \else \mutable\def\7{7} \fi \ifdefined\8 \else \mutable\def\8{8} \fi
 \ifdefined\9 \else \mutable\def\9{9} \fi \ifdefined\0 \else \mutable\def\0{0} \fi
 
-\immutable\edef\lua_letter_backslash{\string\\}
-\immutable\edef\lua_letter_bar      {\string\|} \immutable\edef\lua_letter_dash     {\string\-}
-\immutable\edef\lua_letter_lparent  {\string\(} \immutable\edef\lua_letter_rparent  {\string\)}
-\immutable\edef\lua_letter_lbrace   {\string\{} \immutable\edef\lua_letter_rbrace   {\string\}}
-\immutable\edef\lua_letter_squote   {\string\'} \immutable\edef\lua_letter_dquote   {\string\"}
-\immutable\edef\lua_letter_n        {\string\n} \immutable\edef\lua_letter_r        {\string\r}
-\immutable\edef\lua_letter_f        {\string\f} \immutable\edef\lua_letter_t        {\string\t}
-\immutable\edef\lua_letter_a        {\string\a} \immutable\edef\lua_letter_b        {\string\b}
-\immutable\edef\lua_letter_v        {\string\v} \immutable\edef\lua_letter_s        {\string\s}
-\immutable\edef\lua_letter_one      {\string\1} \immutable\edef\lua_letter_two      {\string\2}
-\immutable\edef\lua_letter_three    {\string\3} \immutable\edef\lua_letter_four     {\string\4}
-\immutable\edef\lua_letter_five     {\string\5} \immutable\edef\lua_letter_six      {\string\6}
-\immutable\edef\lua_letter_seven    {\string\7} \immutable\edef\lua_letter_eight    {\string\8}
-\immutable\edef\lua_letter_nine     {\string\9} \immutable\edef\lua_letter_zero     {\string\0}
+\permanent\cdef\lua_letter_backslash{\string\\}
+\permanent\cdef\lua_letter_bar      {\string\|} \permanent\cdef\lua_letter_dash     {\string\-}
+\permanent\cdef\lua_letter_lparent  {\string\(} \permanent\cdef\lua_letter_rparent  {\string\)}
+\permanent\cdef\lua_letter_lbrace   {\string\{} \permanent\cdef\lua_letter_rbrace   {\string\}}
+\permanent\cdef\lua_letter_squote   {\string\'} \permanent\cdef\lua_letter_dquote   {\string\"}
+\permanent\cdef\lua_letter_n        {\string\n} \permanent\cdef\lua_letter_r        {\string\r}
+\permanent\cdef\lua_letter_f        {\string\f} \permanent\cdef\lua_letter_t        {\string\t}
+\permanent\cdef\lua_letter_a        {\string\a} \permanent\cdef\lua_letter_b        {\string\b}
+\permanent\cdef\lua_letter_v        {\string\v} \permanent\cdef\lua_letter_s        {\string\s}
+\permanent\cdef\lua_letter_one      {\string\1} \permanent\cdef\lua_letter_two      {\string\2}
+\permanent\cdef\lua_letter_three    {\string\3} \permanent\cdef\lua_letter_four     {\string\4}
+\permanent\cdef\lua_letter_five     {\string\5} \permanent\cdef\lua_letter_six      {\string\6}
+\permanent\cdef\lua_letter_seven    {\string\7} \permanent\cdef\lua_letter_eight    {\string\8}
+\permanent\cdef\lua_letter_nine     {\string\9} \permanent\cdef\lua_letter_zero     {\string\0}
 
 \everyluacode {% \appendtoks
    \enforced\let\\\lua_letter_backslash
@@ -117,10 +136,10 @@
 
 \permanent\protected\def\obeyluatokens
   {\setcatcodetable\luacatcodes
-   \the\everyluacode}
+   \expand\everyluacode}
 
-\immutable\edef\luamajorversion{\ctxwrite{LUAMINORVERSION}}
-\immutable\edef\luaminorversion{\ctxwrite{LUAMAJORVERSION}}
+\permanent\cdef\luamajorversion{\ctxwrite{LUAMINORVERSION}}
+\permanent\cdef\luaminorversion{\ctxwrite{LUAMAJORVERSION}}
 
 %D We need a way to pass strings safely to \LUA\ without the need for tricky
 %D escaping. Compare:
@@ -141,8 +160,8 @@
 %D \edef\luaescapestring#1{\!!bs#1\!!es}
 %D \stoptyping
 
-\permanent\protected\def\setdocumentfilename       #1#2{\clf_setdocumentfilename\numexpr#1\relax{#2}}
-\permanent          \def\getdocumentfilename         #1{\clf_getdocumentfilename\numexpr#1\relax}
+\permanent\protected\def\setdocumentfilename       #1#2{\clf_setdocumentfilename{#1}{#2}}
+\permanent          \def\getdocumentfilename         #1{\clf_getdocumentfilename{#1}}
 \permanent\protected\def\setdocumentargument       #1#2{\clf_setdocumentargument{#1}{#2}}
 \permanent          \def\getdocumentargument         #1{\clf_getdocumentargument{#1}{}}
 \permanent\protected\def\setdocumentargumentdefault#1#2{\clf_setdocumentdefaultargument{#1}{#2}}
@@ -153,22 +172,21 @@
 \permanent\def\doifelsedocumentargument    #1{\doifelsesomething{\clf_getdocumentargument{#1}}}
 \permanent\def\doifdocumentargument        #1{\doifsomething    {\clf_getdocumentargument{#1}}}
 \permanent\def\doifnotdocumentargument     #1{\doifnothing      {\clf_getdocumentargument{#1}}}
-\permanent\def\doifelsedocumentfilename    #1{\doifelsesomething{\clf_getdocumentfilename\numexpr#1\relax}}
-\permanent\def\doifdocumentfilename        #1{\doifsomething    {\clf_getdocumentfilename\numexpr#1\relax}}
-\permanent\def\doifnotdocumentfilename     #1{\doifnothing      {\clf_getdocumentfilename\numexpr#1\relax}}
+\permanent\def\doifelsedocumentfilename    #1{\doifelsesomething{\clf_getdocumentfilename{#1}}}
+\permanent\def\doifdocumentfilename        #1{\doifsomething    {\clf_getdocumentfilename{#1}}}
+\permanent\def\doifnotdocumentfilename     #1{\doifnothing      {\clf_getdocumentfilename{#1}}}
 
 \aliased\let\doifdocumentargumentelse\doifelsedocumentargument
 \aliased\let\doifdocumentfilenameelse\doifelsedocumentfilename
 
 %D A handy helper:
 
-\permanent\def\luaexpanded#1{\luaescapestring\expandafter{\normalexpanded{#1}}}
+\permanent\def\luaexpanded#1{\luaescapestring\expandafter{\expanded{#1}}}
 
 %D Experimental:
 
 \permanent\protected\def\startluaparameterset[#1]% \stopluaparameterset
   {\begingroup
-   \obeylualines
    \obeyluatokens
    \luat_start_lua_parameter_set{#1}}
 
@@ -176,7 +194,7 @@
   {\ctxlua{parametersets["#1"]={#2}}%
    \endgroup}
 
-\aliased\let\stopluaparameterset\relax
+\permanent\protected\lettonothing\stopluaparameterset
 
 \permanent\def\luaparameterset#1#2{\ctxlua{parametersets["#1"]={#2} context("#1")}}
 
@@ -207,7 +225,6 @@
 
 \permanent\protected\def\ctxluacode
   {\begingroup
-   \obeylualines
    \obeyluatokens
    \catcode\leftbraceasciicode \plusone
    \catcode\rightbraceasciicode\plustwo
@@ -218,7 +235,7 @@
 % use \setcatcodetable\luacatcodes instead of \obeyluatokens now.
 
 \def\luat_lua_code
-  {\normalexpanded{\endgroup\noexpand\directlua\expandafter{\the\scratchtoks}}} % \zerocount is default
+  {\expanded{\endgroup\noexpand\directlua\expandafter{\the\scratchtoks}}} % \zerocount is default
 
 % \startctxfunction MyFunctionA
 %     context(" A1 ")
@@ -237,7 +254,7 @@
 \installsystemnamespace{ctxfunction}
 
 \permanent\protected\def\startctxfunctiondefinition #1 % \stopctxfunctiondefinition
-  {\begingroup \obeylualines \obeyluatokens \luat_start_lua_function_definition_indeed{#1}}
+  {\begingroup \obeyluatokens \luat_start_lua_function_definition_indeed{#1}}
 
 \installsystemnamespace{luafunction}
 
@@ -250,15 +267,15 @@
   {\expandafter\chardef\csname\??luafunction#1\endcsname#2\relax
    \edefcsname#1\endcsname{\noexpand\luafunction\csname\??luafunction#1\endcsname}}
 
-\aliased\let\stopctxfunctiondefinition\relax
+\permanent\protected\lettonothing\stopctxfunctiondefinition
 
 \permanent\protected\def\startctxfunction #1 % \stopctxfunction
-  {\begingroup \obeylualines \obeyluatokens \luat_start_lua_function_indeed{#1}}
+  {\begingroup \obeyluatokens \luat_start_lua_function_indeed{#1}}
 
 \def\luat_start_lua_function_indeed#1#2\stopctxfunction
   {\endgroup\edefcsname\??ctxfunction#1\endcsname{\noexpand\luafunction\ctxcommand{ctxfunction(\!!bs#2\!!es)}\relax}}
 
-\aliased\let\stopctxfunction\relax
+\permanent\protected\lettonothing\stopctxfunction
 
 \permanent\def\ctxfunction#1%
   {\begincsname\??ctxfunction#1\endcsname}
@@ -276,6 +293,8 @@
 %
 % \installctxfunction\foo{commands.foo}
 
+\lettonothing\m_syst_name
+
 \permanent\protected\def\installctxfunction#1#2% expandable
   {\edef\m_syst_name{\csstring#1}%
    \global\expandafter\normalluadef\csname\m_syst_name\endcsname\ctxcommand{ctxfunction(\!!bs#2\!!es,true)}\relax}
@@ -292,8 +311,11 @@
   {\edef\m_syst_name{\csstring#1}%
    \global\protected\expandafter\normalluadef\csname\m_syst_name\endcsname\ctxcommand{ctxscanner("\m_syst_name",\!!bs#2\!!es,true)}\relax}
 
+% \permanent\protected\def\resetctxscanner#1%
+%   {\edef\m_syst_name{\csstring#1}%
+%    \gletcsname\m_syst_name\endcsname\relax} % or better nothing
+
 \permanent\protected\def\resetctxscanner#1%
-  {\edef\m_syst_name{\csstring#1}%
-   \gletcsname\m_syst_name\endcsname\relax}
+  {\global\expandafter\lettonothing\csname\csstring#1\endcsname}
 
 \protect \endinput

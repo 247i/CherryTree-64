@@ -17,32 +17,31 @@ local texconfig, lua = texconfig, lua
 
 -- some basic housekeeping
 
-texconfig.kpse_init       = false     -- not needed in lmtx
-texconfig.shell_escape    = 't'       -- not needed in lmtx
+---------.kpse_init       = false     -- not needed in lmtx
+---------.shell_escape    = 't'       -- not needed in lmtx
 
-texconfig.max_in_open     =     2000
-texconfig.nest_size       =    10000
-texconfig.param_size      =   100000
-texconfig.save_size       =   500000
-texconfig.stack_size      =   100000
-texconfig.buffer_size     = 10000000
-texconfig.token_size      = 10000000
-texconfig.node_size       = 50000000
+-- texconfig.max_in_open     =     2000
+-- texconfig.nest_size       =    10000
+-- texconfig.param_size      =   100000
+-- texconfig.save_size       =   500000
+-- texconfig.stack_size      =   100000
+-- texconfig.buffer_size     = 10000000
+-- texconfig.token_size      = 10000000
+-- texconfig.token_size      = { size = 10000000, step = 2000000 }
+-- texconfig.node_size       = 50000000
 
-texconfig.max_print_line  =   100000
-texconfig.max_strings     =   500000
-texconfig.max_pool        = 10000000
+---------.max_print_line  =   100000
+-- texconfig.max_strings     =   500000
+-- texconfig.max_strings     = { size = 600000, step = 200000 }
+-- texconfig.max_pool        = 10000000
+-- texconfig.hash_extra      =   250000
+-- texconfig.expand_depth    =    10000
 
-texconfig.hash_extra      =   200000
+-- texconfig.error_line      =      250
+-- texconfig.half_error_line =      125
 
-texconfig.expand_depth    =    10000
-texconfig.function_size   =    32768
-texconfig.properties_size =    10000
-texconfig.error_line      =      250
-texconfig.half_error_line =      125
-
-texconfig.level_max       =      500
-texconfig.level_chr       =       46 -- period
+texconfig.functionsize   = 32768
+texconfig.propertiessize = 10000
 
 -- registering bytecode chunks
 
@@ -80,7 +79,7 @@ function lua.registercode(filename,options)
         if barename == filename then
             filename = filename .. (opts.autosuffix and ".lmt" or ".lua")
         end
-        local code = environment.luafilechunk(filename,false,opts.optimize)
+        local code = environment.luafilechunk(filename,false,opts.optimize,opts.optional)
         if code then
             bytedone[basename] = true
             if environment.initex and not opts.initexonly then
@@ -93,31 +92,11 @@ function lua.registercode(filename,options)
                 end
                 lua.lastbytecode = n
             end
+        elseif opts.optional then
+            -- we're fine
         elseif environment.initex then
-            texio.write_nl(format("\nerror loading file: %s (aborting)",filename))
+            texio.writenl(format("\nerror loading file: %s (aborting)",filename))
             os.exit()
-        end
-    end
-end
-
-local finalizers = { }
-
-function lua.registerfinalizer(f,comment)
-    comment = comment or "unknown"
-    if type(f) == "function" then
-        finalizers[#finalizers+1] = { action = f, comment = comment }
-    else
-        print(format("\nfatal error: invalid finalizer, action: %s\n",comment))
-        os.exit()
-    end
-end
-
-function lua.finalize(logger)
-    for i=1,#finalizers do
-        local finalizer = finalizers[i]
-        finalizer.action()
-        if logger then
-            logger("finalize action: %s",finalizer.comment)
         end
     end
 end
@@ -146,7 +125,11 @@ if LUATEXENGINE == nil then
 end
 
 if LUATEXVERSION == nil then
-    LUATEXVERSION = status.luatex_version/100 + tonumber(status.luatex_revision)/10000
+    LUATEXVERSION = status.version
+end
+
+if LUATEXVERBOSE == nil then
+    LUATEXVERBOSE = status.luatex_verbose
 end
 
 if CONTEXTLMTXMODE == nil then
@@ -161,20 +144,47 @@ if LUATEXFORMATID == nil then
     LUATEXFORMATID = status.format_id or 0
 end
 
-if JITSUPPORTED == nil then
-    JITSUPPORTED = false
-end
-
 if INITEXMODE == nil then
     INITEXMODE = status.run_state == 0 -- initializing updating production
 end
 
 environment.luatexengine        = LUATEXENGINE
 environment.luatexversion       = LUATEXVERSION
+environment.luatexverbose       = LUATEXVERBOSE
 environment.luatexfunctionality = LUATEXFUNCTIONALITY
-environment.jitsupported        = JITSUPPORTED
 environment.initex              = INITEXMODE
 environment.initexmode          = INITEXMODE
+
+if INITEXMODE then
+
+    local finalizers = { }
+
+    function lua.registerinitexfinalizer(f,comment)
+        comment = comment or "unknown"
+        if type(f) == "function" then
+            finalizers[#finalizers+1] = { action = f, comment = comment }
+        else
+            print(format("\nfatal error: invalid finalizer, action: %s\n",comment))
+            os.exit()
+        end
+    end
+
+    function lua.finalizeinitex(logger)
+        for i=1,#finalizers do
+            local finalizer = finalizers[i]
+            finalizer.action()
+            if logger then
+                logger("finalize action: %s",finalizer.comment)
+            end
+        end
+    end
+
+else
+
+    function lua.registerinitexfinalizer() end
+    function lua.finalizeinitex         () end
+
+end
 
 -- if INITEXMODE then
 --     -- we have about that amount so we preallocate then which gives less
@@ -196,7 +206,7 @@ if not environment.luafilechunk then
         local data = loadfile(fullname)
         texio.write("terminal_and_logfile","<",data and "+ " or "- ",fullname,">")
         if data then
--- package.loaded[gsub(filename,"%..-$"] =
+         -- package.loaded[gsub(filename,"%..-$"] =
             data()
         end
         return data
@@ -222,12 +232,10 @@ if not environment.engineflags then -- raw flags
 
 end
 
--- We need a few premature callbacks in the format generator. We
--- also do this when the format is loaded as otherwise we get
--- a kpse error when disabled. This is an engine issue that will
--- be sorted out in due time.
-
--- print("!!!!!!!!!!!!!!!!!!!!!!",lfs.isfile) os.exit()
+-- We need a few premature callbacks in the format generator. We also do this when
+-- the format is loaded as otherwise we get a kpse error when disabled. This is an
+-- engine issue that will be sorted out in due time. The reader is basically only
+-- there for reading the main context file.
 
 if not lfs.isfile then
 
@@ -269,40 +277,44 @@ local function target_file(name)
     return targetpath .. "/" .. name
 end
 
-local function find_log_file(name)
+local function find_log_file_callback(name)
     return target_file(name)
 end
 
-local function find_data_file(name)
+local function find_data_file_callback(name)
     return source_file(name)
 end
 
-local function open_data_file(name)
+local function open_data_file_callback(name)
     local fullname = source_file(name)
     if fullname then
         local f = io.open(fullname,'rb')
         return {
             reader = function()
                 return f:read("*line")
-            end
+            end,
+         -- close = function()
+         --     f:close()
+         -- end
         }
     else
         return false
     end
 end
 
-callback.register('find_log_file',   find_log_file)
-callback.register('find_data_file' , find_data_file )
-callback.register('open_data_file' , open_data_file )
-
-callback.register("trace_memory", function(what,success)
+local function trace_memory_callback(what,success)
     success = success and "succeeded" or "failed"
     if logs then
         logs.report("tex memory","bumping category %a %s, details: %s",
             what,success,table.sequenced(status["get"..what.."state"]()))
     elseif texio then
-        texio.write_nl(format("bumping tex '%s' memory %s",
+        texio.writenl(format("bumping tex '%s' memory %s",
             what,success))
     end
  -- os.exit()
-end)
+end
+
+callback.register("find_log_file",find_log_file_callback)
+callback.register("find_data_file",find_data_file_callback)
+callback.register("open_data_file",open_data_file_callback)
+callback.register("trace_memory",trace_memory_callback)

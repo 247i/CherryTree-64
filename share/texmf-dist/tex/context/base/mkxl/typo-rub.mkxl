@@ -43,9 +43,10 @@
   {\dontleavehmode
    \begingroup
    \enforced\let\ruby\noruby
-   \edef\currentruby{#1}%
+   \cdef\currentruby{#1}%
    \edef\p_location{\rubyparameter\c!location}%
-   \enforced\let|\relax
+ % \enforced\let|\relax
+   \enforced\letcharcode\barasciicode\relax
    \ifcsname\??rubyanalyze\p_location\endcsname
      \expandafter\lastnamedcs\else\expandafter\typo_ruby_analyze
    \fi{#2}{#3}%
@@ -60,17 +61,17 @@
      comment {#2}
    \relax}
 
-\setvalue{\??rubyanalyze\v!top}#1#2%
+\defcsname\??rubyanalyze\v!top\endcsname#1#2%
   {\clf_ruby
      align   {\rubyparameter\c!align}%
      stretch {\rubyparameter\c!stretch}%
-     hoffset  \rubyparameter\c!hoffset
-     voffset  \rubyparameter\c!voffset
+     hoffset {\rubyparameter\c!hoffset}%
+     voffset {\rubyparameter\c!voffset}%
      base    {#1}%
      comment {#2}
    \relax}
 
-\setvalue{\??rubyplacement\v!top}#1#2%
+\defcsname\??rubyplacement\v!top\endcsname#1#2%
   {\setbox\scratchbox\hbox\bgroup
      \userubystyleandcolor\c!style\c!color
      #2%
@@ -79,22 +80,22 @@
    \relax
    #1}
 
-\setvalue{\??rubyplacement\v!right}#1#2%
+\defcsname\??rubyplacement\v!right\endcsname#1#2%
   {#1%
    \edef\p_distance{\rubyparameter\c!distance}%
-   \ifempty\p_distance\orelse\ifx\p_distance\v!none\else\hskip\p_distance\fi
+   \ifempty\p_distance\orelse\ifx\p_distance\v!none\else\hskip{\p_distance}\relax\fi
    \begingroup
    \userubystyleandcolor\c!style\c!color
    \rubyparameter\c!left#2\rubyparameter\c!right
    \endgroup}
 
-\setvalue{\??rubyplacement\v!left}#1#2%
+\defcsname\??rubyplacement\v!left\endcsname#1#2%
   {\begingroup
    \userubystyleandcolor\c!style\c!color
    \rubyparameter\c!left#2\rubyparameter\c!right
    \endgroup
    \edef\p_distance{\rubyparameter\c!distance}%
-   \ifempty\p_distance\orelse\ifx\p_distance\v!none\else\hskip\p_distance\fi
+   \ifempty\p_distance\orelse\ifx\p_distance\v!none\else\hskip{\p_distance}\relax\fi
    #1}
 
 \permanent\protected\def\setruby#1#2%
@@ -110,12 +111,12 @@
   {\dontleavehmode
    \begingroup
    \enforced\aliased\startruby\begingroup
-   \edef\currentruby{#1}%
+   \cdef\currentruby{#1}%
    \clf_startruby
         align   {\rubyparameter\c!align}%
         stretch {\rubyparameter\c!stretch}%
-        hoffset  \rubyparameter\c!hoffset
-        voffset  \rubyparameter\c!voffset
+        hoffset {\rubyparameter\c!hoffset}%
+        voffset {\rubyparameter\c!voffset}%
    \relax}
 
 \permanent\protected\def\stopruby

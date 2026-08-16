@@ -22,26 +22,28 @@
 \newtoks\everyresetversion
 \newtoks\everysetupversion
 
-\mutable\let\currentversioninfo\empty
-\mutable\let\currentversiontext\empty
+\mutable\lettonothing\currentversioninfo
+\mutable\lettonothing\currentversiontext
 
 \let\page_info_add_to_box\gobbleoneargument
 
 \permanent\tolerant\protected\def\setupversion[#1]%
-  {\the\everyresetversion
-   \doifelseassignment{#1}%
-     {\getdummyparameters[\c!alternative=,\c!text=,#1]%
-      \edef\currentversioninfo{\dummyparameter\c!alternative}%
-      \edef\currentversiontext{\dummyparameter\c!text}}%
-     {\edef\currentversioninfo{#1}%
-      \let \currentversiontext\empty}%
+  {\expand\everyresetversion
+   \ifhastok={#1}%
+     \getdummyparameters[\c!alternative=,\c!text=,#1]%
+     \edef\currentversioninfo{\dummyparameter\c!alternative}%
+     \edef\currentversiontext{\dummyparameter\c!text}%
+   \else
+     \edef\currentversioninfo{#1}%
+     \lettonothing\currentversiontext
+   \fi
    \ifcsname\??layoutinfo\currentversioninfo\endcsname
      \let\page_info_add_to_box\page_info_add_to_box_indeed
    \else
-     \let\currentversioninfo\empty
+     \lettonothing\currentversioninfo
      \let\page_info_add_to_box\gobbleoneargument
    \fi
-   \the\everysetupversion}
+   \expand\everysetupversion}
 
 \aliased\let\version\setupversion
 
@@ -49,13 +51,13 @@
   {\begincsname\??layoutinfo\currentversioninfo\endcsname}
 
 \permanent\protected\def\installversioninfo#1#2%
-  {\setvalue{\??layoutinfo#1}{#2}}
+  {\defcsname\??layoutinfo#1\endcsname{#2}}
 
 \permanent\protected\def\includeversioninfo#1%
   {\begincsname\??layoutinfo#1\endcsname}
 
 \installversioninfo\v!final
-  {\let\currentversioninfo\empty
+  {\lettonothing\currentversioninfo
    \let\page_info_add_to_box\gobbleoneargument}
 
 \installversioninfo\v!concept
@@ -74,7 +76,11 @@
      {\infofont
       \getmessage\m!system{27}:\space\currentdate\quad
       \donefalse
-      \doif\currentproject\currentproduct{\doif\currentproduct\currentcomponent\donetrue}%
+      \ifcstok{\currentproject}{\currentproduct}%
+        \ifcstok{\currentproduct}{\currentcomponent}%
+          \donetrue
+        \fi
+      \fi
       \ifdone
         \donefalse
       \else
@@ -108,7 +114,7 @@
    \setbox\b_page_versions\vpack to \ht#1%
      {\vfill
       \settexthoffset
-      \hsize\dimexpr\scratchdimen-2\texthoffset\relax
+      \hsize{\scratchdimen-2\texthoffset}%
       \hkern\texthoffset % brrrr
       \vbox to \zeropoint{\vss\page_info_place_info}%
       \vkern\bodyfontsize}%

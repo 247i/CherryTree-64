@@ -20,10 +20,9 @@ local implement  = interfaces.implement
 
 local formatters = string.formatters
 
---[[ldx--
-<p>For raw 8 bit characters, the offset is 0x110000 (bottom of plane 18) at
-the top of <l n='luatex'/>'s char range but outside the unicode range.</p>
---ldx]]--
+-- For raw 8 bit characters, the offset is 0x110000 (bottom of plane 18) at the top
+-- of LuaTeX's char range but outside the unicode range. This is no longer the case
+-- in LuaMetaTeX.
 
 function converters.hexstringtonumber(n) tonumber(n,16) end
 function converters.octstringtonumber(n) tonumber(n, 8) end
@@ -35,7 +34,7 @@ local f_uchexnumber  = formatters["%X"]
 local f_lchexnumbers = formatters["%02x"]
 local f_uchexnumbers = formatters["%02X"]
 local f_octnumber    = formatters["%03o"]
-local   nicenumber   = formatters["%0.6F"]
+local   nicenumber   = formatters["%0.6F"] -- or N
 
 local lchexnumber  = function(n) if n < 0 then n = 0x100000000 + n end return f_lchexnumber (n) end
 local uchexnumber  = function(n) if n < 0 then n = 0x100000000 + n end return f_uchexnumber (n) end
@@ -74,7 +73,7 @@ implement { name = "tand", actions = { math.tand, nicenumber, context }, argumen
 function commands.format(fmt,...) context((gsub(fmt,"@","%%")),...) end
 
 implement {
-    name      = "formatone",
+    name      = "formatone", -- used as such so no name change here
     public    = true,
     protected = true,
     arguments = "2 strings",

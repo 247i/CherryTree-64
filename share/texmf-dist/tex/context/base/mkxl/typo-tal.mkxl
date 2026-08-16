@@ -56,7 +56,7 @@
 % D
 % D \typebuffer \blank \getbuffer \blank
 
-\permanent\protected\def\signalcharacteralign       #1#2{\c_attr_characteralign\numexpr#1*\maxcardminusone+#2\relax} % 0xFFFF
+\permanent\protected\def\signalcharacteralign       #1#2{\c_attr_characteralign{#1*\maxcardminusone+#2}} % 0xFFFF
 \permanent\protected\def\setcharacteralign          #1#2{\clf_setcharacteralign#1{#2}}
 \permanent\protected\def\resetcharacteralign            {\clf_resetcharacteralign}
 \permanent\protected\def\nocharacteralign               {\c_attr_characteralign\attributeunsetvalue}
@@ -123,17 +123,17 @@
    \c!character  =\alignmentcharacter]
 
 \permanent\protected\def\typo_charalign_pass_one
-  {\advance\scratchcounter\plusone
+  {\advanceby\scratchcounter\plusone
    \setbox\scratchbox\typo_charalign_pass}
 
 \permanent\protected\def\typo_charalign_pass_two
-  {\advance\scratchcounter\plusone
+  {\advanceby\scratchcounter\plusone
    \typo_charalign_pass}
 
 \def\typo_charalign_pass
   {\hbox\bgroup\signalcharacteralign\plusone\scratchcounter\let\next}
 
-\permanent\tolerant\protected\def\startcharacteralign[#1]%
+\permanent\tolerant\protected\def\startcharacteralign[#S#1]%
   {\doifelseassignment{#1}\typo_charalign_start_one\typo_charalign_start_two{#1}}
 
 \def\typo_charalign_start_one#1#2\stopcharacteralign
@@ -143,13 +143,13 @@
    \edef\p_left {\characteralignparameter\c!leftsample}%
    \edef\p_right{\characteralignparameter\c!rightsample}%
    \ifempty\p_left
-     \scratchdimenone\dimexpr\characteralignparameter\c!leftwidth\relax
+     \scratchdimenone{\characteralignparameter\c!leftwidth}%
    \else
      \setbox\scratchbox\hbox{\p_left}%
      \scratchdimenone\wd\scratchbox
    \fi
    \ifempty\p_right
-     \scratchdimentwo\dimexpr\characteralignparameter\c!rightwidth\relax
+     \scratchdimentwo{\characteralignparameter\c!rightwidth}%
    \else
      \setbox\scratchbox\hbox{\p_right}%
      \scratchdimentwo\wd\scratchbox
@@ -212,7 +212,8 @@
    \resetcharacteralign
    \egroup}
 
-\aliased\let\stopcharacteralign \relax
+\permanent\protected\lettonothing\stopcharacteralign
+
 \aliased\let\checkcharacteralign\gobbleoneargument
 
 \permanent\protected\def\setfirstpasscharacteralign {\enforced\let\checkcharacteralign\gobbleoneargument}
@@ -248,12 +249,12 @@
   [tnum=yes,
    lnum=no]
 
-\newconditional\c_tabl_ntb_char_align_auto_font \settrue\c_tabl_ntb_char_align_auto_font
+\newconditional\c_tabl_ntb_char_align_auto_font \c_tabl_ntb_char_align_auto_font\conditionaltrue
 
 \installtexdirective % yes or no ?
   {typesetters.characteralign.autofont}
-  {\settrue \c_tabl_ntb_char_align_auto_font}
-  {\setfalse\c_tabl_ntb_char_align_auto_font}
+  {\c_tabl_ntb_char_align_auto_font\conditionaltrue}
+  {\c_tabl_ntb_char_align_auto_font\conditionalfalse}
 
 \def\m_font_feature_auto_tabnum{system:tabnum}
 

@@ -39,14 +39,14 @@
 % \definepagebreak[instance][forsure]
 % \definepagebreak[forsure][yes,+4]
 
-\newconditional\c_page_breaks_enabled   \settrue\c_page_breaks_enabled
-\newcount      \c_page_breaks_prevpage
+\newconditional\c_page_breaks_enabled   \c_page_breaks_enabled\conditionaltrue
+\newinteger    \c_page_breaks_prevpage
 
 \newtoks\everybeforepagebreak
 \newtoks\everyafterpagebreak
 
-\let\page_breaks_current_option \empty
-\let\page_breaks_current_options\empty
+\lettonothing\page_breaks_current_option
+\lettonothing\page_breaks_current_options
 
 \installcorenamespace{pagebreakmethod}
 \installcorenamespace{pagebreaks}
@@ -84,12 +84,13 @@
   {\par % else no vertical penalties, always before group so that we clear hangs etc (as in side floats)
    \ifvmode % extra check
      \begingroup
-     \the\everybeforepagebreak
+     \expand\everybeforepagebreak
      \c_page_breaks_prevpage\realpageno
      \ifcase\pageornamentstate \or
        % disable reset after shipout
        \global\pageornamentstate\plustwo
      \fi
+     % maybe \ifempty{#1}%
      \ifparameter#1\or
        \page_breaks_handle{#1}%
      \else % so, no pagebreak when \pagebreak[] ! ! !
@@ -99,11 +100,13 @@
      \ifnum\c_page_breaks_prevpage<\realpageno
        \global\pageornamentstate\zerocount
      \fi
-     \the\everyafterpagebreak
+     \expand\everyafterpagebreak
      \endgroup
    \fi}
 
 \aliased\let\page\pagebreak
+
+\lettonothing\m_page_breaks_asked
 
 \permanent\protected\def\usepageparameter#1%
   {\edef\m_page_breaks_asked{#1\c!page}%
@@ -118,7 +121,7 @@
    \fi}
 
 \permanent\protected\def\resetpagebreak % used elsewhere too
-  {\global\settrue\c_page_breaks_enabled}
+  {\global\c_page_breaks_enabled\conditionaltrue}
 
 \permanent\protected\def\simplifypagebreak % to be used grouped !
   {\enforced\permanent\protected\def\pagebreak[##1]{\goodbreak}}
@@ -139,20 +142,21 @@
    \endgroup}
 
 \protected\def\page_breaks_unknown % how often called ?
-  {\doifelseinstring{+}\page_breaks_current_option
-     {\page_otr_command_flush_all_floats
+  {\ifhastok+\page_breaks_current_option
+     \page_otr_command_flush_all_floats
+     \page_otr_command_next_page
+     \dorecurse\page_breaks_current_option\page_otr_insert_dummy_page
+   \orelse\ifchknum\page_breaks_current_option\or
+      \page_otr_command_flush_all_floats
       \page_otr_command_next_page
-      \dorecurse\page_breaks_current_option\page_otr_insert_dummy_page}
-     {\doifelsenumber\page_breaks_current_option
-        {\page_otr_command_flush_all_floats
-         \page_otr_command_next_page
-         \doloop
-           {\ifnum\userpageno<\page_breaks_current_option\relax
-              \page_otr_insert_dummy_page
-            \else
-              \exitloop
-            \fi}}
-        {}}}
+%       \localcontrolledrepeating
+      \localcontrolledendless
+        {\ifnum\userpageno<\page_breaks_current_option\relax
+           \page_otr_insert_dummy_page
+         \else
+           \quitloop
+         \fi}%
+   \fi}
 
 \installpagebreakmethod \s!unknown
   {\page_breaks_unknown}
@@ -165,7 +169,7 @@
    \resetpagebreak}
 
 \installpagebreakmethod \v!disable
-  {\global\setfalse\c_page_breaks_enabled}
+  {\global\c_page_breaks_enabled\conditionalfalse}
 
 \installpagebreakmethod \v!yes
   {\ifconditional\c_page_breaks_enabled
@@ -238,11 +242,12 @@
 
 \installpagebreakmethod \v!quadruple % not yet ok inside columnsets
   {\ifdoublesided
-     \ifcase\modulonumber\plusfour\realpageno\else
+     \ifcase{\realpageno;\plusfour}\else
        \page_breaks_handle_direct\v!yes
-       \doloop
-         {\ifcase\modulonumber\plusfour\realpageno\relax
-            \exitloop
+%        \localcontrolledrepeating
+       \localcontrolledendless
+         {\ifcase{\realpageno;\plusfour}%
+            \quitloop
           \else
             \page_breaks_handle_direct\v!empty
           \fi}%
@@ -268,14 +273,15 @@
      \page_breaks_handle_direct\v!empty
    \fi}
 
-\installpagebreakmethod \v!start {\global\settrue \c_otr_shipout_enabled}
-\installpagebreakmethod \v!stop  {\global\setfalse\c_otr_shipout_enabled}
+\installpagebreakmethod \v!start {\global\c_otr_shipout_enabled\conditionaltrue}
+\installpagebreakmethod \v!stop  {\global\c_otr_shipout_enabled\conditionalfalse}
 
 \installpagebreakmethod{xy}% for Mojca
   {\page_breaks_handle_direct\v!yes
-   \scratchcounterone  \numexpr\rootlayouttargetparameter\c!nx*\rootlayouttargetparameter\c!ny\relax
-   \scratchcountertwo  \luaexpr{math.mod(\the\realpageno-1,\the\scratchcounterone)}\relax
-   \scratchcounterthree\numexpr\scratchcounterone-\scratchcountertwo\relax
+   \scratchcounterone  {(\rootlayouttargetparameter\c!nx)*(\rootlayouttargetparameter\c!ny)}%
+  %\scratchcountertwo  \luaexpr{math.mod(\the\realpageno-1,\the\scratchcounterone)}\relax
+   \scratchcountertwo  {(\realpageno-1):\scratchcounterone}%
+   \scratchcounterthree{\scratchcounterone-\scratchcountertwo}%
    \dorecurse\scratchcounterthree{\page_breaks_handle_direct\v!empty}}
 
 % Column breaks.
@@ -287,8 +293,8 @@
 \newtoks\everyaftercolumnbreak
 \newtoks\everysynchronizecolumn
 
-\let\page_breaks_columns_current_option \empty
-\let\page_breaks_columns_current_options\empty
+\lettonothing\page_breaks_columns_current_option
+\lettonothing\page_breaks_columns_current_options
 
 \def\page_breaks_columns_handle#1%
   {\edef\page_breaks_columns_current_options{#1}%
@@ -321,17 +327,17 @@
 \permanent\tolerant\protected\def\columnbreak[#1]%
   {\par % else no vertical penalties
    \begingroup
-   \the\everybeforecolumnbreak
+   \expand\everybeforecolumnbreak
    \ifparameter#1\or
      \page_breaks_columns_handle{#1}%
    \else
      \page_breaks_columns_handle_direct\v!yes
    \fi
    \relax
-   \the\everyaftercolumnbreak
+   \expand\everyaftercolumnbreak
    \endgroup
    % outside group e.g. setting hsize
-   \the\everysynchronizecolumn}
+   \expand\everysynchronizecolumn}
 
 \aliased\let\column\columnbreak
 
@@ -341,8 +347,8 @@
 
 %D Test page breaks.
 
-% \newdimen   \d_page_tests_test
-% \newconstant\c_page_tests_mode
+% \newdimension\d_page_tests_test
+% \newconstant \c_page_tests_mode
 
 \newconstant\testpagemethod  % old
 \newconstant\testpagetrigger % old
@@ -360,22 +366,41 @@
    \c!lines=\plusthree,
    \c!offset=\zeropoint]
 
+% \def\page_check_amount
+%   {(\pagecheckerparameter\c!lines\lineheight)%
+%    +\pagetotal
+%     \ifdim\lastskip<\parskip+\parskip\fi
+%    +(\pagecheckerparameter\c!offset)}
+
+% \permanent\tolerant\protected\def\checkpage[#1]#*[#2]%
+%   {\relax % look ahead prevention
+%    \endgraf
+%   %\triggerpagebuilder
+%    \checkspacingbeforepar
+%    \relax
+%    \ifconditional\c_page_breaks_enabled
+%      \begingroup
+%      \cdef\currentpagechecker{#1}%
+%      \setupcurrentpagechecker[#2]%
+%      \csname\??pagecheckermethod\pagecheckerparameter\c!method\endcsname
+%      \endgroup
+%    \fi}
+
 \def\page_check_amount
-  {\dimexpr
-      \pagecheckerparameter\c!lines\lineheight
-     +\pagetotal
-     \ifdim\lastskip<\parskip+\parskip\fi
-     +\pagecheckerparameter\c!offset
-   \relax}
+  {(\pagecheckerparameter\c!lines\lineheight)%
+   +\d_spac_total
+   +(\pagecheckerparameter\c!offset)}
 
 \permanent\tolerant\protected\def\checkpage[#1]#*[#2]%
-  {\relax % needed before \if
+  {\relax % look ahead prevention
    \endgraf
-   \triggerpagebuilder
+  %\triggerpagebuilder
+  %\checkspacingbeforepar
+   \checkspacingavailable
    \relax
    \ifconditional\c_page_breaks_enabled
      \begingroup
-     \edef\currentpagechecker{#1}%
+     \cdef\currentpagechecker{#1}%
      \setupcurrentpagechecker[#2]%
      \csname\??pagecheckermethod\pagecheckerparameter\c!method\endcsname
      \endgroup
@@ -384,7 +409,7 @@
 \defcsname\??pagecheckermethod 0\endcsname
   {\ifdim\pagegoal<\maxdimen \relax
      \ifdim\pagetotal<\pagegoal \relax
-       \ifdim\page_check_amount>.99\pagegoal
+       \ifdim{\page_check_amount}>.99\pagegoal
          \pagecheckerparameter\c!before
          \penalty-\plustenthousand
          \pagecheckerparameter\c!after
@@ -401,7 +426,7 @@
 \defcsname\??pagecheckermethod 1\endcsname
   {\ifdim\pagegoal<\maxdimen \relax
      \ifdim\pagetotal<\pagegoal \relax
-       \ifdim\dimexpr\page_check_amount-\pagegoal\relax>-\lineheight
+       \ifdim{\page_check_amount-\pagegoal}>-\lineheight
          \pagecheckerparameter\c!before
          \penalty-\plustenthousand
          \pagecheckerparameter\c!after
@@ -409,6 +434,7 @@
          \pagecheckerparameter\c!inbetween
        \fi
      \else
+%          \penalty-\plustenthousand
        \pagecheckerparameter\c!inbetween
      \fi
    \else
@@ -420,7 +446,7 @@
   {\ifdim\pagegoal<\maxdimen \relax
      \ifdim\pagetotal<\pagegoal \relax
        \getnoflines\pagegoal
-       \ifdim\dimexpr\page_check_amount-\noflines\lineheight\relax>-\lineheight
+       \ifdim{\page_check_amount-\noflines\lineheight}>-\lineheight
          \pagecheckerparameter\c!before
          \penalty-\plustenthousand
          \pagecheckerparameter\c!after
@@ -428,6 +454,7 @@
          \pagecheckerparameter\c!inbetween
        \fi
      \else
+%          \penalty-\plustenthousand
        \pagecheckerparameter\c!inbetween
      \fi
    \else
@@ -437,7 +464,7 @@
 \defcsname\??pagecheckermethod 3\endcsname
   {\ifdim\pagegoal<\maxdimen \relax
      \ifdim\pagetotal<\pagegoal \relax
-       \ifdim\dimexpr\page_check_amount-10\scaledpoint\relax>\pagegoal
+       \ifdim{\page_check_amount-10\scaledpoint}>\pagegoal
          \pagecheckerparameter\c!before
          \penalty-\plustenthousand
          \pagecheckerparameter\c!after
@@ -445,7 +472,7 @@
          \pagecheckerparameter\c!inbetween
        \fi
      \orelse\ifdim\pagetotal>\pagegoal
-       \ifdim\dimexpr\pagetotal-\pageshrink\relax>\pagegoal
+       \ifdim{\pagetotal-\pageshrink}>\pagegoal
          \goodbreak
          \pagecheckerparameter\c!inbetween
        \else
@@ -460,24 +487,69 @@
      \pagecheckerparameter\c!inbetween
    \fi}
 
+% \defcsname\??pagecheckermethod 4\endcsname % needs testing
+%   {\ifdim\pagegoal<\maxdimen \relax
+%      \ifdim\pagelastheight<\pagegoal \relax
+%        \ifdim{\page_check_amount-\pagegoal}>-\lineheight
+%          \pagecheckerparameter\c!before
+%          \penalty-\plustenthousand
+%          \pagecheckerparameter\c!after
+%        \else
+%          \pagecheckerparameter\c!inbetween
+%        \fi
+%      \else
+%        \pagecheckerparameter\c!inbetween
+%      \fi
+%    \else
+%      \goodbreak
+%      \pagecheckerparameter\c!inbetween
+%    \fi}
+
 \definepagechecker[\s!unknown:0]              [\c!method=0,\c!before=,\c!after=,\c!inbetween=]
 \definepagechecker[\s!unknown:1][\s!unknown:0][\c!method=1]
 \definepagechecker[\s!unknown:2][\s!unknown:0][\c!method=2]
 \definepagechecker[\s!unknown:3][\s!unknown:0][\c!method=3]
+%definepagechecker[\s!unknown:4][\s!unknown:0][\c!method=4]
 
-\permanent\tolerant\protected\def\testpage    [#1]#*[#2]{\normalexpanded{\checkpage[\s!unknown:1][\c!lines=#1,\c!offset=\ifparameter#2\or#2\else\zeropoint\fi]}} %
-\permanent\tolerant\protected\def\testpageonly[#1]#*[#2]{\normalexpanded{\checkpage[\s!unknown:2][\c!lines=#1,\c!offset=\ifparameter#2\or#2\else\zeropoint\fi]}} % no penalties added to the mvl
-\permanent\tolerant\protected\def\testpagesync[#1]#*[#2]{\normalexpanded{\checkpage[\s!unknown:3][\c!lines=#1,\c!offset=\ifparameter#2\or#2\else\zeropoint\fi]}} % force sync
+% the \relax prevents premature expansion in case of lookahead
+
+\permanent\tolerant\protected\def\testpage    [#1]#*[#2]{\relax\expanded{\checkpage[\s!unknown:1][\c!lines=#1,\c!offset=\ifparameter#2\or#2\else\zeropoint\fi]}} %
+\permanent\tolerant\protected\def\testpageonly[#1]#*[#2]{\relax\expanded{\checkpage[\s!unknown:2][\c!lines=#1,\c!offset=\ifparameter#2\or#2\else\zeropoint\fi]}} % no penalties added to the mvl
+\permanent\tolerant\protected\def\testpagesync[#1]#*[#2]{\relax\expanded{\checkpage[\s!unknown:3][\c!lines=#1,\c!offset=\ifparameter#2\or#2\else\zeropoint\fi]}} % force sync
 
 %D Test column breaks.
 
 \permanent\tolerant\protected\def\testcolumn[#1]#*[#2]%
-  {\ifdefined\page_otr_command_test_column
+  {\relax % look ahead prevention
+   \ifdefined\page_otr_command_test_column
      \ifparameter#2\or
         \page_otr_command_test_column[#1][#2]%
      \else
         \page_otr_command_test_column[#1][\zeropoint]%
      \fi
    \fi}
+
+%D Experiment:
+
+\permanent\protected\def\setpagelooseness[#1]%
+  {\begingroup
+   \ifchkdimension#1\lineheight\or
+     \additionalpageskip
+       \lastchkdimension
+     \relax
+   \else
+     \letdummyparameter\c!lines  \zerocount
+     \letdummyparameter\c!height \zeropoint
+     \letdummyparameter\c!stretch\zeropoint
+     \letdummyparameter\c!shrink \zeropoint
+     \getdummyparameters[#1]%
+     \additionalpageskip\dimexpr
+        (\dummyparameter\c!height)+\lineheight*(\dummyparameter\c!lines)%
+     \relax
+        \s!plus \dummyparameter\c!stretch
+        \s!minus\dummyparameter\c!shrink
+     \relax
+   \fi
+   \endgroup}
 
 \protect \endinput

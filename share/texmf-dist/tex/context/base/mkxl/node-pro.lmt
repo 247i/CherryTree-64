@@ -14,206 +14,207 @@ local report_nodes = logs.reporter("nodes","processors")
 local nodes        = nodes
 local tasks        = nodes.tasks
 local nuts         = nodes.nuts
-local tonut        = nodes.tonut
 
 nodes.processors   = nodes.processors or { }
 local processors   = nodes.processors
 
--- vbox: grouptype: vbox vtop output split_off split_keep  | box_type: exactly|aditional
--- hbox: grouptype: hbox adjusted_hbox(=hbox_in_vmode)     | box_type: exactly|aditional
+local tasks        = nodes.tasks
 
-local actions = tasks.actions("processors")
+local countnodes   = nuts.countall
 
 do
 
-    local isglyph = nuts.isglyph
-    local getnext = nuts.getnext
-
-    local utfchar = utf.char
-    local concat  = table.concat
-
-    local n = 0
-
-    local function reconstruct(head) -- we probably have a better one
-        local t, n, h = { }, 0, head
-        while h do
-            n = n + 1
-            local char, id = isglyph(h)
-            if char then -- todo: disc etc
-                t[n] = utfchar(char)
-            else
-                t[n] = "[]"
-            end
-            h = getnext(h)
-        end
-        return concat(t)
+    local function reconstruct(head)
+        return ",stream : " .. nodes.listtoutf(head,"",false,nil,true)
     end
 
-    function processors.tracer(what,head,groupcode,before,after,show)
-        if not groupcode then
-            groupcode = "unknown"
-        elseif groupcode == "" then
-            groupcode = "mvl"
-        end
-        n = n + 1
-        if show then
-            report_nodes("%s: location %a, group %a, # before %a, # after %s, stream: %s",what,n,groupcode,before,after,reconstruct(head))
+    local before = nil
+    local count  = 0
+    local show   = false
+
+    function processors.trace_glyph_run_b(head,groupcode)
+        count  = count + 1
+        before = countnodes(head)
+    end
+
+    function processors.trace_glyph_run_a(head,groupcode)
+        report_nodes("processors: run %i, group %a, # before %a, # after %s%s",
+            count,groupcode,before,countnodes(head),
+            show and reconstruct(head) or ""
+        )
+        before = false
+    end
+
+    local prependaction = tasks.prependaction
+    local appendaction  = tasks.appendaction
+    local enableaction  = tasks.enableaction
+    local disableaction = tasks.disableaction
+
+    trackers.register("nodes.callbacks", function(v)
+        if not v then
+            disableaction("processors","nodes.processors.trace_glyph_run_b")
+            disableaction("processors","nodes.processors.trace_glyph_run_a")
+        elseif before == nil then
+            prependaction("processors","before","nodes.processors.trace_glyph_run_b",nil,"nonut","enabled")
+            appendaction ("processors","after", "nodes.processors.trace_glyph_run_a",nil,"nonut","enabled")
+            before = false
         else
-            report_nodes("%s: location %a, group %a, # before %a, # after %s",what,n,groupcode,before,after)
+            enableaction("processors","nodes.processors.trace_glyph_run_b")
+            enableaction("processors","nodes.processors.trace_glyph_run_a")
+            show = v == "detail"
         end
-    end
-
-end
-
-processors.enabled = true -- this will become a proper state (like trackers)
-
-do
-
- -- local has_glyph   = nodes.has_glyph
-    local count_nodes = nodes.countall
-
-    local texget      = tex.get
-
-    local tracer      = processors.tracer
-
-    -- We've set \hlistcallbackmode=1 so glyph checking happens at the other end!
-
-    local function pre_linebreak_filter(head,groupcode)
-     -- local found = force_processors or has_glyph(head)
-     -- if found then
-            if trace_callbacks then
-                local before = count_nodes(head,true)
-                head = actions(head,groupcode)
-                local after = count_nodes(head,true)
-                tracer("pre_linebreak",head,groupcode,before,after,true)
-            else
-                head = actions(head,groupcode)
-            end
-     -- elseif trace_callbacks then
-     --     local n = count_nodes(head,false)
-     --     tracer("pre_linebreak",head,groupcode,n,n)
-     -- end
-        return head
-    end
-
-    local function hpack_filter(head,groupcode,size,packtype,direction,attributes)
-     -- local found = force_processors or has_glyph(head)
-     -- if found then
-            --
-            -- yes or no or maybe an option
-            --
-            if not direction then
-                direction = texget("textdir")
-            end
-            --
-            if trace_callbacks then
-                local before = count_nodes(head,true)
-                head = actions(head,groupcode,size,packtype,direction,attributes)
-                local after = count_nodes(head,true)
-                tracer("hpack",head,groupcode,before,after,true)
-            else
-                head = actions(head,groupcode,size,packtype,direction,attributes)
-            end
-     -- elseif trace_callbacks then
-     --     local n = count_nodes(head,false)
-     --     tracer("hpack",head,groupcode,n,n)
-     -- end
-        return head
-    end
-
-    processors.pre_linebreak_filter = pre_linebreak_filter
-    processors.hpack_filter         = hpack_filter
-
-    do
-
-        local hpack = nodes.hpack
-
-        function nodes.fullhpack(head,...)
-            return hpack((hpack_filter(head)),...)
-        end
-
-    end
-
-    do
-
-        local hpack = nuts.hpack
-
-        function nuts.fullhpack(head,...)
-            return hpack(tonut(hpack_filter(tonode(head))),...)
-        end
-
-    end
-
-    callbacks.register('pre_linebreak_filter', pre_linebreak_filter, "horizontal manipulations (before par break)")
-    callbacks.register('hpack_filter'        , hpack_filter,         "horizontal manipulations (before hbox creation)")
-
-end
-
-do
-    -- Beware, these are packaged boxes so no first_glyph test needed. Maybe some day I'll add a hash
-    -- with valid groupcodes. Watch out, much can pass twice, for instance vadjust passes two times,
-
-    local actions     = tasks.actions("finalizers") -- head, where
-    local count_nodes = nodes.countall
-
-    local tracer      = processors.tracer
-
-    local function post_linebreak_filter(head,groupcode)
-        if trace_callbacks then
-            local before = count_nodes(head,true)
-            head = actions(head,groupcode)
-            local after = count_nodes(head,true)
-            tracer("post_linebreak",head,groupcode,before,after,true)
-        else
-            head = actions(head,groupcode)
-        end
-        return head
-    end
-
-    processors.post_linebreak_filter = post_linebreak_filter
-
-    callbacks.register("post_linebreak_filter", post_linebreak_filter,"horizontal manipulations (after par break)")
+    end)
 
 end
 
 do
 
-    ----- texnest       = tex.nest
-    local getnest       = tex.getnest
+    local glyph_run_callback      = tasks.actions("processors")
+    local pre_linebreak_callback  = tasks.actions("paragraphs")
+    local post_linebreak_callback = tasks.actions("finalizers")
 
-    local getlist       = nuts.getlist
-    local setlist       = nuts.setlist
-    local getsubtype    = nuts.getsubtype
+    callbacks.register {
+        name    = "glyph_run",
+        action  = glyph_run_callback,
+        comment = "glyph processing",
+        frozen  = true,
+    }
 
-    local linelist_code = nodes.listcodes.line
+    callbacks.register {
+        name    = "pre_linebreak",
+        action  = pre_linebreak_callback,
+        comment = "horizontal manipulations (before par break)",
+        frozen  = true,
+    }
 
-    local actions       = tasks.actions("contributers")
+    callbacks.register {
+        name    = "post_linebreak",
+        action  = post_linebreak_callback,
+        comment = "horizontal manipulations (after par break)",
+        frozen  = true,
+    }
 
-    function processors.contribute_filter(groupcode)
-        if groupcode == "box" then -- "pre_box"
-            local whatever = getnest()
-            if whatever then
-                local line = whatever.tail
-                if line then
-                    line = tonut(line)
-                    if getsubtype(line) == linelist_code then
-                        local head = getlist(line)
-                        if head then
-                            local result = actions(head,groupcode,line)
-                            if result and result ~= head then
-                                setlist(line,result)
-                            end
-                        end
-                    end
+    local hpack = nuts.hpack
+
+    function nuts.fullhpack(head,...)
+        return hpack(glyph_run_callback(head),...)
+    end
+
+    local tonut  = nodes.tonut
+    local tonode = nodes.tonode
+
+    function nodes.fullhpack(head,...)
+        return tonode(hpack(glyph_run_callback(tonut(head)),...))
+    end
+
+end
+
+do
+
+    -- This was the "contributers" callback but we changed the interface and now have
+    -- three dedicated ones.
+
+    local getlist    = nuts.getlist
+    local setlist    = nuts.setlist
+    local getsubtype = nuts.getsubtype
+
+    local linelist_code <const> = nodes.listcodes.line
+
+    local lineactions    = tasks.actions("contributers") -- we keep the old name
+ -- local adjustactions  = tasks.actions("adjusters")
+ -- local migrateactions = tasks.actions("migrators")
+
+    -- todo: pre_append_line or just get rid of it
+
+    local function append_line_callback(head,tail)
+     -- if tail then
+            -- here we don't return something, we operate on the line (content)
+            local list = getlist(tail)
+            if list then
+                local result = lineactions(list,where,tail) -- tail is parent of list
+                if result and result ~= list then
+                    setlist(tail,result)
                 end
             end
-        end
+     -- end
     end
 
-    callbacks.register("contribute_filter", processors.contribute_filter,"things done with lines")
+    callbacks.register {
+        name    = "append_line",
+        action  = append_line_callback,
+        comment = "things done with lines",
+        frozen  = true,
+    }
+
+ -- local function append_adjust_callback(head,tail,where,index)
+ --  -- if tail then
+ --         return adjustactions(head,where,tail,index)
+ --  -- end
+ -- end
+
+    local append_adjust_callback = tasks.actions("adjusters")
+
+    callbacks.register {
+        name    = "append_adjust",
+        action  = append_adjust_callback,
+        comment = "things done with vertical adjusts",
+        frozen  = true,
+    }
+
+ -- local function append_migrate_callback(head,tail,where)
+ --  -- if tail then
+ --         return migrateactions(head,where,tail)
+ --  -- end
+ -- end
+
+    local append_migrate_callback = tasks.actions("migrators")
+
+    callbacks.register {
+        name    = "append_migrate",
+        action  = append_migrate_callback,
+        comment = "things done with migrated material",
+        frozen  = true,
+    }
 
 end
 
-statistics.register("h-node processing time", function()
-    return statistics.elapsedseconds(nodes,"including kernel") -- hm, ok here?
-end)
+do
+
+    local actions = tasks.actions("alignments")
+
+    local function alignment_callback(head,where,callback,attr,preamble)
+        if callback then
+            actions(head,where,callback,attr,preamble)
+        end
+    end
+
+    callbacks.register {
+        name    = "alignment",
+        action  = alignment_callback,
+        comment = "things done with alignments",
+        frozen  = true,
+    }
+
+end
+
+do
+
+    -- dummy, not to be used, we have no need to add more overhead
+
+    callbacks.register {
+        name     = "hpack",
+        action   = false,
+        comment  = "hlist processing (not used, replaced)",
+        frozen   = true,
+        disabled = true,
+    }
+
+    callbacks.register {
+        name     = "append_to_vlist",
+        action   = false,
+        comment  = "vlist processing (not used, replaced)",
+        frozen   = true,
+        disabled = true,
+    }
+
+end

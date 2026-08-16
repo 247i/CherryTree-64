@@ -1,3 +1,5 @@
+\usemodule[article-basic]
+
 \starttext
 
 The sample directory contains a few files with quotes that can be used
@@ -11,8 +13,9 @@ used in testing bibliographic references and citations.
 \starttabulate[|l|l|p|]
 \NC \bf file           \NC \bf author            \NC \bf source \NC \NR
 \HL
-%NC stork.tex          \NC David   F. Stork      \NC \NC \NR
+\NC stork.tex          \NC David   F. Stork      \NC Hal's Legacy\NC \NR
 \NC knuth.tex          \NC Donald  E. Knuth      \NC \NC \NR
+\NC knuthmath.tex      \NC Donald  E. Knuth      \NC Mathematical Writing (1987), §1 item 13, p.3 \NC \NR
 \NC tufte.tex          \NC Edward  R. Tufte      \NC \NC \NR
 \NC reich.tex          \NC Steve      Reich      \NC City Life (1995) \NC \NR
 \NC materie.tex        \NC Louis      Andriessen \NC De Materie \NC \NR
@@ -44,10 +47,10 @@ used in testing bibliographic references and citations.
                                                      Quercus, London, 2006 \NC \NR
 %NC schwarzenegger.tex \NC Arnold Schwarzenegger \NC Several places on the World Wide Web. \NC \NR
 \NC carey.tex          \NC Nessa Carey           \NC The Epigenetics Revolution,
-                                                     Columbia University Press, 2012, p. 195 \NC \NR
+                                                     Columbia University Press, 2012, p.195 \NC \NR
 \NC waltham.tex        \NC David Waltham         \NC Lucky Planet, why earth is exceptional and what that
                                                      means for life in the universe,
-                                                     Icon Books Ltd, London, 2014, p. 168 \NC \NR
+                                                     Icon Books Ltd, London, 2014, p.168 \NC \NR
 \NC sapolsky.tex       \NC Robert M. Sapolsky    \NC Why Zebras Don't Have Ulsters,
                                                      St Martin's Press, 2004 \NC \NR
 \NC mcnish.tex         \NC Hollie McNish         \NC Poetry versus Orchestra, Hollie McNish and Metropole
@@ -59,7 +62,14 @@ used in testing bibliographic references and citations.
                                                      their mark on the brain,
                                                      Rider, London, 2014. \NC \NR
 \NC poe.tex            \NC Edgar Allan Poe       \NC A dream within a dream, www.poetryfoundation.org. \NC \NR
-\NC gray.tex           \NC John Gray             \NC https://www.theguardian.com/books/2008/mar/15/society \NC \NR
+\NC gray.tex           \NC John Gray             \NC \hyphenatedurl{https://www.theguardian.com/books/2008/mar/15/society} \NC \NR
+\NC dijkstra.tex       \NC Edsger Dijkstra       \NC \NC \NR
+\NC janyes.tex         \NC Julian Jaynes         \NC The origin of consciousness in the break down of the
+                                                     bicameral mind,
+                                                     Houghton Mifflin, Princeton, 1976 \NC \NR
+\NC zelensky.tex       \NC Volodymyr Zelensky    \NC \hyphenatedurl{https://graciousquotes.com/volodymyr-zelensky/} \NC \NR
+\NC tchaikovsky.tex    \NC Adian Tchaikovsky     \NC Shroud \NC \NR
+\NC gabriel.tex        \NC Peter Gabriel         \NC Website / YT Channel, 2026, stepwise album release \NC \NR
 \stoptabulate
 
 % Tufte: This quote will always produce hyphenated text, apart from the content,
@@ -90,5 +100,7 @@ used in testing bibliographic references and citations.
 
 % The Schwarzenegger letter was originally typeset at a width equivalent to 16.1cm in
 % a default ConTeXt setup.
+
+% math-kontinuitet-sv.tex : persson|--|sundqvist.tex (infinitesimalkalkyl)
 
 \stoptext

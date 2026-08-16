@@ -15,26 +15,28 @@
 
 \registerctxluafile{util-str}{}
 \registerctxluafile{util-tab}{}
-\registerctxluafile{util-fil}{optimize}
-\registerctxluafile{util-sac}{optimize}
+\registerctxluafile{util-fil}{autosuffix}
+\registerctxluafile{util-sac}{autosuffix}
 \registerctxluafile{util-sto}{} % could also be done in trac-deb.mkiv
-\registerctxluafile{util-pck}{}
-\registerctxluafile{util-prs}{}
+\registerctxluafile{util-pck}{autosuffix}
+\registerctxluafile{util-prs}{autosuffix}
 \registerctxluafile{util-fmt}{}
 \registerctxluafile{util-dim}{}
+\registerctxluafile{util-vec}{autosuffix}
+\registerctxluafile{util-bmp}{autosuffix}
 
-\registerctxluafile{trac-set}{}
+\registerctxluafile{trac-set}{autosuffix}
 \registerctxluafile{luat-log}{autosuffix}
 \registerctxluafile{trac-inf}{autosuffix}
 \registerctxluafile{util-lua}{}
-\registerctxluafile{util-deb}{} % could also be done in trac-deb.mkiv
+\registerctxluafile{util-deb}{autosuffix}
 
 \registerctxluafile{util-tpl}{} % needs tracker
-\registerctxluafile{util-seq}{}
+\registerctxluafile{util-seq}{autosuffix}
 
 \registerctxluafile{util-sta}{}
 
-\registerctxluafile{util-sbx}{} % needs tracker and templates
+\registerctxluafile{util-sbx}{autosuffix} % needs tracker and templates
 
 \registerctxluafile{util-soc-imp-reset}  {}
 \registerctxluafile{util-soc-imp-socket} {}
@@ -46,6 +48,9 @@
 \registerctxluafile{util-soc-imp-tp}     {}
 
 \registerctxluafile{util-zip}{}
+\registerctxluafile{util-tar}{}
+
+\registerctxluafile{util-sig}{}
 
 \registerctxluafile{data-ini}{}
 \registerctxluafile{data-exp}{}
@@ -60,22 +65,23 @@
 \registerctxluafile{data-pre}{} % after data-res
 \registerctxluafile{data-bin}{} % before data-tex
 \registerctxluafile{data-tex}{} % after data-pre
-\registerctxluafile{data-vir}{}
+\registerctxluafile{data-vir}{autosuffix}
 \registerctxluafile{data-zip}{}
+\registerctxluafile{data-dec}{}
+\registerctxluafile{data-tar}{}
 %registerctxluafile{data-crl}{}
-\registerctxluafile{data-sch}{}
+\registerctxluafile{data-sch}{autosuffix}
 \registerctxluafile{data-tre}{}
 \registerctxluafile{data-lua}{}
-\registerctxluafile{data-ctx}{}
+%registerctxluafile{data-ctx}{}
 \registerctxluafile{data-con}{}
 \registerctxluafile{data-use}{}
 \registerctxluafile{data-aux}{}
 
 \registerctxluafile{luat-cbk}{autosuffix}
-\registerctxluafile{luat-run}{}
+\registerctxluafile{luat-run}{autosuffix}
 \registerctxluafile{luat-fio}{autosuffix}
-\registerctxluafile{luat-cnf}{}
-\registerctxluafile{luat-lua}{}
+\registerctxluafile{luat-cnf}{autosuffix,initexonly}
 \registerctxluafile{luat-sto}{}
 \registerctxluafile{luat-ini}{autosuffix}
 \registerctxluafile{util-env}{}
@@ -92,6 +98,8 @@
 \registerctxluafile{lxml-xml}{}
 \registerctxluafile{lxml-aux}{}
 \registerctxluafile{lxml-mis}{}
+
+\registerctxluafile{util-jsn}{autosuffix}
 
 % \pushoverloadmode
 %

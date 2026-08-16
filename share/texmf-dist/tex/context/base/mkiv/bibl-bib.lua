@@ -6,11 +6,9 @@ if not modules then modules = { } end modules ['bibl-bib'] = {
     license   = "see context related readme files"
 }
 
---[[ldx--
-<p>This is a prelude to integrated bibliography support. This file just loads
-bibtex files and converts them to xml so that the we access the content
-in a convenient way. Actually handling the data takes place elsewhere.</p>
---ldx]]--
+-- This is a prelude to integrated bibliography support. This file just loads bibtex
+-- files and converts them to xml so that the we access the content in a convenient
+-- way. Actually handling the data takes place elsewhere.
 
 local lower, format, gsub, concat = string.lower, string.format, string.gsub, table.concat
 local next = next
@@ -208,7 +206,7 @@ function bibtex.toxml(session,options)
     r = r + 1 ; result[r] = "<?xml version='1.0' standalone='yes'?>"
     r = r + 1 ; result[r] = "<bibtex>"
     for id, categories in next, session.data do
-        id = lower(gsub(id,"^@",""))
+        local id = lower(gsub(id,"^@",""))
         for name, entry in next, categories do
             if not entries or entries[name] then
                 r = r + 1 ; result[r] = formatters["<entry tag='%s' category='%s'>"](lower(name),id)
@@ -743,7 +741,6 @@ if commands then
     end
 
 end
-
 
 --~ local function test(sample)
 --~     local authors = splitauthors(sample)

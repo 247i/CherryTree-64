@@ -18,7 +18,8 @@ local allocate            = utilities.storage.allocate
 
 local formatters          = string.formatters
 
-local get                 = token.get_index -- getters
+local get                 = tokens.accessors.index
+
 local scanners            = tokens.scanners
 local scaninteger         = scanners.integer
 local scanstring          = scanners.string
@@ -45,12 +46,14 @@ local tonode              = nodes.tonode
 backends                  = backends or { }
 local backends            = backends
 
-local whatsit_code        = nodes.nodecodes.whatsit
 local whatsitcodes        = allocate { }
 nodes.whatsitcodes        = whatsitcodes
 local lastwhatsit         = 0
 
-nodes.subtypes.whatsit    = whatsitcodes
+local whatsit_code        <const> = nodes.nodecodes.whatsit
+
+nodes.subtypes.whatsit       = whatsitcodes
+nodes.subtypes[whatsit_code] = whatsitcodes
 
 local function registerwhatsit(name)
     lastwhatsit = lastwhatsit + 1
@@ -130,27 +133,23 @@ do
         return n
     end
 
-    function backends.latelua(current,pos_h,pos_v) -- todo: pass pos_h and pos_v (more efficient in lmtx)
-        local p = nodeproperties[current]
-        if p then
-            data = p.data
-        else
-            data = getdata(current)
-        end
-        noflatelua = noflatelua + 1
+    function backends.latelua(current,pos_h,pos_v,pos_r) -- todo: pass pos_h and pos_v (more efficient in lmtx)
+        local prop = nodeproperties[current]
+        local data = prop and prop.data or getdata(current)
         local kind = type(data)
+        noflatelua = noflatelua + 1
         if kind == "table" then
-            data.action(data.specification or data)
+            data.action(data.specification or data,current,pos_h,pos_v,pos_r)
         elseif kind == "function" then
-            data()
+            data(current,pos_h,pos_v,pos_r)
         else
             if kind ~= "string" then
                 data = serialize(data)
             end
-            if #data ~= "" then
+            if data and #data ~= "" then
                 local code = loadstring(data)
                 if code then
-                    code()
+                    code(current,pos_h,pos_v,pos_r)
                 end
             end
         end
@@ -164,6 +163,7 @@ do
         name      = "latelua",
         public    = true,
         protected = true,
+        untraced  = true,
         actions   = function()
             local node = copynut(lateluanode)
             local name = "latelua"
@@ -254,6 +254,20 @@ do
         return t
     end
 
+    implement {
+        name    = "startgraphicgroup",
+        actions = function()
+            context(tonode(copynut(savenode)))
+        end,
+    }
+
+    implement {
+        name    = "stopgraphicgroup",
+        actions = function()
+            context(tonode(copynut(restorenode)))
+        end,
+    }
+
     -- common
 
     local function stopcommon(n)
@@ -324,7 +338,7 @@ do
     local startscalingnode = registerwhatsitnode("startscaling")
     local stopscalingnode  = registerwhatsitnode("stopscaling")
 
-    local function startscaling(rx, ry) -- at the tex end we use sx and sy instead of rx and ry
+    local function startscaling(rx,ry) -- at the tex end we use sx and sy instead of rx and ry
         if rx == 1 and ry == 1 then
             insert(stack,false)
         else
@@ -344,6 +358,9 @@ do
     local function stopscaling() -- at the tex end we use sx and sy instead of rx and ry
         return stopcommon(stopscalingnode)
     end
+
+    nutpool.startscaling = startscaling
+    nutpool.stopscaling  = stopscaling
 
     implement {
         name    = "startscaling",
@@ -403,6 +420,7 @@ do
     end
 
     nutpool.startrotation = startrotation
+    nutpool.stoprotation  = stoprotation
 
     implement {
         name    = "startrotation",
@@ -492,16 +510,19 @@ end
 
 do
 
-    local logwriter      = logs.writer
-    local openfile       = io.open
-    local flushio        = io.flush
-    local serialize      = token.serialize
+    local logwriter = logs.writer
+    local openfile  = io.open
+    local flushio   = io.flush
+    local serialize = token.serialize
 
-    local opennode       = registerwhatsitnode("open")
-    local writenode      = registerwhatsitnode("write")
-    local closenode      = registerwhatsitnode("close")
-    local channels       = { }
-    local immediate_code = tex.flagcodes.immediate
+    local opennode  = registerwhatsitnode("open")
+    local writenode = registerwhatsitnode("write")
+    local closenode = registerwhatsitnode("close")
+    local channels  = { }
+
+    local toconsole = logs.reporter("just a message")
+
+    local immediate_code <const> = tex.flagcodes.immediate
 
     function backends.openout(n)
         local p = nodeproperties[n]
@@ -515,6 +536,7 @@ do
         end
     end
 
+
     function backends.writeout(n)
         local p = nodeproperties[n]
         if p then
@@ -523,7 +545,8 @@ do
             if handle then
                 handle:write(content,"\n")
             else
-               logwriter(content,"\n")
+                logwriter(content,"\n")
+             -- toconsole(content)
             end
         end
     end
@@ -587,7 +610,8 @@ do
                 if handle then
                     handle:write(content,"\n")
                 else
-                    logwriter(content,"\n")
+                    toconsole(content)
+--                    logwriter(content,"\n")
                 end
             end
         end,
@@ -616,7 +640,7 @@ do
         end,
     }
 
-    -- why ...
+    -- so we have them defined and can use them at the tex end .. still needed?
 
     local open_command  = get(token.create("openout"))
     local write_command = get(token.create("write"))

@@ -53,7 +53,7 @@
    \hsize\localhsize
    \offinterlineskip
    \setuppalet[#1]
-   \tabskip\zeropoint
+   \tabskip\zeroskip
    \def\colo_palets_show_palet##1%
      {\doifelseinset\v!number{#2}{##1\hskip.5\emwidth}{}%
       \aligntab
@@ -75,7 +75,7 @@
       \hsize\localhsize
       \offinterlineskip
       \setuppalet[#1]
-      \tabskip\zeropoint
+      \tabskip\zeroskip
       \scratchwidth\zeropoint
       \doifinset\v!number{#2}
         {\def\colo_palets_show_palet##1%
@@ -84,7 +84,7 @@
               \scratchwidth\wd\scratchbox
             \fi}%
          \colo_palets_process[#1]\colo_palets_show_palet}%
-      \advance\scratchwidth\emwidth
+      \advanceby\scratchwidth\emwidth
       \ifdim\scratchwidth<5\emwidth
         \scratchwidth5\emwidth
       \fi
@@ -115,7 +115,7 @@
 
 \gdef\colo_palets_process[#1]%
   {\getpaletlist[#1]%
-   \normalexpanded{\globalprocesscommalist[\paletlist]}}
+   \expanded{\globalprocesscommalist[\paletlist]}}
 
 \permanent\protected\tolerant\gdef\comparepalet[#1]%
   {\doifelsecolorpalet{#1}%
@@ -163,7 +163,7 @@
       \hsize\localhsize
       \offinterlineskip
       \setuppalet
-      \tabskip\zeropoint
+      \tabskip\zeroskip
       \def\colorformatseparator{\strut\cr}
       \def\colo_groups_show_group##1%
         {\doifcolor{#1:##1}{\vbox
@@ -190,7 +190,7 @@
       \hsize\localhsize
       \offinterlineskip
       \setuppalet
-      \tabskip\zeropoint
+      \tabskip\zeroskip
       \def\colo_groups_show_group##1%
         {\doifcolor{#1:##1}
            {\doifinset\v!number{#2}
@@ -219,7 +219,7 @@
       \setlocalhsize
       \hsize\localhsize
       \scratchcounter\zerocount
-      \dorecurse{15}{\doifcolor{#2:\recurselevel}{\advance\scratchcounter\plusone}}
+      \dorecurse{15}{\doifcolor{#2:\recurselevel}{\advanceby\scratchcounter\plusone}}
       \scratchwidth2\emwidth\relax
       \hsize\scratchcounter\scratchwidth
       \dorecurse\scratchcounter{\colo_groups_compare_step{#1}{#2}\recurselevel}}}
@@ -236,6 +236,16 @@
             {#1[#2:\recurselevel]{\vrule\s!width.5\scratchwidth\s!height2.25\exheight\s!depth-.75\exheight}%
          \hss}}}
    \endgraf}
+
+\permanent\tolerant\protected\def\compareluminance[#1]#*[#2]% by MS
+  {\dontleavehmode\hpack\bgroup
+     \unframed
+       [\c!background=\v!color,\c!backgroundcolor=#2,\c!foregroundcolor=#1,\c!loffset=.25\exheight,\c!roffset=.25\exheight]%
+       {#1\enspace#2\quad\colorluminanceratio{#1}{#2}}%
+     \unframed
+       [\c!background=\v!color,\c!backgroundcolor=#1,\c!foregroundcolor=#2,\c!loffset=.25\exheight,\c!roffset=.25\exheight]%
+       {#2\enspace#1\quad\colorluminanceratio{#2}{#1}}%
+   \egroup}
 
 \protect
 

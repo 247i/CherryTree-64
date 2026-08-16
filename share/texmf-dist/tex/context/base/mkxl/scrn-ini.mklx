@@ -15,7 +15,7 @@
 
 \unprotect
 
-\registerctxluafile{scrn-ini}{}
+\registerctxluafile{scrn-ini}{autosuffix}
 
 %D There is no interaction at all unless enabled by saying:
 %D
@@ -40,9 +40,13 @@
 \to \everysetupinteraction
 
 \permanent\protected\def\checkinteractionstate
-  {\doifelse{\interactionparameter\c!state}\v!start
-     {\locationtrue  \setsystemmode  \v!interaction}%
-     {\locationfalse \resetsystemmode\v!interaction}}
+  {\ifcstok{\interactionparameter\c!state}\v!start
+     \locationtrue
+     \setsystemmode\v!interaction
+   \else
+     \locationfalse
+     \resetsystemmode\v!interaction
+   \fi}
 
 \permanent\def\doifelselocation % expandable
   {\iflocation
@@ -71,35 +75,35 @@
 % interactions so a general start-stop will do
 %
 % \appendtoks
-%     \setuevalue         \currentinteraction {\scrn_interaction_direct{\currentinteraction}}%
-%     \setuevalue{\e!start\currentinteraction}{\scrn_interaction_start {\currentinteraction}}%
-%     \setuevalue{\e!stop \currentinteraction}{\scrn_interaction_stop                       }%
+%     \protected\frozen\instance\edefcsname        \currentinteraction\endcsname{\scrn_interaction_direct{\currentinteraction}}%
+%     \protected\frozen\instance\edefcsname\e!start\currentinteraction\endcsname{\scrn_interaction_start {\currentinteraction}}%
+%     \protected\frozen\instance\edefcsname\e!stop \currentinteraction\endcsname{\scrn_interaction_stop                       }%
 % \to \everydefineinteraction
 %
 % \protected\def\scrn_interaction_direct#1%
-%   {\edef\currentinteraction{#1}}
+%   {\cdef\currentinteraction{#1}}
 %
 % \protected\def\scrn_interaction_start#1%
 %   {\pushmacro\currentinteraction
-%    \edef\currentinteraction{#1}}
+%    \cdef\currentinteraction{#1}}
 %
 % \protected\def\scrn_interaction_stop
 %   {\popmacro\currentinteraction}
 %
 % \protected\def\setinteraction[#1]%
-%   {\def\currentinteraction{#1}}
+%   {\cdef\currentinteraction{#1}}
 %
 % \defineinteraction[\v!interaction]
 
 \permanent\protected\def\startinteraction[#1]%
   {\pushmacro\currentinteraction
-   \edef\currentinteraction{#1}}
+   \cdef\currentinteraction{#1}}
 
 \permanent\protected\def\stopinteraction
   {\popmacro\currentinteraction}
 
 \permanent\protected\def\setinteraction[#1]%
-  {\def\currentinteraction{#1}}
+  {\cdef\currentinteraction{#1}}
 
 \defineinteraction % keep it simple
   [\v!hidden]
@@ -134,8 +138,78 @@
 %D When we're dealing with pure page references, contrast
 %D colors are used when we are already at the page mentioned.
 
+% \permanent\protected\def\setlocationcolorspecified#1% not grouped !
+%   {\ifnum#1=\plusone
+%      \edef\p_contrastcolor{\interactionparameter\c!contrastcolor}%
+%      \ifempty\p_contrastcolor
+%        \useinteractioncolorparameter\c!color
+%      \else
+%        \useinteractioncolorparameter\c!contrastcolor
+%      \fi
+%    \else % we could just set and if > 0 set again
+%      \useinteractioncolorparameter\c!color
+%    \fi}
+
+% \permanent\protected\def\setlocationattributesspecified#1% not grouped !
+%   {\ifnum#1=\plusone
+%      \edef\p_contrastcolor{\interactionparameter\c!contrastcolor}%
+%      \ifempty\p_contrastcolor
+%        \useinteractionstyleandcolor\c!style\c!color
+%      \else
+%        \useinteractionstyleandcolor\c!style\c!contrastcolor
+%      \fi
+%    \else % we could just set and if > 0 set again
+%      \useinteractionstyleandcolor\c!style\c!color
+%    \fi}
+
+% \permanent\protected\def\setlocationcolorspecspecified#1#2% \resolver
+%   {\ifnum#1=\plusone
+%      \edef\p_contrastcolor{#2\c!contrastcolor}%
+%      \ifempty\p_contrastcolor
+%        \colo_helpers_activate{#2\c!color}%
+%      \else
+%        \colo_helpers_activate\p_contrastcolor
+%      \fi
+%    \else
+%      \colo_helpers_activate{#2\c!color}%
+%    \fi}
+
+\newconditional\c_scrn_interaction_no_style
+\newconditional\c_scrn_interaction_no_color
+\newconditional\c_scrn_interaction_no_contrastcolor
+
+\permanent\protected\def\resetinteractionstyleandcolor
+  {\c_scrn_interaction_no_style\conditionaltrue
+   \c_scrn_interaction_no_color\conditionaltrue
+   \c_scrn_interaction_no_contrastcolor\conditionaltrue}
+
+\permanent\protected\def\resetinteractionstyle
+  {\c_scrn_interaction_no_style\conditionaltrue}
+
+\permanent\protected\def\resetinteractioncolor
+  {\c_scrn_interaction_no_color\conditionaltrue
+   \c_scrn_interaction_no_contrastcolor\conditionaltrue}
+
+\permanent\protected\def\resetinteractioncontrastcolor
+  {\c_scrn_interaction_no_contrastcolor\conditionaltrue}
+
+\permanent\protected\def\restoreinteractionstyleandcolor
+  {\c_scrn_interaction_no_style\conditionalfalse
+   \c_scrn_interaction_no_color\conditionalfalse
+   \c_scrn_interaction_no_contrastcolor\conditionalfalse}
+
+\appendtoks
+    \iflocation
+      \restoreinteractionstyleandcolor
+    \fi
+\to \everybeforepagebody
+
 \permanent\protected\def\setlocationcolorspecified#1% not grouped !
-  {\ifnum#1=\plusone
+  {\ifconditional\c_scrn_interaction_no_color
+    % none of them
+   \orunless\ifconditional\c_scrn_interaction_no_contrastcolor
+     \useinteractioncolorparameter\c!color
+   \orelse\ifnum#1=\plusone
      \edef\p_contrastcolor{\interactionparameter\c!contrastcolor}%
      \ifempty\p_contrastcolor
        \useinteractioncolorparameter\c!color
@@ -147,19 +221,34 @@
    \fi}
 
 \permanent\protected\def\setlocationattributesspecified#1% not grouped !
-  {\ifnum#1=\plusone
+  {\ifconditional\c_scrn_interaction_no_color
+      \ifconditional\c_scrn_interaction_no_style
+      \else
+        \useinteractionstyleparameter\c!style
+      \fi
+   \orelse\ifnum#1=\plusone
      \edef\p_contrastcolor{\interactionparameter\c!contrastcolor}%
      \ifempty\p_contrastcolor
        \useinteractionstyleandcolor\c!style\c!color
      \else
        \useinteractionstyleandcolor\c!style\c!contrastcolor
      \fi
-   \else % we could just set and if > 0 set again
-     \useinteractionstyleandcolor\c!style\c!color
+   \else
+       \ifconditional\c_scrn_interaction_no_color
+         \useinteractionstyleparameter\c!style
+       \orelse\ifconditional\c_scrn_interaction_no_style
+         \useinteractioncolorparameter\c!color
+       \else
+         \useinteractionstyleandcolor\c!style\c!color
+       \fi
    \fi}
 
 \permanent\protected\def\setlocationcolorspecspecified#1#2% \resolver
-  {\ifnum#1=\plusone
+  {\ifconditional\c_scrn_interaction_no_color
+    % none of them
+   \orunless\ifconditional\c_scrn_interaction_no_contrastcolor
+     \colo_helpers_activate{#2\c!color}%
+   \orelse\ifnum#1=\plusone
      \edef\p_contrastcolor{#2\c!contrastcolor}%
      \ifempty\p_contrastcolor
        \colo_helpers_activate{#2\c!color}%
@@ -184,56 +273,11 @@
 
 %D Identity
 
-% \newconditional\c_scrn_identity_preroll
-%
-% \installtexdirective
-%   {interaction.identity.preroll}
-%   {\settrue \c_scrn_identity_preroll}
-%   {\setfalse\c_scrn_identity_preroll}
-%
-% \def\scrn_identity_prerolled#1%
-%   {\begingroup
-%    \edef\tempstring{\interactionparameter#1}%
-%    \ifempty\tempstring
-%      \endgroup
-%    \else
-%      \the\everypreroll
-%      \nodestostring\tempstring{\tempstring}%
-%      \normalexpanded{\endgroup\setexpandedinteractionparameter{#1}{\tempstring}}%
-%    \fi}
-%
-% \def\scrn_identity_synchronize
-%   {\begingroup
-%    \ifconditional\c_scrn_identity_preroll
-%      \scrn_identity_prerolled\c!title
-%      \scrn_identity_prerolled\c!subtitle
-%      \scrn_identity_prerolled\c!author
-%      \scrn_identity_prerolled\c!date
-%      \scrn_identity_prerolled\c!keyword
-%    \fi
-%    \clf_setupidentity
-%        title    {\interactionparameter\c!title}%
-%        subtitle {\interactionparameter\c!subtitle}%
-%        author   {\interactionparameter\c!author}%
-%      % creator  {ConTeXt - \contextversion}%
-%        date     {\interactionparameter\c!date}%
-%        keywords {\interactionparameter\c!keyword}%
-%    \relax
-%    \endgroup}
+%D We want to delay the preroll as it needs fonts so we now actively fetch from
+%D the \LUA\ end. So this one gets called by the time we need the value.
 
-\def\scrn_identity_synchronize
-  {\clf_setupidentity
-       title    {\prerolltostring{\interactionparameter\c!title}}%
-       subtitle {\prerolltostring{\interactionparameter\c!subtitle}}%
-       author   {\prerolltostring{\interactionparameter\c!author}}%
-     % creator  {ConTeXt - \contextversion}% fixed
-       date     {\prerolltostring{\interactionparameter\c!date}}%
-       keywords {\prerolltostring{\interactionparameter\c!keyword}}%
-   \relax}
-
-\appendtoks
-    \scrn_identity_synchronize
-\to \everysetupinteraction
+\def\scrn_identity_get#1%
+  {\setidentityvariable{#1}{\prerolltostring{\interactionparameter{#1}}}}
 
 % this comes before starttext
 
@@ -250,5 +294,32 @@
     \scrn_identity_document{keywords}\c!keyword
     \scrn_identity_document    {date}\c!date
 \to \everystartdocument % or stop
+
+\appendtoks
+    \clf_setautoprefix{\interactionparameter\c!prefix}%
+\to \everysetupinteraction
+
+%D This setter is global, contrary to the interaction setting which is local. The values of
+%D these keys are only looked at when we finalize the document.
+
+\def\syst_set_metadata_from_dummy#1%
+  {\ifempty{\dummyparameter#1}\else
+     \global\expandafter\letinteractionparameter\expandafter#1\lastnamedcs
+   \fi}
+
+\permanent\protected\def\setupmetadata[#1]%
+  {\begingroup
+   \resetdummyparameter\c!title
+   \resetdummyparameter\c!subtitle
+   \resetdummyparameter\c!author
+   \resetdummyparameter\c!keyword
+   \resetdummyparameter\c!date
+   \getdummyparameters[#1]%
+   \syst_set_metadata_from_dummy\c!title
+   \syst_set_metadata_from_dummy\c!subtitle
+   \syst_set_metadata_from_dummy\c!author
+   \syst_set_metadata_from_dummy\c!keyword
+   \syst_set_metadata_from_dummy\c!date
+   \endgroup}
 
 \protect \endinput

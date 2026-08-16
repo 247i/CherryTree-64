@@ -6,6 +6,8 @@ if not modules then modules = { } end modules ['colo-icc'] = {
     license   = "see context related readme files"
 }
 
+-- https://www.color.org/icc32.pdf etc
+
 local char, byte, gsub, match, format, strip = string.char, string.byte, string.gsub, string.match, string.format, string.strip
 local readstring, readnumber = io.readstring, io.readnumber
 local band = bit32.band
@@ -65,7 +67,8 @@ function colors.iccprofile(filename,verbose)
             z = readnumber(f,4),
         },
         profilecreator     = readnumber(f,4),
-        id                 = strip(readstring(f,16)),
+        -- 84-127
+     -- id                 = strip(readstring(f,16)), --rubish
     }
     local tags = { }
     for i=1,readnumber(f,128,4) do
@@ -163,11 +166,14 @@ end
 --
 -- This is hardly useful but nice for metafun demos:
 
-local D652 = {  95.047, 100, 108.883 }
+
+----- default = { 95.047, 100, 108.883 } -- D652
+local default = { 96.422, 100,  82.521 } -- D502
+----- default = { 96.720, 100,  81.427 } -- D510
 
 local function xyztolab(x,y,z,mapping)
     if not mapping then
-        mapping = D652
+        mapping = default
     end
     x = x / mapping[1]
     y = y / mapping[2]
@@ -183,7 +189,7 @@ end
 
 local function labtoxyz(l,a,b,mapping)
     if not mapping then
-        mapping = D652
+        mapping = default
     end
     local y = (l + 16) / 116
     local x = a / 500 + y
@@ -194,10 +200,16 @@ local function labtoxyz(l,a,b,mapping)
         mapping[3] * ((z^3 > 0.008856) and z^3 or (z - 16/116) / 7.787)
 end
 
-local function xyztorgb(x,y,z) -- D65/2°
-    local r = (x *  3.2404542 + y * -1.5371385 + z * -0.4985314) / 100
-    local g = (x * -0.9692660 + y *  1.8760108 + z *  0.0415560) / 100
-    local b = (x *  0.0556434 + y * -0.2040259 + z *  1.0572252) / 100
+local function xyztorgb(x,y,z)
+    -- D65/2°
+ -- local r = (x *  3.2404542 + y * -1.5371385 + z * -0.4985314) / 100
+ -- local g = (x * -0.9692660 + y *  1.8760108 + z *  0.0415560) / 100
+ -- local b = (x *  0.0556434 + y * -0.2040259 + z *  1.0572252) / 100
+    -- D50/2°
+    local r = (x *  3.1338561 + y * -1.6168667 + z * -0.4906146) / 100
+    local g = (x * -0.9787684 + y *  1.9161415 + z *  0.0334540) / 100
+    local b = (x *  0.0719453 + y * -0.2289914 + z *  1.4052427) / 100
+    --
     r = (r > 0.0031308) and (1.055 * r^(1/2.4) - 0.055) or (12.92 * r)
     g = (g > 0.0031308) and (1.055 * g^(1/2.4) - 0.055) or (12.92 * g)
     b = (b > 0.0031308) and (1.055 * b^(1/2.4) - 0.055) or (12.92 * b)
@@ -226,3 +238,5 @@ colors.labtoxyz = labtoxyz
 colors.xyztorgb = xyztorgb
 colors.rgbtoxyz = rgbtoxyz
 colors.labtorgb = labtorgb
+
+return colors

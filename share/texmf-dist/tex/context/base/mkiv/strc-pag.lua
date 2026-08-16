@@ -24,7 +24,6 @@ local counterdata         = counters.data
 
 local variables           = interfaces.variables
 local context             = context
-local commands            = commands
 local implement           = interfaces.implement
 
 local processors          = typesetters.processors
@@ -76,7 +75,8 @@ function pages.save(prefixdata,numberdata,extradata)
             report_pages("saving page %s.%s",realpage,userpage)
         end
         local viewerprefix = extradata.viewerprefix
-        local state = extradata.state
+        local state        = extradata.state
+        local label        = extradata.label
         local data = {
             number       = userpage,
             viewerprefix = viewerprefix ~= "" and viewerprefix or nil,
@@ -85,6 +85,7 @@ function pages.save(prefixdata,numberdata,extradata)
             prefixdata   = prefixdata and helpers.simplify(prefixdata),
             numberdata   = numberdata and helpers.simplify(numberdata),
             marked       = pages.markedlist(realpage), -- not yet defined
+            label        = label and label ~= "" and label or nil,
         }
         tobesaved[realpage] = data
         if not collected[realpage] then
@@ -147,7 +148,7 @@ function pages.number(realdata,pagespec)
         stopapplyprocessor()
     end
     if stopper ~= "" then
-        applyprocessors(stopper)
+        applyprocessor(stopper)
     end
 end
 
@@ -255,7 +256,7 @@ function helpers.analyze(entry,specification)
     if not section then
         return entry, false, "no section"
     end
-    local sectiondata = sections.collected[references.section]
+    local sectiondata = references.sectiondata or sections.collected[references.section] -- so we use an already resolved external one
     if not sectiondata then
         return entry, false, "no section data"
     end
@@ -272,7 +273,7 @@ function helpers.analyze(entry,specification)
     return entry, sectiondata, "okay"
 end
 
-function helpers.prefix(data,prefixspec,nosuffix)
+function helpers.prefix(data,prefixspec,nosuffix) -- not only page
     if data then
         local _, prefixdata, status = helpers.analyze(data,prefixspec)
         if prefixdata then
@@ -320,10 +321,6 @@ function pages.on_right(n)
     else
         return true
     end
-end
-
-function pages.has_changed()
-    return texconditionals.layouthaschanged
 end
 
 function pages.in_body(n)
@@ -387,6 +384,33 @@ function sections.prefixedconverted(name,prefixspec,numberspec)
     end
 end
 
+function pages.getlabels()
+    local pages  = structures.pages.tobesaved
+    local labels = false
+    for i=1,#pages do
+        local p = pages[i]
+        if p then
+            local label = p.label
+            if label and label ~= "" then
+                if not labels then
+                    labels = { }
+                end
+                local l = labels[label]
+                local t = type(l)
+                if t == "number" then
+                    l = { l, i }
+                elseif t == "table" then
+                    l[#l+1] = i
+                else
+                    l = i
+                end
+                labels[label] = l
+            end
+        end
+    end
+    return labels
+end
+
 --
 
 implement {
@@ -411,6 +435,7 @@ implement {
         {
             { "viewerprefix" },
             { "state" },
+            { "label" },
         }
     }
 }

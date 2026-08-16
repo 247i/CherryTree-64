@@ -270,47 +270,65 @@ function counters.raw(name)
     return counterdata[name]
 end
 
-function counters.compact(name,level,onlynumbers)
+function counters.compact(target,name,level)
     local cd = counterdata[name]
     if cd then
-        local data    = cd.data
-        local compact = { }
-        for i=1,level or #data do
+        local data       = cd.data
+        local numbers    = { }
+        local ownnumbers = { }
+        local depth      = #data
+        if not level or level == 0 then
+            level = depth
+        elseif level > depth then
+            level = depth
+        end
+
+        for i=1,level do
             local d = data[i]
-            if d.number ~= 0 then
-                compact[i] = (onlynumbers and d.number) or d
+            if d then
+                local n = d.number
+                local o = d.own
+                if n ~= 0 then
+                    numbers[i] = n
+                end
+                if o ~= "" then
+                    ownnumbers[i] = o
+                end
             end
         end
-        return compact
+        target.numbers = numbers
+        if next(ownnumbers) then
+            target.ownnumbers = ownnumbers
+        end
     end
 end
 
 -- depends on when incremented, before or after (driven by d.offset)
 
 function counters.previous(name,n)
-    return allocate(name,n).previous
+    return allocate(name,n or 1).previous
 end
 
 function counters.next(name,n)
-    return allocate(name,n).next
+    return allocate(name,n or 1).next
 end
 
 counters.prev = counters.previous
 
 function counters.currentvalue(name,n)
-    return allocate(name,n).number
+    return allocate(name,n or 1).number
 end
 
 function counters.first(name,n)
-    return allocate(name,n).first
+    return allocate(name,n or 1).first
 end
 
 function counters.last(name,n)
-    return allocate(name,n).last
+    return allocate(name,n or 1).last
 end
 
 function counters.subs(name,n)
-    return counterdata[name].data[n].subs or 0
+    return counterdata[name].data[n or 1].subs or 0
 end
 
 local function setvalue(name,tag,value)
@@ -357,8 +375,9 @@ end
 local function reset(name,n)
     local cd = counterdata[name]
     if cd then
-        for i=n or 1,#cd.data do
-            local d = cd.data[i]
+        local data = cd.data
+        for i=n or 1,#data do
+            local d = data[i]
             savevalue(name,i)
             local number = d.start or 0
             d.number = number
@@ -376,7 +395,7 @@ end
 local function set(name,n,value)
     local cd = counterdata[name]
     if cd then
-        local d = allocate(name,n)
+        local d = allocate(name,n or 1)
         local number = value or 0
         d.number = number
         d.own = nil
@@ -405,7 +424,7 @@ end
 local function setown(name,n,value)
     local cd = counterdata[name]
     if cd then
-        local d = allocate(name,n)
+        local d = allocate(name,n or 1)
         d.own = value
         d.number = (d.number or d.start or 0) + (d.step or 0)
         local level = cd.level
@@ -425,10 +444,10 @@ local function restart(name,n,newstart,noreset)
     if cd then
         newstart = tonumber(newstart)
         if newstart then
-            local d = allocate(name,n)
+            local d = allocate(name,n or 1)
             d.start = newstart
             if not noreset then  -- why / when needed ?
-                reset(name,n) -- hm
+                reset(name,n or 1) -- hm
             end
         end
     end
@@ -461,7 +480,7 @@ local function add(name,n,delta)
     local cd = counterdata[name]
     if cd and (cd.state == v_start or cd.state == "") then
         local data = cd.data
-        local d = allocate(name,n)
+        local d = allocate(name,n or 1)
         d.number = (d.number or d.start or 0) + delta*(d.step or 0)
      -- d.own = nil
         local level = cd.level

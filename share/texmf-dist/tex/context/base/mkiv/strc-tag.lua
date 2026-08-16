@@ -104,7 +104,7 @@ local properties     = allocate { -- todo: more "record = true" to improve forma
 
     lines                 = { pdf = "Code",       nature = "display" },
     line                  = { pdf = "Code",       nature = "mixed"   },
-    linenumber            = { pdf = "Span",       nature = "inline"   },
+    linenumber            = { pdf = "Span",       nature = "inline"  },
 
     synonym               = { pdf = "Span",       nature = "inline"  },
     sorting               = { pdf = "Span",       nature = "inline"  },
@@ -554,7 +554,7 @@ implement {
 
 implement {
     name      = "doifelseinelement",
-    actions   = { structures.atlocation, commands.testcase },
+    actions   = { structures.atlocation, commands.doifelse },
     arguments = "string",
 }
 

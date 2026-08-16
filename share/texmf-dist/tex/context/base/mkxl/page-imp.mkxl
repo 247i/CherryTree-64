@@ -32,7 +32,7 @@
 \aliased\let\stoptextdata\relax
 
 \def\page_shipouts_flush_text_data_indeed
-  {\vsmashed{\the\t_page_text_data}%
+  {\vsmashed{\expand\t_page_text_data}%
    \global\t_page_text_data\emptytoks
    \glet\page_shipouts_flush_text_data\relax}
 
@@ -55,24 +55,20 @@
 \installcorenamespace{layoutarranger}
 \installcorenamespace{layoutarrangeoption}
 
-\newcount      \shippedoutpages
-\newcount      \combinedpagescounter
+\newinteger    \shippedoutpages
+\newinteger    \combinedpagescounter
 \newconstant   \whichpagetoshipout % 0=all 1=odd 2=even
 \newbox        \shipoutscratchbox
 \setnewconstant\shipoutfinalizemethod\plusone
 
-\mutable\let\pagestoshipout\empty % {1,3,6}
+\mutable\lettonothing\pagestoshipout % {1,3,6}
 
 \permanent\protected\def\shipoutrange#1#2%
   {\begingroup
    \scratchtoks\emptytoks
    \dostepwiserecurse{#1}{\numexpr#2-\plusone\relax}\plusone{\etoksapp\scratchtoks{##1,}}%
    \xdef\pagestoshipout{\the\scratchtoks,\number#2}%
-   \doglobal\appendtoks
-     \ifnum\realpageno>\numexpr#2+\plusone\relax
-       \global\everypar{\normalend}%
-     \fi
-   \to\everyaftershipout
+   \gtoksapp\everyaftershipout{\ifnum\realpageno>\numexpr#2+\plusone\relax\global\everypar{\normalend}\fi}%
    \endgroup}
 
 \permanent\protected\def\installshipoutmethod#1#2%      % a handler takes one argument: something to be boxed
@@ -100,9 +96,31 @@
 \installshipoutmethod \v!none
   {\page_shipouts_ignore}
 
+% \setuppaper[method=rotate,rotation=15] \showframe
+% \starttext \dorecurse{10}{\input knuth\endgraf} \stoptext
+
+\installshipoutmethod\v!rotate
+  {\page_shipouts_rotate}
+
+\protected\def\page_shipouts_rotate#1%
+  {\invokepagehandler\v!normal{\rotate[\c!rotation=\rootlayouttargetparameter\c!rotation]{#1}}}
+
+% inject an empty page after each page
+
+\def\page_shipouts_double#1%
+  {\page_shipouts_normal{#1}%
+   \page_shipouts_normal{\null}}
+
+\installshipoutmethod \v!doublesided
+  {\ifarrangingpages
+     \expandafter\page_shipouts_arrange
+   \else
+     \expandafter\page_shipouts_double
+   \fi}
+
 % extension mechanism
 
-\newcount\c_page_boxes_flush_n % set at the lua end
+\newinteger\c_page_boxes_flush_n % set at the lua end
 
 \let\page_boxes_flush_before\relax
 \let\page_boxes_flush_after \relax
@@ -114,7 +132,7 @@
    \ifcase\c_page_boxes_flush_n\else
      \page_boxes_flush_before
    \fi
-   \the\everybeforeshipout
+   \expand\everybeforeshipout
    \ifcase\shipoutfinalizemethod % not nice ... needs thinking
      \page_shipouts_handle{#1}%
    \else
@@ -124,8 +142,8 @@
        {\finalizeshipoutbox\shipoutscratchbox
         \box\shipoutscratchbox}%
    \fi
-   \setnextrealpageno       % so this comes before \everyaftershipout so in fact:
-   \the\everyaftershipout   % at this point we're already on the next realpage
+   \setnextrealpageno         % so this comes before \everyaftershipout so in fact:
+   \expand\everyaftershipout  % at this point we're already on the next realpage
    \ifcase\c_page_boxes_flush_n\else
      \page_boxes_flush_after
    \fi}
@@ -133,9 +151,9 @@
 \def\page_shipouts_ignore#1%
   {\begingroup
    \writestatus\m!system
-     {\ifarrangingpages arranged \fi page
+     {\ifarrangingpages arranged\normalspace\fi page\normalspace
       \ifarrangingpages\the\arrangeno\else\the\realpageno\fi\normalspace
-       not flushed}%
+       not\normalspace flushed}%
  % \setbox\scratchbox\hpack
  %   {#1}% no finalize
    \deadcycles\zerocount
@@ -145,20 +163,30 @@
   {\begingroup
    \setbox\scratchbox\hpack
      {% before the main one !
-      \ifcase\realfolio \or
-        \the\everyfirstshipout
+      \ifcase\realpageno \or
+        \expand\everyfirstshipout
         \global\everyfirstshipout\emptytoks
       \fi
       % the main one
-      \the\everyshipout\relax
+      \expand\everyshipout\relax
       % always last (and after the main one)
       \ifnum\realpageno=\lastpage\relax
-        \the\everylastshipout
+        \expand\everylastshipout
         \global\everylastshipout\emptytoks
       \fi}%
    \smashbox\scratchbox
    \box\scratchbox
    \endgroup}
+
+%D We just ignore \type {\shipout}.
+
+\pushoverloadmode
+
+\permanent\protected\def\shipout
+ %{\begingroup\dowithnextboxcs\endgroup}
+  {\bgroup\aftergroup\egroup\setbox\shipoutscratchbox}
+
+\popoverloadmode
 
 %D Also in normal \MKIV\ we nos use the indirect way so that we benefit from timing
 %D and tracing.
@@ -171,10 +199,11 @@
    \fi
    \clf_shipoutpage#1\relax
    \global\setbox#1\emptybox
-   \global\deadcycles\zerocount}
+   \global\deadcycles\zerocount
+   \clf_cleanupattributes}
 
 \def\page_shipouts_normal#1%
-  {\global\advance\shippedoutpages\plusone
+  {\global\advanceby\shippedoutpages\plusone
    % this is not resource safe!
    \ifempty\pagestoshipout
      \ifcase\whichpagetoshipout\relax
@@ -186,8 +215,10 @@
      \else
        \donetrue
      \fi
-   \else % testen, aangepast / expanded nodig ?
-     \normalexpanded{\doifelseinset{\the\shippedoutpages}{\pagestoshipout}}\donetrue\donefalse
+   \orelse\ifinset{\the\shippedoutpages}{\pagestoshipout}%
+     \donetrue
+   \else
+     \donefalse
    \fi
    \ifdone
      \setbox\shipoutscratchbox\hpack
@@ -205,7 +236,7 @@
      \page_shipouts_ignore{#1}%
    \fi}
 
-\newconditional\c_page_shipouts_use_objects \settrue\c_page_shipouts_use_objects
+\newconditional\c_page_shipouts_use_objects \c_page_shipouts_use_objects\conditionaltrue
 
 \installcorenamespace {arrangedpage}
 
@@ -244,17 +275,17 @@
 \mutable\def\arrangedrotationO{0}
 \mutable\def\arrangedrotationE{0}
 
-\newcount\arrangedpageN
-\newcount\arrangedpageM
+\newinteger\arrangedpageN
+\newinteger\arrangedpageM
 
-\newcount\arrangedpageT \arrangedpageT\plusone
-\newcount\arrangedpageX \arrangedpageX\plusone
-\newcount\arrangedpageY \arrangedpageY\plusone
+\newinteger\arrangedpageT \arrangedpageT\plusone
+\newinteger\arrangedpageX \arrangedpageX\plusone
+\newinteger\arrangedpageY \arrangedpageY\plusone
 
 \def\page_paper_set_offsets
   {\global\paperoffset\v_page_target_offset
-   \global\advance\paperwidth -2\dimexpr\paperoffset/\arrangedpageX\relax
-   \global\advance\paperheight-2\dimexpr\paperoffset/\arrangedpageY\relax}
+   \global\advanceby\paperwidth -2\dimexpr\paperoffset/\arrangedpageX\relax
+   \global\advanceby\paperheight-2\dimexpr\paperoffset/\arrangedpageY\relax}
 
 \permanent\protected\def\doinstallarrangedoption#1#2%
   {\gdefcsname\??layoutarrangeoption#1\endcsname{#2}}
@@ -270,16 +301,16 @@
   {} % no default and check if empty, we can have ,,,
 
 \doinstallarrangedoption\v!disable
-  {\global\settrue\arrangingdisabledstate}
+  {\global\arrangingdisabledstate\conditionaltrue}
 
 \doinstallarrangedoption\v!mirrored
-  {\global\settrue\arrangedmirrorstate}
+  {\global\arrangedmirrorstate\conditionaltrue}
 
 \doinstallarrangedoption\v!doublesided
-  {\global\settrue\arrangeddoublestate}
+  {\global\arrangeddoublestate\conditionaltrue}
 
 \doinstallarrangedoption\v!negative
-  {\global\settrue\arrangednegatestate}
+  {\global\arrangednegatestate\conditionaltrue}
 
 \doinstallarrangedoption\v!rotated
   {\gdef\arrangedrotationO {90}%
@@ -304,7 +335,7 @@
   {\global\arrangingpagesfalse}
 
 \doinstallarrangedoption\v!background
-  {\global\settrue\arrangedbackgroundstate}
+  {\global\arrangedbackgroundstate\conditionaltrue}
 
 \aliased\let\poparrangedpages  \relax
 \aliased\let\pusharrangedpage  \gobbleoneargument
@@ -312,12 +343,12 @@
 
 \permanent\protected\def\setuparranging[#1]%
   {\ifconditional\arrangingdisabledstate \else
-     %global\setfalse\arrangingdisabledstate
+     %global\arrangingdisabledstate\conditionalfalse
      \global\arrangingpagestrue % will be conditional
-     \global\setfalse\arrangednegatestate
-     \global\setfalse\arrangedmirrorstate
-     \global\setfalse\arrangeddoublestate
-     \global\setfalse\arrangedswapstate
+     \global\arrangednegatestate\conditionalfalse
+     \global\arrangedmirrorstate\conditionalfalse
+     \global\arrangeddoublestate\conditionalfalse
+     \global\arrangedswapstate\conditionalfalse
      \gdef\arrangedrotationO{0}%
      \gdef\arrangedrotationE{180}%
      % if we use --arrange we have an initial "disable" here
@@ -416,7 +447,7 @@
      \scratchcounter\numexpr\realpageno-\plusone\relax
      \dosetmodulo\scratchcounter\arrangedpageT\scratchcounter
      \ifcase\scratchcounter\else
-       \advance\scratchcounter \plusone
+       \advanceby\scratchcounter \plusone
        \dostepwiserecurse\scratchcounter\arrangedpageT\plusone
          {\noheaderandfooterlines\page_otr_insert_dummy_page}%
      \fi
@@ -427,14 +458,14 @@
      {\setbox\scratchbox\vpack to \arrangedpageY\paperheight
         {\offinterlineskip
          \vskip#4\paperheight
-         \hskip#3\paperwidth
+         \hkern#3\paperwidth
          \dorotatebox{\ifcase#2 0\else180\fi}\hpack{\box#1}%
          \vfill}%
       \wd\scratchbox\zeropoint
       \box\scratchbox\box#5\hss}}
 
 \permanent\protected\def\gotonextarrangepage
-  {\global\advance\arrangeno\plusone}
+  {\global\advanceby\arrangeno\plusone}
 
 \permanent\protected\def\outputarrangedbox#1%
   {\begingroup
@@ -480,7 +511,7 @@
   {\showmessage\m!system{23}{\the\realpageno.\the\pageno\ifnum\subpageno>0 .\the\subpageno\fi,\number#1}}
 
 \permanent\protected\def\advancearrangedpageN
-  {\global\advance\arrangedpageN\plusone}
+  {\global\advanceby\arrangedpageN\plusone}
 
 % TOP
 
@@ -613,7 +644,7 @@
 % 2UP/2DOWN / 1pt prevents overflow
 
 \permanent\protected\def\splitoffarrangedpagesTWO
-  {\splittopskip\zeropoint
+  {\splittopskip\zeroskip
    \global\setbox\arrangedpageA\vsplit\arrangedpageB to \onepoint
    \scratchdimen\dimexpr\ht\arrangedpageB-\onepoint\relax
    \ifdim\scratchdimen>\onepoint
@@ -630,14 +661,14 @@
         \box\arrangedpageA
         \page_boxes_apply_clip_print_right\arrangedpageB
         \box\arrangedpageB}%
-     \setfalse\arrangedswapstate
+     \arrangedswapstate\conditionalfalse
    \else
      \global\setbox\arrangedpageA\hpack
        {\page_boxes_apply_clip_print_left \arrangedpageB
         \box\arrangedpageB
         \page_boxes_apply_clip_print_right\arrangedpageA
         \box\arrangedpageA}%
-     \settrue\arrangedswapstate
+     \arrangedswapstate\conditionaltrue
    \fi
    \global\setbox\arrangedpageB\box\scratchbox}
 
@@ -651,20 +682,20 @@
         \vskip\paperheight
         \box\arrangedpageA
         \box\arrangedpageB}%
-     \setfalse\arrangedswapstate
+     \arrangedswapstate\conditionalfalse
    \else
      \global\setbox\arrangedpageA\vpack
        {\offinterlineskip
         \vskip\paperheight
         \box\arrangedpageB
         \box\arrangedpageA}%
-     \settrue\arrangedswapstate
+     \arrangedswapstate\conditionaltrue
    \fi
    \global\setbox\arrangedpageB\box\scratchbox}
 
 \permanent\protected\def\poparrangedpagesTWO
   {\ifnum\arrangedpageN>\zerocount
-     \setfalse\arrangedswapstate
+     \arrangedswapstate\conditionalfalse
      \doloop
        {\handlearrangedpage
         \bgroup
@@ -674,7 +705,7 @@
         \wd\arrangedpageA\paperwidth
         \outputarrangedbox\arrangedpageA
         \egroup
-        \ifdim\ht\arrangedpageB=\zeropoint
+        \ifzeropt\ht\arrangedpageB
           \exitloop
         \fi}%
      \global\arrangedpageN\zerocount
@@ -1154,6 +1185,64 @@
        \poparrangedpages
    \fi}
 
+%D A new one by Wolfgang:
+
+%D \starttyping
+%D \setuppapersize[A8,landscape][A4]
+%D \setuppaper    [nx=2,ny=4]
+%D \setuparranging[FLASHCARD]
+%D \setuplayout   [page]
+%D \setuplayout   [location=middle,marking=on]
+%D
+%D \starttext
+%D     \dorecurse {8} {
+%D         \centerbox{\convertnumber  {word}{#1}}\page
+%D         \centerbox{\convertnumber{number}{#1}}\page
+%D     }
+%D \stoptext
+%D \stoptyping
+
+% one   two     2 1
+% three four    4 3
+
+\installpagearrangement FLASHCARD
+  {\dosetuparrangement
+     \v_page_target_nx
+     \v_page_target_ny
+     {\numexpr\v_page_target_ny*2\relax}%
+     {\numexpr\v_page_target_nx+\plusone\relax}%
+     {\numexpr\v_page_target_ny+\plusone\relax}%
+   \pusharrangedpageFLASHCARD\poparrangedpagesAB\relax}
+
+\newinteger\arrangedpageshiftX
+\newinteger\arrangedpageshiftY
+
+\def\dopusharrangedpageFLASHCARD#1%
+  {\ifnum\arrangedpageshiftX<\arrangedpageX
+     \ifodd\arrangedpageN
+       \handlearrangedpageXandY{#1}0\arrangedpageshiftX\arrangedpageshiftY\arrangedpageA
+     \else
+       \handlearrangedpageXandY{#1}0{\numexpr\v_page_target_nx-\arrangedpageshiftX-1\relax}\arrangedpageshiftY\arrangedpageB
+       \global\advanceby\arrangedpageshiftX\plusone
+     \fi
+   \fi
+   \ifnum\arrangedpageshiftX=\v_page_target_nx
+     \global\arrangedpageshiftX\zerocount
+     \global\advanceby\arrangedpageshiftY\plusone
+   \fi}
+
+\def\pusharrangedpageFLASHCARD#1%
+  {\advancearrangedpageN
+   \reportarrangedpage\arrangedpageN
+   \ifnum\arrangedpageN=\numexpr\v_page_target_xy*2\relax
+     \dopusharrangedpageFLASHCARD{#1}%
+     \global\arrangedpageshiftX\zerocount
+     \global\arrangedpageshiftY\zerocount
+     \poparrangedpages
+   \else
+     \dopusharrangedpageFLASHCARD{#1}%
+   \fi}
+
 % % From Wolfgang for Mari (mail on list) ... yes or no in core .. time for
 % % delayed loading ...
 % %
@@ -1232,18 +1321,18 @@
 %
 % \starttext \dorecurse{30}{test \recurselevel \page} \stoptext
 
-\permanent\protected\protected\def\pusharrangedpageXY#1%
+\permanent\protected\def\pusharrangedpageXY#1%
   {\advancearrangedpageN
-   \global\advance\arrangedpageM\plusone
+   \global\advanceby\arrangedpageM\plusone
    \reportarrangedpage\arrangedpageN
    \global\setbox\arrangedpageB\hpack \ifdim\v_page_target_width>\zeropoint to \v_page_target_width \fi
       {\ifvoid\arrangedpageB\else
          \unhbox\arrangedpageB
          \ifdim\v_page_target_dx>\zeropoint
-           \hskip\v_page_target_dx
+           \hkern\v_page_target_dx
          \else
            \hss
-           \hskip\v_page_target_dx
+           \hkern\v_page_target_dx
            \hss
          \fi
        \fi
@@ -1268,7 +1357,7 @@
       \poparrangedpages
     \fi}
 
-\permanent\protected\protected\def\poparrangedpagesXY
+\permanent\protected\def\poparrangedpagesXY
   {\ifnum\arrangedpageN>\zerocount
      \paperwidth \arrangedpageX\paperwidth
      \paperheight\arrangedpageY\paperheight
@@ -1335,16 +1424,15 @@
 \installcorenamespace {pageshift}
 
 \permanent\protected\tolerant\def\definepageshift[#1]#*[#2]#*[#3]%
-  {\setvalue{\??pageshift#2:#1}{#3}}
+  {\defcsname\??pageshift#2:#1\endcsname{#3}}
 
-\let\page_boxes_h_shifts\empty
-\let\page_boxes_v_shifts\empty
+\lettonothing\page_boxes_h_shifts
+\lettonothing\page_boxes_v_shifts
 
-\newcount\c_page_boxes_h_shifts
-\newcount\c_page_boxes_v_shifts
-
-\newdimen\d_page_boxes_h_shifts
-\newdimen\d_page_boxes_v_shifts
+\newinteger  \c_page_boxes_h_shifts
+\newinteger  \c_page_boxes_v_shifts
+\newdimension\d_page_boxes_h_shifts
+\newdimension\d_page_boxes_v_shifts
 
 \let\page_boxes_apply_shift_print\gobbleoneargument
 \let\page_boxes_apply_shift_paper\gobbleoneargument
@@ -1352,7 +1440,7 @@
 \def\page_boxes_filter_shift#1#2#3% #1=\dimenx #2=\xpageshifts #3=\nofxpageshifts
   {#1\zeropoint
    \ifempty#2\else
-     \global\advance#3\plusone
+     \global\advanceby#3\plusone
      \getfromcommacommand[#2][#3]%
      \ifempty\commalistelement
        \global#3\plusone % we cycle
@@ -1381,7 +1469,7 @@
    \setbox#1\vpack
      {\offinterlineskip
       \vskip\d_page_boxes_v_shifts
-      \hskip\d_page_boxes_h_shifts
+      \hkern\d_page_boxes_h_shifts
       \box#1}%
    \next}
 
@@ -1389,16 +1477,16 @@
   {\ifarguments\or
      \setuppageshift[\v!page][#1][#1]%
    \or
-     \doifelseinset{#1}{\v!page,\v!paper}
-       {\setuppageshift[#1][#2][#2]}
-       {\setuppageshift[\v!page][#1][#2]}%
+     \ifcommon{#1}{\v!page,\v!paper}%
+       \setuppageshift[#1][#2][#2]%
+     \else
+       \setuppageshift[\v!page][#1][#2]%
+     \fi
    \or
-     %edef\page_boxes_h_shifts{\ifcsname\??pageshift\v!horizontal:#2\endcsname\csname\??pageshift\v!horizontal:#2\endcsname\fi}%
-     %edef\page_boxes_v_shifts{\ifcsname\??pageshift\v!vertical  :#3\endcsname\csname\??pageshift\v!vertical  :#3\endcsname\fi}%
      \edef\page_boxes_h_shifts{\begincsname\??pageshift\v!horizontal:#2\endcsname}%
      \edef\page_boxes_v_shifts{\begincsname\??pageshift\v!vertical  :#3\endcsname}%
-     \doifelse{#1}\v!page {\let\page_boxes_apply_shift_print\page_boxes_apply_shift}{\let\page_boxes_apply_shift_print\gobbleoneargument}%
-     \doifelse{#1}\v!paper{\let\page_boxes_apply_shift_paper\page_boxes_apply_shift}{\let\page_boxes_apply_shift_paper\gobbleoneargument}%
+     \ifcstok{#1}\v!page \let\page_boxes_apply_shift_print\page_boxes_apply_shift\else\let\page_boxes_apply_shift_print\gobbleoneargument\fi
+     \ifcstok{#1}\v!paper\let\page_boxes_apply_shift_paper\page_boxes_apply_shift\else\let\page_boxes_apply_shift_paper\gobbleoneargument\fi
    \fi}
 
 \protect \endinput

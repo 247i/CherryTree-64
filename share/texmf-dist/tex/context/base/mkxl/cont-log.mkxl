@@ -18,38 +18,66 @@
 %D raising and lowering style. In this module we define some of those logos.
 
 %D We define the uppercase logo commands as (unfrozen) instances because they can be
-%D redefined in the synonyms modules.
+%D redefined in the synonyms modules. We use old school definitions. Watch out: when
+%D a math font is used the \AMS\ logos can come out ugly but they are ugly anyway.
+
+%D We will at some point move the non-\CONTEXT\ logos to the abbreviations file
+%D because it makes no sense to have e.g. the \LATEX\ logo defined here.
 
 \unprotect
 
-\frozen\instance\protected\def\TeX
+% \protected\frozen\instance\def\TeX
+%   {\dontleavehmode
+%    \begingroup
+%    T%
+%    \setbox\scratchbox\hbox{M}%
+%    \kern-.1667\wd\scratchbox
+%    \lower.5\exheight\hbox{E}%
+%    \kern-.125\wd\scratchbox
+%    X%
+%    \endgroup}
+
+\protected\frozen\instance\def\TeX
   {\dontleavehmode
    \begingroup
+   \scratchdimen\scaledfontcharwd\font`M%
    T%
-   \setbox\scratchbox\hbox{M}%
-   \kern-.1667\wd\scratchbox
-   \lower.5\exheight\hbox{E}%
-   \kern-.125\wd\scratchbox
+   \kern-.1667\scratchdimen
+  %\lower.3183\scaledfontcharht\font`T\hbox{E}% .318316 but no exact match possible anyway
+   \lower.5\exheight\hbox{E}% but on the average this looks better
+   \kern-.125\scratchdimen
    X%
    \endgroup}
 
-\frozen\instance\protected\def\TeXsuffix{\wordboundary\TeX}
-\frozen\instance\protected\def\TeXprefix{\TeX\wordboundary}
+\protected\frozen\instance\def\TeXsuffix{\wordboundary\TeX}
+\protected\frozen\instance\def\TeXprefix{\TeX\wordboundary}
 
-\frozen\instance\protected\def\ConTeXt
-  {\dontleavehmode
-   \begingroup
-   Con%
+\def\syst_logos_context
+  {Con%
    \wordboundary
    \setbox\scratchboxone\hbox{T\kern\zeropoint e}%
    \setbox\scratchboxtwo\hbox{Te}%
-   \discretionary{-}{}{\kern\dimexpr\wd\scratchboxtwo-\wd\scratchboxone\relax}%
-   \TeX t%
+   \discretionary{-}{}{\kern{\wd\scratchboxtwo-\wd\scratchboxone}}%
+   \TeX t}
+
+\protected\frozen\instance\def\ConTeXt
+  {\dontleavehmode
+   \begingroup
+   \ifcase\getcharactercasingcategory % todo: also other logos
+     \syst_logos_context
+   \or % 1 uppercase
+     \syst_logos_context
+   \or % 2 lowercase
+     \resetcharactercasing
+     con\-text%
+   \else
+     Con\-text%
+   \fi
    \endgroup}
 
-\frozen\instance\protected\def\PPCHTeX{ppch\TeX}
+\protected\frozen\instance\def\PPCHTeX{ppch\TeX}
 
-\frozen\instance\protected\def\LaTeX % requested by erik frambach
+\protected\frozen\instance\def\LaTeX % requested by erik frambach
   {\dontleavehmode
    \begingroup
    \setbox\scratchbox\hbox{L}%
@@ -60,14 +88,14 @@
    \kern-.2\wd\scratchbox\TeX
    \endgroup}
 
-\frozen\instance\protected\def\TaBlE
+\protected\frozen\instance\def\TaBlE
   {T%
    \kern-.27\emwidth\lower.5\exheight\hbox{A}%
    \kern-.18\emwidth B%
    \kern-.1\emwidth\lower.5\exheight\hbox{L}%
    \kern-.075\emwidth E}
 
-\frozen\instance\protected\def\PiCTeX
+\protected\frozen\instance\def\PiCTeX
   {P%
    \kern-.12\emwidth\lower.5\exheight\hbox{I}%
    \kern-.075\emwidth C%
@@ -78,18 +106,18 @@
    \cal\ifdim\bodyfontsize>1.1\emwidth\scriptstyle\fi#1%
    \normalstopimath}
 
-\frozen\instance\protected\def\AmSTeX
+\protected\frozen\instance\def\AmSTeX
   {\dontleavehmode
    \syst_logos_ams_script A%
-   \kern-.1667\emwidth\lower.5\exheight\hbox{\syst_logos_ams_script M}%
+   \kern-.5\emwidth\lower.5\exheight\hbox{\syst_logos_ams_script M}% was .1667 for old math
    \kern-.125\emwidth\syst_logos_ams_script S%
    -\TeX}
 
-\frozen\instance\protected\def\LamSTeX
+\protected\frozen\instance\def\LamSTeX
   {L%
-   \kern-.4\emwidth\raise.3\exheight\hbox{\syst_logos_ams_script A}%
-   \kern-.25\emwidth\lower.4\exheight\hbox{\syst_logos_ams_script M}%
-   \kern-.1\emwidth{\syst_logos_ams_script S}%
+   \kern-.4\emwidth\raise.4\exheight\hbox{\syst_logos_ams_script A}% was .4 .3 for old math
+   \kern-.5\emwidth\lower.3\exheight\hbox{\syst_logos_ams_script M}% was .25 for old math
+   \kern-.125\emwidth{\syst_logos_ams_script S}%
    -\TeX}
 
 %D Alternative \CONTEXT\ logo, first Idris S.~Hamid's version:
@@ -100,7 +128,7 @@
 %D
 %D I changed this into one that adapts itself:
 
-\frozen\instance\protected\def\Context % wrong usage of \getscaledglyph
+\protected\frozen\instance\def\Context % wrong usage of \getscaledglyph
   {\dontleavehmode
    \begingroup
    C%
@@ -139,7 +167,7 @@
 \def\syst_logos_meta_hyphen % there is no hyphenchar in this font
   {\discretionary{\vrule\s!height.33\emwidth\s!depth-.27\emwidth\s!width.33\emwidth}{}{}}
 
-\frozen\instance\protected\def\MetaFontLogo
+\protected\frozen\instance\def\MetaFontLogo
   {\dontleavehmode
    \begingroup
    \setMFPfont META\syst_logos_meta_hyphen FONT%
@@ -159,9 +187,9 @@
 
 % As decided on the ConText Meeting 2013 the logo has been simplified:
 
-\instance\protected\def\MetaFont{MetaFont}
-\instance\protected\def\MetaPost{MetaPost}
-\instance\protected\def\MetaFun {MetaFun}
+\protected\instance\def\MetaFont{MetaFont}
+\protected\instance\def\MetaPost{MetaPost}
+\protected\instance\def\MetaFun {MetaFun}
 
 %D \macros
 %D  {TEX, METAFONT, METAPOST, METAFUN,
@@ -173,70 +201,125 @@
 %D (in \CONTEXT\ we tend to write all user defined commands, like abbreviations, in
 %D uppercase.)
 
-\instance\protected\def\METAFONT{\MetaFont}
-\instance\protected\def\METAPOST{\MetaPost}
-\instance\protected\def\PPCHTEX {\PPCHTeX}
-\instance\protected\def\CONTEXT {\ConTeXt}
-\instance\protected\def\METAFUN {\MetaFun}
+\protected\instance\def\METAFONT{\MetaFont}
+\protected\instance\def\METAPOST{\MetaPost}
+\protected\instance\def\PPCHTEX {\PPCHTeX}
+\protected\instance\def\CONTEXT {\ConTeXt}
+\protected\instance\def\METAFUN {\MetaFun}
 
-\instance\protected\def\TEX     {\TeX}
-\instance\protected\def\LATEX   {\LaTeX}
-\instance\protected\def\PICTEX  {\PiCTeX}
-\instance\protected\def\TABLE   {\TaBlE}
-\instance\protected\def\AMSTEX  {\AmSTeX}
-\instance\protected\def\LAMSTEX {\LamSTeX}
-\instance\protected\def\INRSTEX {inrs\TeX}
+\protected\instance\def\TEX     {\TeX}
+\protected\instance\def\LATEX   {\LaTeX}
+\protected\instance\def\PICTEX  {\PiCTeX}
+\protected\instance\def\TABLE   {\TaBlE}
+\protected\instance\def\AMSTEX  {\AmSTeX}
+\protected\instance\def\LAMSTEX {\LamSTeX}
+\protected\instance\def\INRSTEX {inrs\TeX}
 
-\instance\protected\def\PRAGMA  {Pragma ADE}
+\protected\instance\def\PRAGMA  {Pragma ADE}
+\protected\instance\def\LUA     {\Lua} % below
 
 %D And this is how they show up: \TeX, \MetaFont, \MetaPost, \PiCTeX, \TaBlE, \ConTeXt,
 %D \PPCHTeX, \AmSTeX, \LaTeX, \LamSTeX.
 
 %D Some placeholders:
 
-%frozen\instance\protected\def\eTeX      {\mathematics{\varepsilon}-\TeX}
-\frozen\instance\protected\def\eTeX      {{\tf \nocap $\varepsilon$}-\TeX} % compact mode hack for epsilon
-\frozen\instance\protected\def\pdfTeX    {pdf\wordboundary\TeX}
-\frozen\instance\protected\def\pdfeTeX   {pdfe-\wordboundary\TeX}
-\frozen\instance\protected\def\luaTeX    {lua\wordboundary\TeX}
-\frozen\instance\protected\def\Lua       {Lua}
-\frozen\instance\protected\def\luajitTeX {lua\wordboundary jit\wordboundary\TeX}
-\frozen\instance\protected\def\luametaTeX{lua\wordboundary meta\wordboundary\TeX}
-\frozen\instance\protected\def\XeTeX     {X\lower.5\exheight\hbox{\kern-.15\emwidth\mirror{E}}\kern-.1667\emwidth\TeX}
+%protected\frozen\instance\def\eTeX      {\mathematics{\varepsilon}-\TeX}
+\protected\frozen\instance\def\pdfTeX    {pdf\wordboundary\TeX}
+\protected\frozen\instance\def\luaTeX    {lua\wordboundary\TeX}
+\protected\frozen\instance\def\Lua       {Lua}
+\protected\frozen\instance\def\luajitTeX {lua\wordboundary jit\wordboundary\TeX}
+\protected\frozen\instance\def\luametaTeX{lua\wordboundary meta\wordboundary\TeX}
+\protected\frozen\instance\def\XeTeX     {X\lower.5\exheight\hbox{\kern-.15\emwidth\mirror{E}}\kern-.1667\emwidth\TeX}
 
-% Adapted from a patch by Mojca:
+%protected\frozen\instance\def\eTeX      {{\tf \nocap $\varepsilon$}-\TeX} % compact mode hack for epsilon
+%protected\frozen\instance\def\pdfeTeX   {pdfe-\wordboundary\TeX}
 
-\def\syst_logos_xetex_e
-  {\setbox\scratchbox\hbox{E}%
-   \raise\dimexpr\ht\scratchbox+\dp\scratchbox\relax\hbox{\rotate[\c!rotation=180]{\box\scratchbox}}}
+% The epsilon in the etex logo is kind of weird and also not that pretty. Taking it
+% from a math font is risky and we also don't want math in tagged stuff so let's go
+% for a bit more simple and modern variant. More logos qualify for such a treatment.
 
-\frozen\instance\protected\def\XeTeX
+% \def\Test#1{{Test \eTeX\ Some \pdfeTeX\ Logos} (#1)}
+%
+% \startTEXpage[offset=1ts,strut=no] \showglyphs
+%   \startlines[before=,after=]
+%                 \Test{no caps}
+%     {\smallcaps \Test{real smallcaps}}
+%     \fsc       {\Test{emulated small caps}}
+%     \cap       {\Test{pseudo small caps}}
+%   \stoplines
+% \stopTEXpage
+
+\protected\frozen\instance\def\eTeX
+  {\dontleavehmode
+  %{\nocap e}% we keep \smallcaps
+   e%
+   \begingroup
+   \scratchdimen.05\emwidth
+   \kern\scratchdimen-\kern-2\scratchdimen
+   \endgroup
+   \TeX}
+
+\protected\frozen\instance\def\pdfeTeX
+  {pdf%
+   \begingroup
+   \scratchdimen.05\emwidth
+   \kern\scratchdimen-\kern\scratchdimen
+   e%
+   \discretionary
+     {\kern\scratchdimen-}{}%
+     {\kern\scratchdimen-\kern-2\scratchdimen}%
+   \endgroup
+   \TeX}
+
+% % Adapted from a patch by Mojca:
+%
+% \def\syst_logos_xetex_e
+%   {\setbox\scratchbox\hbox{E}%
+%    \raise\dimexpr\ht\scratchbox+\dp\scratchbox\relax\hbox{\rotate[\c!rotation=180]{\box\scratchbox}}}
+%
+% \protected\frozen\instance\def\XeTeX
+%   {X\lower.5\exheight
+%    \hbox
+%      {\kern-.15\emwidth
+%       \iffontchar\font"018E\relax
+%         \char"018E%
+%       \else
+%         \ifx\fontalternative\s!bf         \mirror{E}\orelse
+%         \ifx\fontalternative\s!it\syst_logos_xetex_e\orelse
+%         \ifx\fontalternative\s!sl\syst_logos_xetex_e\orelse
+%         \ifx\fontalternative\s!bi\syst_logos_xetex_e\orelse
+%         \ifx\fontalternative\s!bs\syst_logos_xetex_e\else
+%                                           \mirror{E}\fi
+%       \fi}%
+%    \kern-.1667\emwidth\TeX}
+
+% This is good enough for the few times that we need it:
+
+\def\syst_logos_xe
   {X\lower.5\exheight
-   \hbox
-     {\kern-.15\emwidth
-      \iffontchar\font"018E\relax
-        \char"018E%
-      \else
-        \ifx\fontalternative\s!bf         \mirror{E}\orelse
-        \ifx\fontalternative\s!it\syst_logos_xetex_e\orelse
-        \ifx\fontalternative\s!sl\syst_logos_xetex_e\orelse
-        \ifx\fontalternative\s!bi\syst_logos_xetex_e\orelse
-        \ifx\fontalternative\s!bs\syst_logos_xetex_e\else
-                                          \mirror{E}\fi
-      \fi}%
-   \kern-.1667\emwidth\TeX}
+   \hbox\bgroup
+     \kern-.15\emwidth
+     \iffontchar\font"018E\relax
+       \char"018E%
+     \else
+       \mirror{E}%
+     \fi
+   \egroup}
 
-\instance\protected\def\ETEX      {\eTeX}
-\instance\protected\def\PDFTEX    {\pdfTeX}
-\instance\protected\def\PDFETEX   {\pdfeTeX}
-\instance\protected\def\LUATEX    {\luaTeX}
-\instance\protected\def\LUAJITTEX {\luajitTeX}
-\instance\protected\def\LuaTeX    {\luaTeX}
-\instance\protected\def\LuaMetaTeX{\luametaTeX}
-\instance\protected\def\LUAMETATEX{\luametaTeX}
-\instance\protected\def\XETEX     {\XeTeX}
+\protected\frozen\instance\def\XeTeX  {\syst_logos_xe\kern-.1667\emwidth\TeX}
+\protected\frozen\instance\def\XeLaTeX{\syst_logos_xe\LaTeX}
 
-\frozen\instance\protected\def\LuaTeX
+\protected\instance\def\ETEX      {\eTeX}
+\protected\instance\def\PDFTEX    {\pdfTeX}
+\protected\instance\def\PDFETEX   {\pdfeTeX}
+\protected\instance\def\LUATEX    {\luaTeX}
+\protected\instance\def\LUAJITTEX {\luajitTeX}
+\protected\instance\def\LuaTeX    {\luaTeX}
+\protected\instance\def\LuaMetaTeX{\luametaTeX}
+\protected\instance\def\LUAMETATEX{\luametaTeX}
+\protected\instance\def\XETEX     {\XeTeX}
+
+\protected\frozen\instance\def\LuaTeX
   {\dontleavehmode
    \begingroup
      Lua%
@@ -254,13 +337,13 @@
          % maybe we need to compensate for the angle (sl/it/bs/bi)
        \fi
        \ifdim\wd0=\wd2\else
-         \kern\dimexpr\wd0-\wd2\relax
+         \kern{\wd0-\wd2}%
        \fi
      \fi
      \TeX
    \endgroup}
 
-\frozen\instance\protected\def\LuajitTeX
+\protected\frozen\instance\def\LuajitTeX
   {\dontleavehmode
    \begingroup
      % at this moment there is no real need for kerning tT
@@ -270,24 +353,29 @@
 \frozen\instance\let\luaTeX   \LuaTeX
 \frozen\instance\let\luajitTeX\LuajitTeX
 
-\instance\protected\def\LUATEX   {\LuaTeX}
-\instance\protected\def\LUAJITTEX{\LuajitTeX}
+\protected\instance\def\LUATEX   {\LuaTeX}
+\protected\instance\def\LUAJITTEX{\LuajitTeX}
 
-\instance\protected\def\MKII{MkII} % MarkTwo
-\instance\protected\def\MKIV{MkIV} % MarkFour   : MKIV
-\instance\protected\def\MKVI{MkVI} % MarkSix    : MKIV
-\instance\protected\def\MKXL{MkXL} % MarkFourty : LMTX
-\instance\protected\def\MKLX{MkLX} % MarkSixty  : LMTX
-\instance\protected\def\MKIX{MkIX} %            : MKIV / LMTX
-\instance\protected\def\MKXI{MkXI} %            : MKIV / LMTX
+% It's all about sound ... and for obvious reasons we avoided III.
 
-\instance\protected\def\MPII{MpII} % MarkTwo
-\instance\protected\def\MPIV{MpIV} % MarkFour   : MetaFun
-\instance\protected\def\MPVI{MpVI} % MarkSix    : MetaFun
-\instance\protected\def\MPXL{MpXL} % MarkFourty : LuaMetaFun
-\instance\protected\def\MPLX{MpLX} % MarkSixty  : LuaMetaFun
+\protected\instance\def\MKII{MkII} % MarkTwo
+\protected\instance\def\MKIV{MkIV} % MarkFour   : MKIV
+\protected\instance\def\MKVI{MkVI} % MarkSix    : MKIV
+\protected\instance\def\MKXL{MkXL} % MarkFourty : LMTX
+\protected\instance\def\MKLX{MkLX} % MarkSixty  : LMTX
+\protected\instance\def\MKIX{MkIX} %            : MKIV / LMTX
+\protected\instance\def\MKXI{MkXI} %            : MKIV / LMTX
 
-\instance\protected\def\LMTX{LMTX} % for LuaMetaTeX
+\protected\instance\def\MPII{MpII} % MarkTwo
+\protected\instance\def\MPIV{MpIV} % MarkFour   : MetaFun
+\protected\instance\def\MPVI{MpVI} % MarkSix    : MetaFun
+\protected\instance\def\MPXL{MpXL} % MarkFourty : LuaMetaFun
+\protected\instance\def\MPLX{MpLX} % MarkSixty  : LuaMetaFun
+
+\protected\instance\def\LMTX{LMTX} % for LuaMetaTeX + Mk[X.|.X] i.e. the distribition / ecosystem
+
+\protected\instance\def\MKMI{MkMI} % Mark One O O One   : reserved for unvailable machine intelligence
+\protected\instance\def\MKML{MkML} % Mark One O O Fifty : reserved for unvailable machine learning
 
 \appendtoks
     \enforced\instance\def\ConTeXt   {ConTeXt}%
@@ -300,7 +388,6 @@
     \enforced\instance\def\LuaTeX    {LuaTeX}%
     \enforced\instance\def\LuajitTeX {LuajitTeX}%
     \enforced\instance\def\LuaMetaTeX{LuaMetaTeX}%
-   %\let\wordboundary\empty % primitive so we need to promote it to frozen (orjust preroll)
 \to \everysimplifycommands
 
 \protect \endinput

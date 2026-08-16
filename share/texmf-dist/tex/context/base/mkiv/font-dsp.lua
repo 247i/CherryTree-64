@@ -234,6 +234,24 @@ local read_integer = {
     streamreader.readinteger4,
 }
 
+directives.register("fonts.streamreader",function()
+
+    read_cardinal = {
+        streamreader.readcardinal1,
+        streamreader.readcardinal2,
+        streamreader.readcardinal3,
+        streamreader.readcardinal4,
+    }
+
+    read_integer = {
+        streamreader.readinteger1,
+        streamreader.readinteger2,
+        streamreader.readinteger3,
+        streamreader.readinteger4,
+    }
+
+end)
+
 -- Traditionally we use these unique names (so that we can flatten the lookup list
 -- (we create subsets runtime) but I will adapt the old code to newer names.
 
@@ -360,7 +378,7 @@ local function getaxisscale(segments,minimum,default,maximum,user)
     for i=1,#segments do
         local s = segments[i]
         if type(s) ~= "number" then
-            report("using default axis scale")
+         -- report("using default axis scale")
             return default
         elseif s[1] >= default then
             if s[2] == default then
@@ -1165,25 +1183,30 @@ local function chainedcontext(f,fontdata,lookupid,lookupoffset,offset,glyphs,nof
             rules  = rules,
         }
     elseif subtype == 3 then
+        -- Maybe this one needs checking. Anyway zero current is bad.
         local before     = readarray(f)
         local current    = readarray(f)
         local after      = readarray(f)
         local noflookups = readushort(f)
-        local lookups    = readlookuparray(f,noflookups,#current)
-        before  = readcoveragearray(f,tableoffset,before,true)
-        current = readcoveragearray(f,tableoffset,current,true)
-        after   = readcoveragearray(f,tableoffset,after,true)
-        return {
-            format = "coverage",
-            rules  = {
-                {
-                    before  = before,
-                    current = current,
-                    after   = after,
-                    lookups = lookups,
+        local lookups    = current and readlookuparray(f,noflookups,#current)
+        if lookups then
+            before  = readcoveragearray(f,tableoffset,before,true)
+            current = readcoveragearray(f,tableoffset,current,true)
+            after   = readcoveragearray(f,tableoffset,after,true)
+            return {
+                format = "coverage",
+                rules  = {
+                    {
+                        before  = before,
+                        current = current,
+                        after   = after,
+                        lookups = lookups,
+                    }
                 }
             }
-        }
+        else
+            report("confusing subtype %a in %a %s",subtype,"chainedcontext",what)
+        end
     else
         report("unsupported subtype %a in %a %s",subtype,"chainedcontext",what)
     end
@@ -2116,7 +2139,7 @@ do
         return features
     end
 
-    local function readlookups(f,lookupoffset,lookuptypes,featurehash,featureorder)
+    local function readlookups(f,lookupoffset,lookuptypes,featurehash,featureorder,nofmarkclasses)
         setposition(f,lookupoffset)
         local noflookups = readushort(f)
         local lookups    = readcardinaltable(f,noflookups,ushort)
@@ -2133,13 +2156,14 @@ do
                 subtables[j] = offset + readushort(f) -- we can probably put lookupoffset here
             end
             -- which one wins?
-            local markclass = band(flagbits,0x0010) ~= 0 -- usemarkfilteringset
-            if markclass then
-                markclass = readushort(f) -- + 1
-            end
-            local markset = rshift(flagbits,8)
-            if markset > 0 then
-                markclass = markset -- + 1
+            local markclass = rshift(flagbits,8)
+            if markclass == 0 then
+                local markset = band(flagbits,0x0010) ~= 0 -- usemarkfilteringset
+                if markset then
+                    markclass = readushort(f) + 1 + nofmarkclasses -- KE: also classes
+                else
+                    markclass = false
+                end
             end
             lookups[lookupid] = {
                 type      = lookuptype,
@@ -2177,6 +2201,8 @@ do
         --
         local usedlookups    = false -- setmetatableindex("number")
         --
+        local allsteps = { } -- new per 2022-09-25
+
         for lookupid=1,noflookups do
             local lookup     = lookups[lookupid]
             local lookuptype = lookup.type
@@ -2214,6 +2240,7 @@ do
                             steps[nofsteps] = step
                             local rules = step.rules
                             if rules then
+                                allsteps[#allsteps+1] = step -- new per 2022-09-25
                                 for i=1,#rules do
                                     local rule         = rules[i]
                                     local before       = rule.before
@@ -2329,29 +2356,31 @@ do
 
         local reported = { }
 
-        local function report_issue(i,what,sequence,kind)
-            local name = sequence.name
-            if not reported[name] then
-                report("rule %i in %s lookup %a has %s lookups",i,what,name,kind)
-                reported[name] = true
-            end
+        local function report_issue(i,what,step,kind)
+--             if not reported[step] then
+                report("rule %i in step %i of %s has %s lookups",i,step,what,kind)
+--                 reported[name] = true
+--             end
         end
 
-        for i=lastsequence+1,nofsequences do
-            local sequence = sequences[i]
-            local steps    = sequence.steps
-            for i=1,#steps do
-                local step  = steps[i]
+     -- for i=lastsequence+1,nofsequences do
+     --     local sequence = sequences[i]
+     --     local steps    = sequence.steps
+     --     for i=1,#steps do
+     --         local step  = steps[i]
+
+            for s=1,#allsteps do          -- new per 2022-09-25
+                local step  = allsteps[s] -- new per 2022-09-25
                 local rules = step.rules
                 if rules then
                     for i=1,#rules do
                         local rule     = rules[i]
                         local rlookups = rule.lookups
                         if not rlookups then
-                            report_issue(i,what,sequence,"no")
+                            report_issue(i,what,s,"no")
                         elseif not next(rlookups) then
                             -- can be ok as it aborts a chain sequence
-                         -- report_issue(i,what,sequence,"empty")
+                         -- report_issue(i,what,s,"empty")
                             rule.lookups = nil
                         else
                             -- we can have holes in rlookups flagged false and we can have multiple lookups
@@ -2392,12 +2421,12 @@ do
                                                         sublookupcheck[lookupid] = 1
                                                         h = nofsublookups
                                                     else
-                                                        report_issue(i,what,sequence,"missing")
+                                                        report_issue(i,what,s,"missing")
                                                         rule.lookups = nil
                                                         break
                                                     end
                                                 else
-                                                    report_issue(i,what,sequence,"bad")
+                                                    report_issue(i,what,s,"bad")
                                                     rule.lookups = nil
                                                     break
                                                 end
@@ -2419,7 +2448,7 @@ do
                     end
                 end
             end
-        end
+     -- end -- new per 2022-09-25
 
         for i, n in sortedhash(sublookupcheck) do
             local l = lookups[i]
@@ -2515,7 +2544,9 @@ do
             local scriptoffset     = tableoffset + readushort(f)
             local featureoffset    = tableoffset + readushort(f)
             local lookupoffset     = tableoffset + readushort(f)
-            local variationsoffset = version > 0x00010000 and (tableoffset + readulong(f)) or 0
+            -- MFK : Rubik-Regular.ttf : we need to delay adding the offset
+         -- local variationsoffset = version > 0x00010000 and (tableoffset + readulong(f)) or 0
+            local variationsoffset = version > 0x00010000 and readulong(f) or 0
             if not scriptoffset then
                 return
             end
@@ -2534,14 +2565,18 @@ do
                 return
             end
             --
-            local lookups = readlookups(f,lookupoffset,lookuptypes,featurehash,featureorder)
+            local markclasses    = fontdata.markclasses
+            local marksets       = fontdata.marksets
+            local nofmarkclasses = (markclasses and #markclasses or 0) - (marksets and #marksets or 0)
+            local lookups        = readlookups(f,lookupoffset,lookuptypes,featurehash,featureorder,nofmarkclasses)
             --
             if lookups then
                 resolvelookups(f,lookupoffset,fontdata,lookups,lookuptypes,lookuphandlers,what,tableoffset)
             end
             --
             if variationsoffset > 0 then
-                loadvariations(f,fontdata,variationsoffset,lookuptypes,featurehash,featureorder)
+             -- loadvariations(f,fontdata,variationsoffset,lookuptypes,featurehash,featureorder)
+                loadvariations(f,fontdata,tableoffset + variationsoffset,lookuptypes,featurehash,featureorder)
             end
         end
     end
@@ -2714,8 +2749,9 @@ function readers.gdef(f,fontdata,specification)
                 end
             end
         end
-        -- mark sets : todo: just make the same as class sets above
+        -- mark sets
         if marksetsoffset ~= 0 then
+            local nofmarkclasses = fontdata.markclasses and #fontdata.markclasses or 0
             marksetsoffset = tableoffset + marksetsoffset
             setposition(f,marksetsoffset)
             local format = readushort(f)
@@ -2725,7 +2761,8 @@ function readers.gdef(f,fontdata,specification)
                 for i=1,nofsets do
                     local offset = sets[i]
                     if offset ~= 0 then
-                        marksets[i] = readcoverage(f,marksetsoffset+offset)
+                        markclasses[nofmarkclasses + i] = readcoverage(f,marksetsoffset+offset)
+                        marksets[i] = { }
                     end
                 end
             end
@@ -2878,7 +2915,7 @@ local function readmathglyphinfo(f,fontdata,offset)
                 if not math then
                     glyph.math = { accent = accent }
                 else
-                    math.accent = accent
+                    math.accent = accent -- will become math.topanchor
                 end
             end
         end
@@ -2968,9 +3005,10 @@ local function readmathvariants(f,fontdata,offset)
     --     advance = readushort(f),
     -- }
 
-    local function get(offset,coverage,nofglyphs,construction,kvariants,kparts,kitalic)
+    local function get(offset,coverage,nofglyphs,construction,kvariants,kparts,kitalic,korientation,orientation)
         if coverage ~= 0 and nofglyphs > 0 then
             local coverage = readcoverage(f,offset+coverage,true)
+            local n = 0
             for i=1,nofglyphs do
                 local c = construction[i]
                 if c ~= 0 then
@@ -2985,7 +3023,8 @@ local function readmathvariants(f,fontdata,offset)
                         for i=1,nofvariants do
                             local variant = readushort(f)
                             if variant == index then
-                                -- ignore
+                             -- report("discarding %s variant %04X for %04X, %C","self referencing",variant,index,tonumber(glyph.unicode) or 0xFFFD)
+                                n = n + 1
                             elseif variants then
                                 v = v + 1
                                 variants[v] = variant
@@ -2995,7 +3034,7 @@ local function readmathvariants(f,fontdata,offset)
                             end
                             skipshort(f)
                         end
-                        if not variants then
+                        if not variants or not next(variants) then
                             -- only self
                         elseif not math then
                             math = { [kvariants] = variants }
@@ -3033,14 +3072,61 @@ local function readmathvariants(f,fontdata,offset)
                         if italic and italic ~= 0 then
                             math[kitalic] = italic
                         end
+                        if korientation and orientation then
+                            math[korientation] = orientation
+                        end
+                    end
+                end
+            end
+            -- There are quite some fonts out there (noto anno 2024) with these so we only report the
+            -- number. It's often the first entry then.
+            if n > 0 then
+                report("discarding %i self referencing %s variant entries",n,orientation)
+            end
+            -- There are a few fonts out there (noto anno 2024) that have a variant list with entries
+            -- that themselve have variants and that gives circular references in a 'next' chain.
+            for index=1,#glyphs do
+                local g = glyphs[index]
+                local m = g.math
+                if m then
+                    local v = m[kvariants]
+                    if v then
+                        local done = { [index] = true }
+                        local size = #v
+                        local i    = 1
+                        while i <= size do
+                            local vi = v[i]
+                            if done[vi] then
+                                report("discarding %sdirect circular %s variant index 0x%04X for index 0x%04X, %C","",orientation,vi,index,tonumber(g.unicode) or 0xFFFD)
+                                table.remove(v,i)
+                                size = size - 1
+                                goto NEXT
+                            else
+                                local gg = glyphs[vi]
+                                if gg then
+                                    local mm = gg.math
+                                    if mm then
+                                        local vv = mm[kvariants]
+                                        if vv then
+                                            report("discarding %sdirect circular %s variant index 0x%04X for index 0x%04X, %C","in",orientation,vi,index,tonumber(g.unicode) or 0xFFFD)
+                                            table.remove(v,i)
+                                            size = size - 1
+                                            goto NEXT
+                                        end
+                                    end
+                                end
+                                done[vi] = true
+                            end
+                            i = i + 1
+                          ::NEXT::
+                        end
                     end
                 end
             end
         end
     end
-
-    get(offset,vcoverage,vnofglyphs,vconstruction,"vvariants","vparts","vitalic")
-    get(offset,hcoverage,hnofglyphs,hconstruction,"hvariants","hparts","hitalic")
+    get(offset,hcoverage,hnofglyphs,hconstruction,"hvariants","hparts","hitalic",nil,"horizontal")
+    get(offset,vcoverage,vnofglyphs,vconstruction,"vvariants","vparts","vitalic",nil,"vertical")
 end
 
 function readers.math(f,fontdata,specification)
@@ -3072,8 +3158,12 @@ function readers.colr(f,fontdata,specification)
     local tableoffset = gotodatatable(f,fontdata,"colr",specification.glyphs)
     if tableoffset then
         local version = readushort(f)
-        if version ~= 0 then
-            report("table version %a of %a is not supported (yet), maybe font %s is bad",version,"colr",fontdata.filename)
+        if version == 0 then
+         -- we're okay
+        elseif version == 1 then
+            report("table version %a of %a is %s supported for font %s",version,"colr","partially",fontdata.filename)
+        else
+            report("table version %a of %a is %s supported for font %s",version,"colr","not",fontdata.filename)
             return
         end
         if not fontdata.tables.cpal then
@@ -3163,9 +3253,6 @@ end
 local compress   = gzip and gzip.compress
 local compressed = compress and gzip.compressed
 
--- At some point I will delay loading and only store the offsets (in context lmtx
--- only).
-
 -- compressed = false
 
 function readers.svg(f,fontdata,specification)
@@ -3239,7 +3326,7 @@ function readers.sbix(f,fontdata,specification)
             end
         end)
         local glyphs  = { }
-        local delayed = CONTEXTLMTXMODE and CONTEXTLMTXMODE > 0 or fonts.handlers.typethree
+        local delayed = fonts.handlers.typethree
         for i=1,nofstrikes do
             local strike       = strikes[i]
             local strikeppem   = strike.ppem
@@ -3479,7 +3566,7 @@ do
 
             local default = { width = 0, height = 0 }
             local glyphs  = fontdata.glyphs
-            local delayed = CONTEXTLMTXMODE and CONTEXTLMTXMODE > 0 or fonts.handlers.typethree
+            local delayed = fonts.handlers.typethree
 
             for index, subtable in sortedhash(shapes) do
                 if type(subtable) == "table" then
@@ -3806,6 +3893,7 @@ function readers.hvar(f,fontdata,specification)
     end
     local tableoffset = gotodatatable(f,fontdata,"hvar",specification.variable)
     if not tableoffset then
+     -- report("no hvar table, expect problems due to messy widths")
         return
     end
 
@@ -3819,11 +3907,11 @@ function readers.hvar(f,fontdata,specification)
     local variations = { }
     local innerindex = { } -- size is mapcount
     local outerindex = { } -- size is mapcount
+    local deltas     = { }
 
     if variationoffset > 0 then
         regions, deltas = readvariationdata(f,variationoffset,factors)
     end
-
     if not regions then
         -- for now .. what to do ?
         return
@@ -3943,4 +4031,8 @@ function readers.mvar(f,fontdata,specification)
         end
      -- setvariabledata(fontdata,"mregions",regions)
     end
+end
+
+function readers.dsig(f,fontdata,specification)
+    -- We're not going to deal with this security crap.
 end

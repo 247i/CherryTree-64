@@ -24,7 +24,9 @@ local implement    = interfaces.implement
 
 local ioflush      = io.flush
 local ioread       = io.read
-local writenl      = texio.write_nl
+local ossleep      = os.sleep
+local osexit       = os.exit
+local writenl      = texio.writenl
 local write        = texio.write
 
 local runlocal     = tex.runlocal
@@ -131,11 +133,15 @@ end
 -- todo: have a separate status.lualinenumber
 -- todo: \starttext bla \blank[foo] bla \stoptext
 
-local nop = function() end
+local nop           = function() end
 local resetmessages = status.resetmessages or nop
+local erroroffset   = 10
+local erroraction   = false
+local busy          = false
+local errorvalues   = false
 
-local function processerror(offset,errortype)
-    local readstate      = status.readstate
+local function processerror(errortype)
+    local readstate      = status.getreadstate()
     local filename       = readstate.filename
     local linenumber     = readstate.linenumber
     local skiplinenumber = readstate.skiplinenumber
@@ -147,38 +153,41 @@ local function processerror(offset,errortype)
     local lastmpserror   = match(lasttexerror,[[^.-mp%serror:%s*(.*)$]])
     resetmessages()
     lastluaerror = gsub(lastluaerror,"%[\\directlua%]","[ctxlua]")
-    tracers.printerror {
+    local specification = {
         filename       = filename,
         linenumber     = linenumber,
         skiplinenumber = skiplinenumber,
-        offset         = tonumber(offset) or 10,
+        offset         = erroroffset,
+        contexterror   = job.contexterror,
         lasttexerror   = lasttexerror,
         lastmpserror   = lastmpserror,
         lastluaerror   = lastluaerror, -- can be the same as lasttexerror
         luaerrorline   = luaerrorline,
         lastcontext    = lastcontext,
-        lasttexhelp    = tex.gethelptext and tex.gethelptext() or nil,
+        lasttexhelp    = tex.gethelptext(),
         errortype      = errortype,
     }
+    job.errorstate = specification
+    tracers.printerror(specification)
     if job and type(job.disablesave) == "function" then
         job.disablesave()
     end
+    if erroraction then
+        erroraction()
+    end
+    errorvalues = errorvalues or table.swapped(tex.geterrorvalues())
+    if errortype ~= errorvalues.warning then
+        lua.setexitcode(1)
+    end
 end
 
-directives.register("system.quitonerror",function(v)
-    quitonerror = toboolean(v)
-end)
-
-directives.register("system.usescitelexer",function(v)
-    usescitelexer = toboolean(v)
-end)
-
-local busy = false
+directives.register("system.quitonerror",  function(v) quitonerror   = toboolean(v) end)
+directives.register("system.usescitelexer",function(v) usescitelexer = toboolean(v) end)
 
 function tracers.printerror(specification)
     if not busy then
-        busy = true
-        local errorvalues  = table.swapped(tex.geterrorvalues())
+        busy        = true
+        errorvalues = errorvalues or table.swapped(tex.geterrorvalues())
         local filename     = specification.filename
         local linenumber   = specification.linenumber
         local lasttexerror = specification.lasttexerror
@@ -187,7 +196,7 @@ function tracers.printerror(specification)
         local lastcontext  = specification.lastcontext
         local luaerrorline = specification.luaerrorline
         local errortype    = specification.errortype
-        local offset       = specification.offset
+        local offset       = specification.offset or erroroffset
         local endoffile    = specification.endoffile
         local report       = errorreporter(luaerrorline)
         if errortype == errorvalues.warning then
@@ -248,15 +257,21 @@ function tracers.printerror(specification)
             report_str(tracers.showlines(filename,linenumber,offset,tonumber(luaerrorline)))
             report_nl()
         end
-        local errname = file.addsuffix(tex.jobname .. "-error","log")
         if quitonerror then
-            table.save(errname,specification)
+            local name = tex.jobname or ""
+            if name ~= "" then
+                table.save(name .. "-error.log",specification)
+            end
             local help = specification.lasttexhelp
             if help and #help > 0 then
+                -- If we get rubish a NULL is forgotten in engine error trigger!
                 report_nl()
                 report_str(help)
                 report_nl()
                 report_nl()
+            end
+            if erroraction then
+                erroraction()
             end
             luatex.abort()
         end
@@ -264,9 +279,9 @@ function tracers.printerror(specification)
     end
 end
 
-luatex.wrapup(function() os.remove(file.addsuffix(tex.jobname .. "-error","log")) end)
+luatex.wrapup(function() os.remove(tex.jobname .. "-error.log") end)
 
-local function processwarning(offset)
+local function processwarning()
     local warningstate = status.warningstate
     local lastwarning  = warningstate.warning or "?"
     local lastlocation = warningstate.warningtag or "?"
@@ -282,21 +297,44 @@ function tracers.printwarning(specification)
 end
 
 directives.register("system.errorcontext", function(v)
-    local register = callback.register
-    if v then
-        register('show_error_message',   nop)
-        register('show_warning_message', function()         processwarning(v)   end)
-        register('intercept_lua_error',  function()         processerror(v)     end)
-        register('intercept_tex_error',  function(mode,eof) processerror(v,eof) return mode end)
-    else
-        register('show_error_message',   nil)
-        register('show_warning_message', nil)
-        register('intercept_lua_error',  nil)
-        register('intercept_tex_error',  nil)
-    end
+    erroroffset = tonumber(v) or erroroffset -- is set in the configuration file
 end)
 
--- this might move
+callbacks.register {
+    name     = "show_error_message",
+    frozen   = true,
+ -- disabled = true,
+    action   = function() end
+}
+
+callbacks.register {
+    name   = "show_warning_message",
+    frozen = true,
+    action = processwarning,
+}
+
+callbacks.register {
+    name   = "intercept_lua_error",
+    frozen = true,
+    action = processerror
+}
+
+callbacks.register {
+    name   = "intercept_tex_error",
+    frozen = true,
+    action = function(mode,errortype)
+        processerror(errortype)
+        return mode
+    end
+}
+
+-- tracers.processerror = processerror
+
+-- Let's no longer do this in lmtx .. it was actually a proof of concept. There is no
+-- reliable way to pop up a browser anyway. We keep the code around becuae if really
+-- needed we can plug it into the normal error handler as addendum.
+--
+-- Well ... back per request.
 
 lmx = lmx or { }
 
@@ -315,7 +353,7 @@ local function reportback(lmxname,default,variables)
 end
 
 local function showerror(lmxname)
-    local readstate    = status.readstate()
+    local readstate    = status.getreadstate()
     local filename     = readstate.filename
     local linenumber   = tonumber(readstate.linenumber) or 0
     local errorcontext = ""
@@ -327,7 +365,7 @@ local function showerror(lmxname)
     end
     local variables = {
         ['title']                = 'ConTeXt Error Information',
-        ['errormessage']         = status.errorstatus.error or "?",
+        ['errormessage']         = status.geterrorstate().error or "?",
         ['linenumber']           = linenumber,
         ['color-background-one'] = lmx.get('color-background-yellow'),
         ['color-background-two'] = lmx.get('color-background-purple'),
@@ -335,21 +373,34 @@ local function showerror(lmxname)
         ['errorcontext']         = errorcontext,
     }
     reportback(lmxname,"context-error.lmx",variables)
-    luatex.abort()
+ -- luatex.abort() -- done in caller
 end
 
-lmx.showerror = showerror
+-- We need to be more protective and block callbacks so that when code meant for
+-- other macro package is loaded it can't do harm to callbacks. So we go local.
 
-function lmx.overloaderror(v)
+-- lmx.showerror = showerror
+--
+-- function lmx.overloaderror(v)
+--     if v == "scite" then
+--         usescitelexer = true
+--     end
+--     erroraction = v and showerror or false
+--  -- callbacks.register { name = "show_error_message",  action = function() showerror() end }
+--  -- callbacks.register { name = "intercept_lua_error", action = function() showerror() end }
+--  -- callbacks.register { name = "intercept_tex_error", action = function() showerror() end }
+-- end
+--
+-- directives.register("system.showerror", lmx.overloaderror)
+
+directives.register("system.showerror", function(v)
     if v == "scite" then
         usescitelexer = true
     end
-    callback.register('show_error_message',  function() showerror() end)
-    callback.register('intercept_lua_error', function() showerror() end)
-    callback.register('intercept_tex_error', function() showerror() end)
-end
+    erroraction = v and showerror or false
+end)
 
-directives.register("system.showerror", lmx.overloaderror)
+-- This is also gone
 
 -- local debugger = utilities.debugger
 --
@@ -366,8 +417,8 @@ directives.register("system.showerror", lmx.overloaderror)
 --     trace_calls(n)
 -- end) -- indirect is needed for nilling
 
--- Obsolete ... not that usefull as normally one runs from an editor and
--- when run unattended it makes no sense either.
+-- Again something that has become obsolete because it is not that usefull as normally one
+-- runs from an editor and when run unattended it makes no sense either.
 
 -- local editor = [[scite "-open:%filename%" -goto:%linenumber%]]
 --
@@ -375,7 +426,7 @@ directives.register("system.showerror", lmx.overloaderror)
 --     editor = v
 -- end)
 --
--- callback.register("call_edit",function(filename,linenumber)
+-- local function call_edit_callback(filename,linenumber)
 --     if editor then
 --         editor = gsub(editor,"%%s",filename)
 --         editor = gsub(editor,"%%d",linenumber)
@@ -384,7 +435,9 @@ directives.register("system.showerror", lmx.overloaderror)
 --         logs.report("system","starting editor: %s",editor)
 --         os.execute(editor)
 --     end
--- end)
+-- end
+--
+-- callback.register("call_edit",call_edit_callback)
 
 implement { name = "showtrackers",       public = true, protected = true, actions = trackers.show }
 implement { name = "enabletrackers",     public = true, protected = true, actions = trackers.enable,     arguments = "optional" }
@@ -399,19 +452,50 @@ implement { name = "showexperiments",    public = true, protected = true, action
 implement { name = "enableexperiments",  public = true, protected = true, actions = experiments.enable,  arguments = "optional" }
 implement { name = "disableexperiments", public = true, protected = true, actions = experiments.disable, arguments = "optional" }
 
-implement { name = "overloaderror",      public = true, protected = true, actions = lmx.overloaderror }
+--------- { name = "overloaderror",      public = true, protected = true, actions = lmx.overloaderror }
 implement { name = "showlogcategories",  public = true, protected = true, actions = logs.show }
 
 local debugger = utilities.debugger
 
+local profiling = false
+
 directives.register("system.profile",function(n)
-    luatex.registerstopactions(function()
-        debugger.disable()
-        debugger.savestats("luatex-profile.log",tonumber(n) or 0)
-        report_nl()
-        logs.report("system","profiler stopped, log saved in %a","luatex-profile.log")
-        report_nl()
-    end)
-    logs.report("system","profiler started")
-    debugger.enable()
+    if not profiling then
+        n = tonumber(n) or 0
+        luatex.registerstopactions(function()
+            debugger.disable()
+            debugger.savestats("luametatex-profile.log",n)
+            report_nl()
+            logs.report("system","profiler stopped, threshold %i, log saved in %a",n,"luametatex-profile.log")
+            report_nl()
+        end)
+        logs.report("system","profiler started")
+        debugger.enable()
+        profiling = true
+    end
 end)
+
+local report = logs.reporter("[[diagnostic]]")
+
+implement {
+    name      = "diagnostic",
+    public    = true,
+ -- protected = false, -- expandable
+    arguments = { "optional", "string" },
+    actions   = function(t,s)
+        if t == "quit" then
+            report(s)
+            osexit()
+        else
+            t = tonumber(t)
+            if t then
+                report("%s (sleep: %.3N)",s,t)
+                ioflush()
+                ossleep(t)
+            else
+                report(s)
+                ioflush()
+            end
+        end
+    end
+}

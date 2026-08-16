@@ -18,7 +18,7 @@
 
 \unprotect
 
-\newcount\c_anch_tabs
+\newinteger\c_anch_tabs
 
 \protected\def\tabl_tabulate_hook_b
   {\iftrialtypesetting\else
@@ -54,13 +54,13 @@
 % \appendtoks \registerparoptions \to \everypar
 
 \appendtoks
-    \global\advance\c_anch_tabs\plusone
+    \global\advanceby\c_anch_tabs\plusone
 \to \everytabulate
 
 % for text backgrounds
 
 \appendtoks
-    \settrue\c_anch_backgrounds_pos_no_shape
+    \c_anch_backgrounds_pos_no_shape\conditionaltrue
 \to \everytabulate
 
 %D Beware, the following code is somewhat weird and experimental and might be
@@ -74,7 +74,7 @@
 %D references to the graphics involved. Each table has its own namespace.
 
 \newconditional\tablehaspositions
-\newcount      \noftabpositions
+\newinteger    \noftabpositions
 \newtoks       \posXCtoks
 
 \protected\def\anch_tabulate_bpos{\bpos}
@@ -85,7 +85,7 @@
 \permanent\def\tbPOSprefix{\??positiontables\number\noftabpositions:}
 
 \permanent\protected\def\tablepos
-  {\normalexpanded{\global\posXCtoks\emptytoks\the\posXCtoks}}
+  {\expanded{\global\posXCtoks\emptytoks\the\posXCtoks}}
 
 \permanent\protected\def\tbXC {\anch_table_checked\anch_tables_indeed_XC }
 \permanent\protected\def\tbGSC{\anch_table_checked\anch_tables_indeed_GSC}
@@ -94,7 +94,7 @@
 
 \tolerant\def\anch_table_checked#1[#2]%
   {\iftrialtypesetting
-     \global\settrue\tablehaspositions
+     \global\tablehaspositions\conditionaltrue
      \expandafter\anch_tables_indeed_NC
    \orelse\ifparameter#2\or
      \expandafter#1%
@@ -132,12 +132,12 @@
 \def\anch_tables_process_GSC[#1:#2]%
   {\remappositionframed{#2}{\tbPOSprefix#1}%
    \anch_tabulate_bpos{\tbPOSprefix#1}%
-   \doglobal\appendtoks\expandafter\anch_tabulate_epos\expandafter{\tbPOSprefix#1}\to\posXCtoks}
-%  \xtoksapp\posXCtoks{\anch_tabulate_epos{\tbPOSprefix#1}}}
+%  \doglobal\appendtoks\expandafter\anch_tabulate_epos\expandafter{\tbPOSprefix#1}\to\posXCtoks}
+   \xtoksapp\posXCtoks{\anch_tabulate_epos{\tbPOSprefix#1}}}
 
 \def\anch_tables_indeed_GFC[#1]%
-  {\doglobal\appendtoks\anch_tables_delayed_GFC[#1]\to\posXCtoks\NC}
-% {\gtoksapp\posXCtoks{\anch_tables_delayed_GFC[#1]}\NC}
+% {\doglobal\appendtoks\anch_tables_delayed_GFC[#1]\to\posXCtoks\NC}
+  {\gtoksapp\posXCtoks{\anch_tables_delayed_GFC[#1]}\NC}
 
 \def\anch_tables_delayed_GFC[#1]%
   {\processcommalist[#1]\anch_tables_step_GFC}
@@ -150,12 +150,12 @@
    \anch_tabulate_bpos{\tbPOSprefix#1}}
 
 \def\anch_tables_indeed_GTC[#1]%
-  {\doglobal\appendtoks\anch_tables_delayed_GTC[#1]\to\posXCtoks\NC}
-% {\gtoksapp\posXCtoks{\anch_tables_delayed_GTC[#1]}\NC}
+% {\doglobal\appendtoks\anch_tables_delayed_GTC[#1]\to\posXCtoks\NC}
+  {\gtoksapp\posXCtoks{\anch_tables_delayed_GTC[#1]}\NC}
 
 \def\anch_tables_delayed_GTC[#1]%
-  {\doglobal\appendtoks\anch_tables_process_GTC[#1]\to\posXCtoks}
-% {\gtoksapp\posXCtoks{\anch_tables_process_GTC[#1]}\NC}
+% {\doglobal\appendtoks\anch_tables_process_GTC[#1]\to\posXCtoks}
+  {\gtoksapp\posXCtoks{\anch_tables_process_GTC[#1]}\NC}
 
 \def\anch_tables_process_GTC[#1]%
   {\processcommalist[#1]\anch_tables_step_GTC}
@@ -195,8 +195,8 @@
    \box\scratchbox}
 
 \appendtoks
-    \global\advance\noftabpositions\plusone
-    \global\setfalse\tablehaspositions
+    \global\advanceby\noftabpositions\plusone
+    \global\tablehaspositions\conditionalfalse
 \to \everytabulate
 
 % We need to handle paragraphs as well.
@@ -227,9 +227,9 @@
 %D In order to prevent potential clashes with abbreviations, postpone the mapping and
 %D make them mutable.
 
-\mutable\let\GSC\empty
-\mutable\let\GFC\empty
-\mutable\let\GTC\empty
+\mutable\lettonothing\GSC
+\mutable\lettonothing\GFC
+\mutable\lettonothing\GTC
 
 \appendtoks
     \enforced\let\GSC\tbGSC
@@ -274,8 +274,8 @@
 \permanent\def\normalTABLEquote     {\unskip\!ttRightGlue&\omit\tablepos&}                  % "
 
 \appendtoks
-    \global\advance\noftabpositions\plusone
-    \global\setfalse\tablehaspositions
+    \global\advanceby\noftabpositions\plusone
+    \global\tablehaspositions\conditionalfalse
 \to \everytable
 
 %D Since we don't want nameclashes:
@@ -367,18 +367,18 @@
    \copyposition{e:#1}{e:#2}%
    \anch_positions_set_action{b:#2}{\dopositionaction{b:#1}}}
 
-\permanent\tolerant\protected\def\definepositionframed[#1]#*[#2]%
+\permanent\tolerant\protected\def\definepositionframed[#1]#*[#S#2]%
   {\anch_positions_set_action{b:#1}{\anch_framed_handle[#1][#2]}}
 
 \protected\def\anch_framed_handle
   {\bgroup
    \positionframed}
 
-\permanent\tolerant\protected\def\positionframed[#1]#*[#2]%
+\permanent\tolerant\protected\def\positionframed[#1]#*[#S#2]%
   {\setbox\scratchbox\hpack
-     {\scratchwidth \dimexpr\MPx{e:#1}-\MPx{b:#1}\relax
-      \scratchdepth \dimexpr\MPy{b:#1}-\MPy{e:#1}+\MPd{e:#1}\relax
-      \scratchheight\dimexpr\scratchdepth+\MPh{b:#1}\relax
+     {\scratchwidth {\MPx{e:#1}-\MPx{b:#1}}%
+      \scratchdepth {\MPy{b:#1}-\MPy{e:#1}+\MPd{e:#1}}%
+      \scratchheight{\scratchdepth+\MPh{b:#1}}%
       \lower\scratchdepth\hpack
         {\framed[\c!width=\scratchwidth,\c!height=\scratchheight,\c!offset=\v!overlay,#2]{}}}%
    \smashedbox\scratchbox

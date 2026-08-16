@@ -1,5 +1,5 @@
 %D \module
-%D   [       file=mp-luas.lmtx,
+%D   [       file=mp-lmtx.mpxl,
 %D        version=2019.06.23,
 %D          title=\CONTEXT\ \METAPOST\ graphics,
 %D       subtitle=\LUA,
@@ -191,25 +191,11 @@ vardef lmt_do_axis =
 
                             c := getparameter "color" ;
 
-                            % p := for i = 1 upto getparametercount "points":
-                            %     if (i > 1) : -- fi (getparameter "points" i)
-                            % endfor
-                            % if (getparameterdefault "close" false) : -- cycle fi ;
-
-                            % this can become:
-
-                            % p := if (getparameterdefault "close" false) :
-                            %   % getparameterpath "points" "--" true ;
-                            %     getparameterpath "points" true ;
-                            % else :
-                            %   % getparameterpath "points" "--" false ;
-                            %     getparameterpath "points" ;
-                            % fi ;
-
-                            % p := getparameterpath "points" if (getparameterdefault "close" false) : true fi ;
-
-                            p := getparameterpath "points" (getparameterdefault "close" false) ;
-                          % p := getparameterpath "points" getparameterdefault "close" false ;
+                            if (getparameterdefault "close" false) :
+                                p := getparameterpath "points" "close" ;
+                            else :
+                                p := getparameterpath "points" ;
+                            fi
 
                             draw p withcolor c ;
 
@@ -237,7 +223,9 @@ vardef lmt_do_axis =
                                             if d < left : rotated 180 shifted (0,-5) else : shifted (0,5) fi
                                             ysized ts
                                             shifted a
-                                            rotatedaround(a,angle(d)) ;
+                                            if d <> origin :
+                                                rotatedaround(a,angle(d))
+                                            fi ;
                                     endfor ;
                                 fi ;
                             popparameters ;
@@ -267,11 +255,16 @@ presetparameters "outline" [
 def lmt_outline = applyparameters "outline" "lmt_do_outline" enddef ;
 
 vardef lmt_do_outline =
+    save kind  ; string kind   ; kind  := getparameter "outline" "kind"  ;
+    save align ; string align  ; align := getparameter "outline" "align" ;
+    save style ; string style  ; style := getparameter "outline" "style" ;
+    save width ; numeric width ; width := getparameter "outline" "width" ;
+    save isol  ; boolean isol  ; isol  := (kind == "outline") ;
+    if isol :
+        kind := "p" ;
+        save ol ; picture ol ; ol :=
+    fi
     image ( normaldraw image (
-        save kind  ; string kind   ; kind  := getparameter "outline" "kind"  ;
-        save align ; string align  ; align := getparameter "outline" "align" ;
-        save style ; string style  ; style := getparameter "outline" "style" ;
-        save width ; numeric width ; width := getparameter "outline" "width" ;
         if kind = "draw" :
             kind := "d" ;
         elseif kind = "fill" :
@@ -282,6 +275,8 @@ vardef lmt_do_outline =
             kind := "r" ;
         elseif kind = "fillup" :
             kind := "u" ;
+        elseif kind = "path" :
+            kind := "p" ;
         fi ;
         currentoutlinetext := currentoutlinetext + 1 ;
         lua.mp.mf_outline_text(
@@ -337,6 +332,9 @@ vardef lmt_do_outline =
         fi ;
         lua.mp.mf_get_outline_text(currentoutlinetext) ;
     ) )
+    if isol :
+        ; for i within ol : pathpart i && endfor cycle
+    fi
 enddef ;
 
 presetparameters "followtext" [
@@ -363,7 +361,7 @@ vardef lmt_do_followtext =
         interim tracingfollowtext := if getparameter "trace" : 1 else : 0 fi ;
         draw followtext (
             if (getparameter "reverse") : reverse fi (getparameter "path"),
-                getparameter "text"
+            (getparameter "text")
         ) ;
         popparameters ;
     )
@@ -599,6 +597,8 @@ presetparameters "function" [
     xarrow      = "",
     yarrow      = "",
     reverse     = false,
+  % function    : metatable is parent
+    axis        = "both",
 ] ;
 
 def lmt_function = applyparameters "function" "lmt_do_function" enddef ;
@@ -610,8 +610,7 @@ vardef lmt_do_function_p(expr xmin, xmax, xstep, code, shape, close, fcolor, dsi
         q := (xmin,0) -- p -- (xmax,0) -- cycle ;
         fill q withcolor fcolor ;
     else :
-        draw p withpen currentpen scaled dsize withcolor dcolor
-            ;
+        draw p withpen currentpen scaled dsize withcolor dcolor ;
     fi ;
     if psize > 0 :
         if psymbol = "dot" :
@@ -638,9 +637,9 @@ vardef lmt_do_function =
         pickup pencircle xyscaled(lw/sx,lw/sy) ;
         draw image (
             save xmin, xmax, xstep, xsmall, xlarge, ymin, ymax, ystep, ysmall, ylarge, p ;
-            save code, option, txl, txs, tyl, tys, swap ;
-            string code, option ;
-            path txl, txs, tyl, tys ; boolean swap ;
+            save code, option, txl, txs, tyl, tys, swap, axis ;
+            string code, option, shape, axis ;
+            path txl, txs, tyl, tys ; boolean swap, close ;
             picture p ;
 
             xmin    := getparameter "xmin" ;
@@ -655,36 +654,38 @@ vardef lmt_do_function =
             ylarge  := getparameter "ylarge" ;
             code    := getparameter "code" ;
             swap    := getparameter "reverse" ;
-
+            shape   := getparameter "shape" ;
+            close   := getparameter "close" ;
+            axis    := getparameter "axis" ;
             p := image (
-
                 if (getparametercount "functions") > 0 :
                     for s = 1 upto getparametercount "functions" :
-                        pushparameters "functions" s ;
+                        % todo: pushparameters with a metatable, here parent
+                        pushparameters "functions" [s] ;
                         lmt_do_function_p (
-                            getparameterdefault "xmin",
-                            getparameterdefault "xmax",
-                            getparameterdefault "xstep",
-                            getparameterdefault "code",
-                            getparameterdefault "shape",
-                            getparameterdefault "close",
-                            getparameterdefault "fillcolor",
-                            getparameterdefault "drawsize",
-                            getparameterdefault "drawcolor",
-                            getparameterdefault "pointsymbol",
-                            getparameterdefault "pointsize",
-                            getparameterdefault "pointcolor"
+                            (getparameterdefault "xmin"        xmin),
+                            (getparameterdefault "xmax"        xmax),
+                            (getparameterdefault "xstep"       xstep),
+                            (getparameterdefault "code"        code),
+                            (getparameterdefault "shape"       shape),
+                            (getparameterdefault "close"       close),
+                            (getparameterdefault "fillcolor"   (getparameter "fillcolor")),
+                            (getparameterdefault "drawsize"    (getparameter "drawsize")),
+                            (getparameterdefault "drawcolor"   (getparameter "drawcolor")),
+                            (getparameterdefault "pointsymbol" (getparameter "pointsymbol")),
+                            (getparameterdefault "pointsize"   (getparameter "pointsize")),
+                            (getparameterdefault "pointcolor"  (getparameter "pointcolor"))
                         ) ;
                         popparameters ;
                     endfor ;
                 elseif code <> "" :
                     lmt_do_function_p (
-                        getparameter "xmin",
-                        getparameter "xmax",
-                        getparameter "xstep",
-                        getparameter "code",
-                        getparameter "shape",
-                        getparameter "close",
+                        xmin,
+                        xmax,
+                        xstep,
+                        code,
+                        shape,
+                        close,
                         getparameter "fillcolor",
                         getparameter "drawsize",
                         getparameter "drawcolor",
@@ -696,6 +697,12 @@ vardef lmt_do_function =
             ) ;
 
             if not swap : draw p fi ;
+
+if (axis = "") or (axis = "no") :
+    % nothing
+else :
+
+    % todo: x y both
 
             option := getparameter "xticks" ;
             if option = "top" :
@@ -884,6 +891,8 @@ vardef lmt_do_function =
                     shifted (xmin-tl,0)
                     shifted center leftboundary currentpicture ;
             fi ;
+
+fi ;
         )
 
         xyscaled(sx,sy) ;
@@ -1001,6 +1010,9 @@ presetparameters "chart" [
     originsize      = 1mm,
     trace           = false,
     showlabels      = true,
+    showlegend      = true,
+    showvalues      = false,
+    showaxis        = false,
     center          = false,
 
     samples         = { },
@@ -1009,6 +1021,7 @@ presetparameters "chart" [
     percentage      = false,
     maximum         = 0,
     distance        = 1mm,
+    threshold       = eps,
 
   % labels          = { },
     labelstyle      = "",
@@ -1019,6 +1032,16 @@ presetparameters "chart" [
     labelfraction   = 0.8,
     labelcolor      = "",
 
+    axisstyle       = "",
+    axiscolor       = "",
+    axisformat      = "",
+    axislinewidth   = mm/5,
+    axislinecolor   = "",
+
+    valuestyle      = "",
+    valuecolor      = "",
+    valueformat     = "",
+
     backgroundcolor = "",
     drawcolor       = "white",
     fillcolors      = { % use color palet
@@ -1026,9 +1049,11 @@ presetparameters "chart" [
         "darkyellow", "darkmagenta", "darkcyan",
         "darkgray"
     },
+    linecolors      = { },
     colormode       = "global",
 
     linewidth       = .25mm,
+  % linegap         = 0,
 
     legendcolor     = "",
     legendstyle     = "",
@@ -1036,11 +1061,13 @@ presetparameters "chart" [
 ] ;
 
 presetparameters "chart:circle" "chart" [
-    height      = 5cm,
-    width       = 5mm,
-    labelanchor = "",
-    labeloffset = 0,
-    labelstrut  = "no",
+    height       = 5cm,
+    width        = 5mm,
+    innerradius  = 0,
+    initialangle = 0, % -90 == top
+    labelanchor  = "",
+    labeloffset  = 0,
+    labelstrut   = "no",
 ] ;
 
 presetparameters "chart:histogram" "chart" [
@@ -1065,24 +1092,59 @@ def lmt_chart_bar       = applyparameters "chart:bar"       "lmt_do_chart_bar"  
 
 def lmt_do_chart_start (expr what) =
     pushparameters what ;
-    save width, height, distance, linewidth, labelgap, labelfraction, value, nofsamples, nofsamplesets ;
-    save fillcolor, drawcolor, labelcolor, labelstyle, labelformat, labelstrut, labelanchor, colormode ;
-    string fillcolor, drawcolor, labelcolor, labelstyle, labelformat, labelstrut, labelanchor, colormode ;
-    height := getparameter "height" ;
-    width := getparameter "width" ;
-    distance := getparameter "distance" ;
-    linewidth := getparameter "linewidth" ;
-    drawcolor := getparameter "drawcolor" ;
-    colormode :=  getparameter "colormode" ;
-    labelcolor := getparameter "labelcolor" ;
-    labelgap := getparameter "labeloffset" ;
-    labelstyle := getparameter "labelstyle" ;
-    labelformat := getparameter "labelformat" ;
-    labelstrut := getparameter "labelstrut" ;
-    labelanchor := getparameter "labelanchor" ;
+    save width, height, depth, distance,
+        threshold,
+        linewidth, linegap,
+        value, nofsamples, nofsamplesets,
+        fillcolor, linecolor, drawcolor,
+        labelcolor, labelstyle, labelformat, labelgap, labelfraction, labelstrut, labelanchor,
+        axiscolor, axisstyle, axisformat, axisgap, axislinewidth, axislinecolor,
+        valuecolor, valuestyle, valueformat, valuegap,
+        colormode ;
+    string fillcolor, linecolor, drawcolor,
+        labelcolor, labelstyle, labelformat, labelstrut, labelanchor,
+        axiscolor, axisstyle, axisformat, axislinecolor,
+        valuecolor, valuestyle, valueformat,
+        colormode ;
+    if hasparameter "sampleset" :
+        setluaparameter what "samples" (getparameter "sampleset") ;
+    fi ;
+
+    threshold     := getparameter "threshold" ;
+    colormode     := getparameter "colormode" ;
+
+    linewidth     := getparameter "linewidth" ;
+    linegap       := getparameterdefault "linegap" linewidth ;
+
+    height        := getparameter "height" ;
+    depth         := max(getparameter "originsize", (getparameter "innerradius"), 8*linewidth) ;
+    width         := getparameter "width" ;
+    distance      := getparameter "distance" ;
+
+    drawcolor     := getparameter "drawcolor" ;
+
+    labelcolor    := getparameter "labelcolor" ;
+    labelstyle    := getparameter "labelstyle" ;
+    labelformat   := getparameter "labelformat" ;
+    labelgap      := getparameter "labeloffset" ;
+    labelstrut    := getparameter "labelstrut" ;
+    labelanchor   := getparameter "labelanchor" ;
     labelfraction := getparameter "labelfraction" ;
+
+    axiscolor     := getparameter "axiscolor" ;
+    axisstyle     := getparameter "axisstyle" ;
+    axisformat    := getparameter "axisformat" ;
+    axisgap       := getparameter "axisoffset" ;
+    axislinewidth := getparameter "axislinewidth" ;
+    axislinecolor := getparameter "axislinecolor" ;
+
+    valuecolor    := getparameter "valuecolor" ;
+    valuestyle    := getparameter "valuestyle" ;
+    valueformat   := getparameter "valueformat" ;
+    valuegap      := getparameter "valueoffset" ;
+
     nofsamplesets := getparametercount "samples" ;
-    nofsamples := getmaxparametercount "samples" ;
+    nofsamples    := getmaxparametercount "samples" ;
 enddef ;
 
 def lmt_do_chart_stop =
@@ -1119,83 +1181,136 @@ vardef lmt_do_chart_text(expr s, i, value) =
 enddef ;
 
 def lmt_do_chart_legend =
-    n := getparametercount "legend" ;
-    if n > 0 :
-        save dx, dy, p, l, w, o, d, ddy ; picture l ;
-        dx := xpart urcorner currentpicture + EmWidth ;
-        dy := ypart urcorner currentpicture ;
-        labelcolor := getparameter "legendcolor" ;
-        labelstyle := getparameter "legendstyle" ;
-        w := 2EmWidth ;
-        o := .25EmWidth ;
-        d := ExHeight ;
-        ddy := .8LineHeight ;
-        for i=1 upto n :
-            dy := dy - ddy ;
-            l := lmt_text [
-                text       = getparameter "legend" i,
-                anchor     = "rt"
-                style      = labelstyle,
-                color      = labelcolor,
-                background = "",
-            ] ;
-            fill leftboundary l rightenlarged w
-                shifted (dx,dy+d)
-                withcolor getparameter "fillcolors" i ;
-            draw l
-                shifted (dx+w+o,dy+d) ;
-        endfor ;
+    if getparameter "showlegend" :
+        n := getparametercount "legend" ;
+        if n > 0 :
+            save dx, dy, p, l, w, o, d, ddy ; picture l ;
+            dx := xpart urcorner currentpicture + EmWidth ;
+            dy := ypart urcorner currentpicture ;
+            labelcolor := getparameter "legendcolor" ;
+            labelstyle := getparameter "legendstyle" ;
+            w := 2EmWidth ;
+            o := .25EmWidth ;
+            d := ExHeight ;
+            ddy := .8LineHeight ;
+            for i=1 upto n :
+                dy := dy - ddy ;
+                l := lmt_text [
+                    text       = getparameter "legend" i,
+                    anchor     = "rt"
+                    style      = labelstyle,
+                    color      = labelcolor,
+                    background = "",
+                ] ;
+                fill leftboundary l rightenlarged w
+                    shifted (dx,dy+d)
+                    withcolor getparameter "fillcolors" i ;
+                draw l
+                    shifted (dx+w+o,dy+d) ;
+            endfor ;
+        fi ;
     fi ;
 enddef ;
+
+% draw lmt_chart_circle [
+%     height       = 4cm,
+%     innerradius  = 2.0cm,
+%     samples      = { { 10, 20, 30, 40, 50 } },
+%     percentage   = false,
+%     initialangle = 90,
+%     linewidth    = .125mm,
+%     originsize   = 0,
+%     showlabels   = false,
+%     drawcolor    = "white",
+%     fillcolors   = { "red",     "green",  "blue",     "",       "cyan" },
+%     linecolors   = { "magenta", "orange", "darkgray", "orange", "darkgray" }
+%     linecolors   = { "",        "orange", "",         "orange", "" }
+% ] ;
 
 vardef lmt_do_chart_circle =
     image (
         lmt_do_chart_start("chart:circle") ;
         if (nofsamplesets > 0) and (nofsamples > 0) :
             nofsamplesets := 1 ;
-            save p, r, s, first, last, total, factor, n, percentage ;
-            path p, r, s[] ; boolean percentage ;
+            save p, q, r, s, t, pl, ql, first, last, total, factor, n, percentage, initial, clockwise ;
+            path p, q, r, s[], t[] ; boolean percentage, clockwise ;
+            save value, v;
+            clockwise := true ;
             percentage := getparameter "percentage" ;
+            initial := if not clockwise : - fi getparameter "initialangle" ; % watch sign
             total := 0 ;
             for i = 1 upto nofsamples :
-                total := total + getparameter "samples" (1) i ; % () is needed else 1i
-            endfor ;
-            factor := 100/total ;
-            first := 0 ;
-            p := fullcircle ysized (height) ;
-            r := origin -- (2*height,0) ;
-            for i = 1 upto nofsamples :
-                fillcolor := getparameter "fillcolors" i ;
-                value := (getparameter "samples" (1) i) * factor ;
-                last := first + (360 / 100) * value ;
-                s[i] := ((p cutbefore (r rotated first)) cutafter (r rotated last)) ;
-                fill origin -- s[i] -- cycle withcolor fillcolor ;
-                first := last ;
-            endfor ;
-            if linewidth > 0 :
-                if drawcolor = "" :
-                    drawcolor := backgroundcolor ;
+                value := getparameter "samples" (1) i ;
+                if value > threshold :
+                    total := total + value ;
                 fi ;
-                for i = 1 upto nofsamples :
-                    interim linecap := butt ;
-                    draw origin -- (point 0            of s[i]) withpen pencircle scaled linewidth withcolor drawcolor ;
-                    draw origin -- (point length(s[i]) of s[i]) withpen pencircle scaled linewidth withcolor drawcolor ;
-                endfor ;
-            fi ;
-            if getparameter "showlabels" :
-                first := 0 ;
+            endfor ;
+            if total = 0 :
+                message("zero total in circular chart");
+            else :
+                factor := 100/total ;
+                first := initial ;
+                if clockwise :
+                    p := (reverse fullcircle rotated first) ysized (height) ;
+                    q := (reverse fullcircle rotated first) ysized (depth) ;
+                else :
+                    p := fullcircle ysized (height) ;
+                    q := fullcircle ysized (depth) ;
+                fi ;
+                r := origin -- (2*height,0) ;
+                pl := ((linewidth + linegap) / (arclength p)) * 360;
+                ql := ((linewidth + linegap) / (arclength q)) * 360;
+                v := 0 ;
                 for i = 1 upto nofsamples :
                     value := getparameter "samples" (1) i ;
-                    last := first + (360/100) * value * factor ;
-                    draw lmt_do_chart_text (s,i,value)
-                        shifted ((labelfraction*(height/2),0) rotated ((first+last)/2)) ;
-                    first := last ;
+                    if value > threshold :
+                        v := v + 1 ;
+                        fillcolor := getparameter "fillcolors" i ;
+                        linecolor := getparameterdefault "linecolors" i "" ;
+                        if linecolor = "" :
+                            linecolor := fillcolor ;
+                        fi ;
+                        value := value * factor ;
+                        last := first if clockwise : - else : + fi (360/100) * value ;
+                        s[v] :=         ((p cutbefore (r rotated first)) cutafter (r rotated (last + pl))) ;
+                        t[v] := reverse ((q cutbefore (r rotated first)) cutafter (r rotated (last + ql))) ;
+                        path piece ; piece := s[v] -- t[v] -- cycle ;
+                        if fillcolor <> "" :
+                            fill piece
+                                withpen pencircle scaled linewidth
+                                withcolor fillcolor
+                            ;
+                        fi ;
+                        if linecolor <> "" :
+                            if linewidth > 0 :
+                                interim linecap := butt ;
+                                draw piece
+                                    withpen pencircle scaled linewidth
+                                    withcolor if linecolor <> "" : linecolor else drawcolor : fi
+                                ;
+                            fi ;
+                        fi ;
+                        first := last ;
+                    fi ;
                 endfor ;
-            fi ;
-            lmt_do_chart_legend ;
-            n := getparameter "originsize" ;
-            if n > 0 :
-                fill fullcircle scaled n withcolor "white"  ;
+                if linewidth > 0 :
+                    clip currentpicture to p enlarged linewidth ;
+                fi ;
+                if getparameter "showlabels" :
+                    first := initial ;
+                    v := 0 ;
+                    for i = 1 upto nofsamples :
+                        value := getparameter "samples" (1) i ;
+                        if value > threshold :
+                            v := v + 1 ;
+                            last := first if clockwise : - else : + fi (360/100) * value * factor ;
+                            draw lmt_do_chart_text (s,i,value)
+                                shifted ((labelfraction*(height/2),0) rotated ((first+last)/2)) ;
+                            first := last ;
+                        fi
+                    endfor ;
+                fi ;
+                lmt_do_chart_legend ;
             fi ;
         fi ;
         lmt_do_chart_stop ;
@@ -1242,14 +1357,14 @@ vardef lmt_do_chart_histogram =
                 endfor ;
             endfor ;
             setbounds currentpicture to unitsquare xyscaled (maxwidth,height) ;
-            for s = 1 upto nofsamplesets :
-                if getparameter "showlabels" :
+            if getparameter "showlabels" :
+                for s = 1 upto nofsamplesets :
                     for i = 1 upto nofsamples :
                         draw lmt_do_chart_text (s,i,getparameter "samples" s i)
                             shifted (nofsamplesets*((i-1)*width)+width/2+(s-1)*width+(i-1)*distance,0) ;
                     endfor ;
-                fi ;
-            endfor ;
+                endfor ;
+            fi ;
             lmt_do_chart_legend ;
         fi ;
         lmt_do_chart_stop ;
@@ -2108,7 +2223,7 @@ vardef lmt_do_svg =
         w := getparameter "width" ;
         h := getparameter "height" ;
         o := getparameter "offset" ;
-        lua.mp.lmt_svg_include() ;
+        lua.mp.lmt_svg_include() ; % textext runs twice .. maybe force once here
         if getparameter "origin" :
             currentpicture := currentpicture shifted -llcorner currentpicture ;
         fi ;
@@ -2264,7 +2379,9 @@ permanent registercomposeglyph, composeglyph ;
 
 % Again an experiment (todo: the faster method):
 
-newscriptindex mfid_remaptext ; mfid_remaptext := scriptindex "remaptext" ; def lmt_remaptext = runscript mfid_remaptext enddef ;
+% watch the ; that we scan!
+
+newscriptindex mfid_remaptext ; mfid_remaptext := scriptindex "remaptext" ; def lmt_remaptext = runscript mfid_remaptext ; enddef ;
 
 triplet mfun_tt_s ;
 
@@ -2339,13 +2456,13 @@ permanent
 
 % nice hack
 
-newscriptindex mfid_scrutenized ; mfid_scrutenized := scriptindex "scrutenized" ;
+newscriptindex mfid_scrutinized ; mfid_scrutinized := scriptindex "scrutinized" ;
+newscriptindex mfid_recycled    ; mfid_recycled    := scriptindex "recycled" ;
 
-primarydef p scrutenized n =
-    runscript mfid_scrutenized p n
-enddef ;
+primarydef p scrutinized n = runscript mfid_scrutinized p n enddef ;
+primarydef p recycled    n = runscript mfid_recycled    p n enddef ;
 
-permanent scrutenized ;
+permanent scrutinized, recycled ;
 
 % for now here
 
@@ -2359,11 +2476,19 @@ permanent scrutenized ;
 %
 % permanent mpv_numeric, mpv_dimension, mpv_string ;
 
-newscriptindex mfid_mpvar ; mfid_mpvar := scriptindex "mpvar" ;
+% newscriptindex mfid_mpvar ; mfid_mpvar := scriptindex "mpvar" ;
+%
+% def mpvar = runscript mfid_mpvar enddef ;
 
-def mpvar = runscript mfid_mpvar enddef ;
+% d(imension) n(umber) s(tring) b(oolean) <heuristic>
 
-permanent mpvar ;
+newscriptindex mfid_mpvard ; mfid_mpvard := scriptindex "mpvard" ; def mpvard = runscript mfid_mpvard enddef ; % dimension
+newscriptindex mfid_mpvarn ; mfid_mpvarn := scriptindex "mpvarn" ; def mpvarn = runscript mfid_mpvarn enddef ; % numeric
+newscriptindex mfid_mpvars ; mfid_mpvars := scriptindex "mpvars" ; def mpvars = runscript mfid_mpvars enddef ; % string
+newscriptindex mfid_mpvarb ; mfid_mpvarb := scriptindex "mpvarb" ; def mpvarb = runscript mfid_mpvarb enddef ; % string
+newscriptindex mfid_mpvar  ; mfid_mpvar  := scriptindex "mpvar"  ; def mpvar  = runscript mfid_mpvar  enddef ; % automatic
+
+permanent mpvard, mpvarn, mpvars, mpvarb, mpvar ;
 
 % for old times sake (metafun manual)
 
@@ -2372,10 +2497,18 @@ vardef textual primary p = false enddef ;
 % also for the menafun manual:
 
 newscriptindex mfid_labtorgb ; mfid_labtorgb := scriptindex "labtorgb" ;
+newscriptindex mfid_xyztorgb ; mfid_xyztorgb := scriptindex "xyztorgb" ;
+newscriptindex mfid_lchtorgb ; mfid_lchtorgb := scriptindex "lchtorgb" ;
+newscriptindex mfid_hsvtorgb ; mfid_hsvtorgb := scriptindex "hsvtorgb" ;
+newscriptindex mfid_hwbtorgb ; mfid_hwbtorgb := scriptindex "hwbtorgb" ;
 
 def labtorgb(expr l, a, b) = runscript mfid_labtorgb l a b enddef ;
+def xyztorgb(expr x, y, z) = runscript mfid_xyztorgb x y z enddef ;
+def lchtorgb(expr l, c, h) = runscript mfid_lchtorgb l c h enddef ;
+def hsvtorgb(expr h, s, v) = runscript mfid_hsvtorgb h s v enddef ;
+def hwbtorgb(expr h, w, b) = runscript mfid_hwbtorgb h w b enddef ;
 
-permanent labtorgb ;
+permanent labtorgb, xyztorgb, lchtorgb, hsvtorgb, hwbtorgb ;
 
 presetparameters "labtorgb" [
     mina = -100,
@@ -2400,4 +2533,1097 @@ vardef lmt_do_labtorgb =
             endfor ;
         popparameters ;
     )
+enddef ;
+
+presetparameters "lchcircle" [
+  steps  =  24,
+  labels = true,
+  l      = 100,
+  c      = 100,
+] ;
+
+def lmt_lchcircle = applyparameters "lchcircle" "lmt_do_lchcircle" enddef ;
+
+vardef lmt_do_lchcircle =
+  image (
+    pushparameters "lchcircle" ;
+    save p, l, c, h, n, b ;
+    path p ; numeric l, c, h, n ; boolean b ;
+    l := getparameter "l" ;
+    c := getparameter "c" ;
+    n := getparameter "steps" ;
+    b := getparameter "labels" ;
+    p := arcpointlist n of fullcircle ;
+    for i within p :
+      h := i*360/n ;
+      draw
+        pathpoint scaled 50
+        withpen pencircle scaled (120/n)
+        withcolor lchtorgb(l,c,h) ;
+      if b :
+        draw
+          textext ("\tt\bf" & decimal h)
+          scaled .4
+          shifted (pathpoint scaled 50)
+          withcolor white ;
+      fi ;
+    endfor ;
+    popparameters ;
+  )
+enddef ;
+
+% For now we collect all lmt namespace extensions here, so also this one:
+
+presetparameters "matrix" [
+  % cell    = (1, 1),
+  % from    = (1, 1),
+  % to      = (1, 1),
+  % shape   = { "circle", "square" },
+    connect = { "center", "center" },
+  % text    = "",
+] ;
+
+def lmt_matrix = applyparameters "matrix" "lmt_do_matrix" enddef ;
+
+vardef mfun_lmt_matrix_cell (expr p) =
+  % anchorbox ("matrix", xpart p, ypart p) ("matrix", xpart p + 1, ypart p)
+    matrixcell (xpart p, ypart p)
+enddef ;
+
+% todo: lft rt etc but then we need to push/pop the linewidth too
+
+def mfun_lmt_matrix_connect (expr h, p, r, l, u, d, gap) =
+    if     h == "right"  : center rightboundary   (p enlarged gap) { r }
+    elseif h == "left"   : center leftboundary    (p enlarged gap) { l }
+    elseif h == "top"    : center topboundary     (p enlarged gap) { u }
+    elseif h == "bottom" : center bottomboundary  (p enlarged gap) { d }
+    else                 : center                 (p enlarged gap)
+    fi
+enddef ;
+
+def mfun_lmt_matrix_source (expr p, h, gap) =
+    mfun_lmt_matrix_connect(h, p, right, left, up, down, gap)
+enddef ;
+
+def mfun_lmt_matrix_target (expr p, h, gap) =
+    mfun_lmt_matrix_connect(h, p, left, right, down, up, gap)
+enddef ;
+
+vardef mfun_lmt_matrix_enhance (expr p, h) =
+    if h = "circle" :
+        fullcircle xysized (bbwidth p, bbheight p) shifted center p
+    elseif h = "round" :
+        (p smoothed getparameterdefault "radius" ExHeight) xysized (bbwidth p, bbheight p)
+    elseif h = "path" :
+        (getparameterpath "path") shifted center p
+    elseif h = "scaledpath" :
+        (getparameterpath "path") xysized (bbwidth p, bbheight p) shifted center p
+    else :
+        p
+    fi
+enddef ;
+
+vardef lmt_do_matrix =
+    image (
+        pushparameters "matrix" ;
+        draw image (
+            save a, b, c, o, g ; path a, b, c ; numeric o, g ;
+            if (hasparameter "arrowoffset") :
+                g := getparameter "arrowoffset" ;
+            elseif (hasparameter "linewidth") :
+                g := getparameter "linewidth" ;
+            else :
+                g := 0;
+            fi ;
+            if (hasparameter "from") and (hasparameter "to") :
+                a := mfun_lmt_matrix_cell(getparameter "from") ;
+                b := mfun_lmt_matrix_cell(getparameter "to") ;
+                if hasparameter "offset" :
+                    o := getparameter "offset" ;
+                    a := a enlarged o ;
+                    b := b enlarged o ;
+                fi ;
+                if hasparameter "shapes" :
+                    a := mfun_lmt_matrix_enhance(a, getparameter "shapes" 1) ;
+                    b := mfun_lmt_matrix_enhance(b, getparameter "shapes" 2) ;
+                fi ;
+                draw a
+                    if (hasparameter "colors") :
+                        withcolor (getparameter "colors" 1)
+                    elseif (hasparameter "color") :
+                        withcolor (getparameter "color")
+                    fi
+                ;
+                draw b
+                    if (hasparameter "colors") :
+                        withcolor (getparameter "colors" 2)
+                    elseif (hasparameter "color") :
+                        withcolor (getparameter "color")
+                    fi
+                ;
+                c :=
+                    mfun_lmt_matrix_source(a, getparameter "connect" 1, g) ..
+                    mfun_lmt_matrix_target(b, getparameter "connect" 2, g) ;
+                drawarrow c
+                    if (hasparameter "arrowcolor") :
+                        withcolor (getparameter "arrowcolor")
+                    elseif (hasparameter "color") :
+                        withcolor (getparameter "color")
+                    fi
+                ;
+                if hasparameter "label" :
+                    pushparameters "label" ;
+                    draw lmt_text [
+                        text     = getparameter "text",
+                        position = point (getparameterdefault "fraction" 1/2) of c,
+                        offset   = if hasparameter "offset" : getparameter "offset" fi,
+                        color    = if hasparameter "color"  : getparameter "color"  fi,
+                        anchor   = if hasparameter "anchor" : getparameter "anchor" fi,
+                      % strut style format background backgroundcolor
+                    ] ;
+                    popparameters ;
+                fi ;
+            elseif (hasparameter "cell") :
+                a := mfun_lmt_matrix_cell(getparameter "cell") ;
+                if hasparameter "offset" :
+                    o := getparameter "offset" ;
+                    a := a enlarged o ;
+                fi ;
+                if hasparameter "shape" :
+                    a := mfun_lmt_matrix_enhance(a, getparameter "shape") ;
+                fi ;
+                draw a
+                    if (hasparameter "color") :
+                        withcolor (getparameter "color")
+                    fi
+                ;
+            fi;
+        )
+        if (hasparameter "linewidth") :
+            withpen pencircle scaled (getparameter "linewidth")
+        fi
+        popparameters
+    )
+enddef ;
+
+% This might move to its own module if we add more:
+
+presetparameters "glyphshape" [
+  % id        = "",
+  % character = "",
+    shape       = true,
+    boundingbox = false,
+    baseline    = false,
+    usedline    = true,
+    usedbox     = true,
+    italic      = false,
+    accent      = false,
+    dimensions  = false,
+] ;
+
+def lmt_glyphshape = applyparameters "glyphshape" "lmt_do_glyphshape" enddef ;
+
+vardef glyphshape_start(expr id, character) =
+    lua.mp.lmt_glyphshape_start(id, character) ;
+enddef ;
+
+vardef glyphshape_stop         = lua.mp.lmt_glyphshape_stop() ;      enddef ;
+vardef glyphshape_n            = lua.mp.lmt_glyphshape_n()           enddef ;
+vardef glyphshape_path(expr i) = lua.mp.lmt_glyphshape_path(i)       enddef ;
+vardef glyphshape_boundingbox  = lua.mp.lmt_glyphshape_boundingbox() enddef ;
+vardef glyphshape_baseline     = lua.mp.lmt_glyphshape_baseline()    enddef ;
+vardef glyphshape_usedbox      = lua.mp.lmt_glyphshape_usedbox()     enddef ;
+vardef glyphshape_usedline     = lua.mp.lmt_glyphshape_usedline()    enddef ;
+vardef glyphshape_width        = lua.mp.lmt_glyphshape_width()       enddef ;
+vardef glyphshape_height       = lua.mp.lmt_glyphshape_height()      enddef ;
+vardef glyphshape_depth        = lua.mp.lmt_glyphshape_depth()       enddef ;
+vardef glyphshape_italic       = lua.mp.lmt_glyphshape_italic()      enddef ;
+vardef glyphshape_accent       = lua.mp.lmt_glyphshape_accent()      enddef ;
+vardef glyphshape_llx          = lua.mp.lmt_glyphshape_llx()         enddef ;
+
+% vardef glyphshape_dimensions =
+%     unitsquare
+%         xscaled glyphshape_width
+%         yscaled (glyphshape_height - glyphshape_depth)
+%         shifted (glyphshape_llx,glyphshape_depth)
+% enddef ;
+
+vardef glyphshape_usedaccent =
+    (glyphshape_llx+glyphshape_accent,0.8*glyphshape_height) --
+    (glyphshape_llx+glyphshape_accent,1.2*glyphshape_height)
+enddef ;
+
+vardef glyphshape_useditalic =
+    (glyphshape_llx+glyphshape_width + glyphshape_italic,glyphshape_depth) --
+    (glyphshape_llx+glyphshape_width + glyphshape_italic,glyphshape_height)
+enddef ;
+
+vardef lmt_do_glyphshape =
+    image (
+        pushparameters "glyphshape" ;
+            glyphshape_start(getparameter "id", getparameter "character") ;
+            if getparameter "shape" :
+                draw for i=1 upto glyphshape_n :
+                    glyphshape_path(i) &&
+                endfor cycle ;
+            fi ;
+%             if getparameter "dimensions" :
+%                 draw
+%                     glyphshape_dimensions
+%                     withcolor red;
+%             ;
+            if getparameter "boundingbox" :
+                draw
+                    glyphshape_boundingbox
+                    withcolor red
+                ;
+            fi ;
+            if getparameter "usedbox" :
+                draw
+                    glyphshape_usedbox
+                    withcolor blue
+                ;
+                if getparameter "usedline" :
+                    draw
+                        glyphshape_usedline
+                        withcolor blue
+                    ;
+                fi ;
+            fi ;
+            if (getparameter "accent") and (glyphshape_accent <> 0) :
+                draw glyphshape_usedaccent
+                    withcolor green
+                ;
+            fi ;
+            if (getparameter "italic") and (glyphshape_italic <> 0) :
+                draw glyphshape_useditalic
+                    withcolor green
+                ;
+            fi ;
+% drawdot (glyphshape_width,0) ;
+% drawdot (glyphshape_llx,0) ;
+            glyphshape_stop ;
+        popparameters ;
+    )
+enddef ;
+
+% experimental:
+
+numeric last_potraced_count   ;
+numeric last_potraced_width   ;
+numeric last_potraced_height  ;
+numeric last_potraced_xsize   ;
+numeric last_potraced_ysize   ;
+numeric last_potraced_xoffset ;
+numeric last_potraced_yoffset ;
+
+path    last_potraced_bounds  ; last_potraced_bounds := origin -- cycle ;
+path    last_potraced_sized   ; last_potraced_sized  := origin -- cycle ;
+
+pair    last_potraced_offset  ; last_potraced_offset := origin;
+
+presetparameters "potraced" [
+    bytes       = "",
+    width       = 0,
+    height      = 0,
+    nx          = 1,
+    ny          = 1,
+    explode     = false,
+    swap        = false,
+    value       = "1",
+    optimize    = false,      % opticurve
+    threshold   = 1,          % alphamax
+    policy      = "minority", % turnpolicy
+    tolerance   = 0.2,        % opttolerance
+    size        = 2,          % turdsize
+  % stringname  = "",
+  % filename    = "",
+    criterium   = 127,
+    alternative = "path", % draw fill -> picture
+    polygon     = false,
+] ;
+
+numeric n_lmt_potraced ; n_lmt_potraced := 0 ;
+
+def lmt_potraced = applyparameters "potraced" "lmt_do_potraced" enddef ;
+
+vardef lmt_do_potraced =
+    if n_lmt_potraced = 0 :
+        lmt_do_startpotraced ;
+        lua.mp.lmt_step_potrace()
+        hide (
+            lmt_do_steppotraced ;
+            lmt_do_stoppotraced ;
+        )
+    else :
+        lua.mp.lmt_step_potrace()
+        hide (
+            lmt_do_steppotraced ;
+        )
+    fi
+enddef ;
+
+def lmt_startpotraced = applyparameters "potraced" "lmt_do_startpotraced" enddef ;
+def lmt_stoppotraced  =                             lmt_do_stoppotraced   enddef ;
+
+def lmt_do_startpotraced =
+    if n_lmt_potraced = 0 :
+        n_lmt_potraced := n_lmt_potraced + 1 ;
+        pushparameters "potraced" ;
+        lua.mp.lmt_start_potrace() ;
+    fi
+enddef ;
+
+def lmt_do_stoppotraced =
+    if n_lmt_potraced = 1 :
+        n_lmt_potraced := n_lmt_potraced - 1 ;
+        lua.mp.lmt_stop_potrace() ;
+        popparameters ;
+    fi
+enddef ;
+
+vardef lmt_do_steppotraced =
+    last_potraced_count   := getparameter("count") ;
+    last_potraced_width   := getparameter("width") ;
+    last_potraced_height  := getparameter("height") ;
+    last_potraced_xsize   := getparameter("xsize");
+    last_potraced_ysize   := getparameter("ysize");
+    last_potraced_xoffset := getparameter("xoffset");
+    last_potraced_yoffset := getparameter("yoffset");
+    last_potraced_bounds  := unitsquare xscaled last_potraced_width yscaled last_potraced_height ;
+    last_potraced_sized   := unitsquare xscaled last_potraced_xsize yscaled last_potraced_ysize ;
+    last_potraced_offset  := (last_potraced_xoffset,-(last_potraced_ysize - last_potraced_yoffset)) ;
+enddef ;
+
+def lmt_showrivers(expr stepsize, width, height, showpolygon) =
+    picture q ; q := image (
+        lmt_startpotraced [
+            stringname = "profile",
+            threshold  = .5,
+        ] ;
+      % draw lmt_potraced [
+      %     size       = 1,
+      %     index      = 1,
+      % ] withcolor "middleyellow" ;
+      % draw lmt_potraced [
+      %     size       = 1,
+      %     index      = 2,
+      % ] withcolor "middlegray" ;
+        fill lmt_potraced [
+            size       = 1,
+            first      = 3,
+            polygon    = showpolygon,
+        ] withcolor "middlegreen" ;
+        fill lmt_potraced [
+            size       = 3,
+            first      = 3,
+            polygon    = showpolygon,
+        ] withcolor "middleblue" ;
+        fill lmt_potraced [
+            size       = stepsize,
+            first      = 3,
+            polygon    = showpolygon,
+        ] withcolor "middlered" ;
+        lmt_stoppotraced ;
+    ) ;
+
+    setbounds q to last_potraced_bounds enlarged (-2,-2) ;
+    draw q xysized (width,height) ;
+enddef;
+
+% Sampled Functions
+
+% draw lmt_samplefunction [
+%     preamble = "local pi, sin, cos,  tan = math.pi, math.sin, math.cos, math.tan"
+%   % code     = "return sin(x*x)",
+%   % code     = "return acos(sin(10*x))",
+%   % code     = "return math.max(0,sin(x))",
+%   % code     = "return sin(1/x)",
+%   % code     = "return sin(x)/x",
+%   % code     = "return x/abs(x)",
+%   % code     = "return 1/x",
+%   % code     = "return tan(x)",
+%   % code     = "return x > 0 and (1 + x) or 0",
+%   % code     = "if x > 0 then return cos(x) else return 0 end",
+%   % code     = "return x % 1",
+%   % code     = "return math.floor(x)",
+%   % code     = "return x*x*x/(2*x*x - 6)",
+%     code     = "return sin(x) % 1",
+%   % code     = "return math.acos(sin(10*x))",
+%   % code     = "return x/sin(x)",
+%     %
+%     xmin     = -5*pi,
+%     xmax     =  5*pi,
+%     ymin     =   -pi,
+%     ymax     =  5*pi,
+% ]
+
+presetparameters "samplefunction" [
+    preamble   = "",
+  % code       = "1/x",
+  % xmin       =   -1,
+  % xmax       =    1,
+  % ymin       =   -1,
+  % ymax       =    1,
+  % dmin       =    3,
+  % dmax       =   50,
+  % smax       = 5000,
+  % eps        =    0.001,
+  % curvature  =    0.4,
+] ;
+
+def lmt_samplefunction = applyparameters "samplefunction" "lmt_do_samplefunction" enddef ;
+
+def lmt_load_mlib_fnc =
+    runscript("lua.registercode('mlib-fnc')");
+    extra_beginfig := extra_beginfig & % todo: use different hook
+        "runscript(" & ditto & "mp.lmt_samplefunctions_cleanup()" & ditto & ")" ;
+    let lmt_load_mlib_fnc = relax ;
+enddef ;
+
+vardef lmt_do_samplefunction =
+    lmt_load_mlib_fnc ;
+
+    pushparameters "samplefunction" ;
+
+    lua.mp.lmt_samplefunction_do()
+
+    popparameters ;
+
+    lua.mp.lmt_samplefunction_flush()
+enddef ;
+
+% Parametric plots
+
+% path p ; p := lmt_parametricplot [
+%     preamble  = "local sin, cos = math.sin, math.cos",
+%     xcode     = "return 0.1*t*cos(t)",
+%     ycode     = "return 0.1*t*sin(t)",
+%     tmin      =  -4pi,
+%     tmax      =   4pi,
+%     tolerance = 0.0001,
+% ] scaled 10 ;
+%
+% draw p ; drawdot p withcolor red ;
+
+presetparameters "parametricplot" [
+    preamble  = "",
+  % xcode     = "t",
+  % ycode     = "t",
+  % tmin      = -1,
+  % tmax      =  1,
+  % tolerance =  0.0001,
+] ;
+
+def lmt_parametricplot = applyparameters "parametricplot" "lmt_do_parametricplot" enddef ;
+
+vardef lmt_do_parametricplot =
+    lmt_load_mlib_fnc ;
+
+    pushparameters "parametricplot" ;
+
+    lua.mp.lmt_parametricplot_do()
+
+    popparameters ;
+
+    lua.mp.lmt_parametricplot_flush()
+enddef ;
+
+% meshes
+
+% newscriptindex mfid_meshcontour ; mfid_meshcontour  := scriptindex("meshcontour")  ;
+%
+% def meshcontour(expr name) = runscript mfid_meshcontour name ; enddef ; % just combine with the next one
+%
+% vardef meshexperiment(expr name, kind) =
+%     image (
+%         save p ; path p ; p := meshcontour(name) ;
+%         addto currentpicture doublepath p
+%             withprescript "ms_name=" & name
+%             withprescript "ms_kind=" & kind
+%         ;
+%     )
+% enddef ;
+
+presetparameters "vectorplot" [
+    preamble  = "",
+    kind      = "both",
+    name      = "",
+  % xcode     = "t",
+  % ycode     = "t",
+  % tmin      = -1,
+  % tmax      =  1,
+  % tolerance =  0.0001,
+    bytemap   =  1,
+] ;
+
+def lmt_vectorplot = applyparameters "vectorplot" "lmt_do_vectorplot" enddef ;
+
+% We can use functione before we load so this is a no-go:
+%
+% def lmt_load_mlib_msh =
+%     runscript("lua.registercode('mlib-msh')");
+%     let lmt_load_mlib_msh = relax ;
+% enddef ;
+
+vardef lmt_do_vectorplot =
+  % lmt_load_mlib_msh ;
+
+    image (
+
+        pushparameters "vectorplot" ;
+
+        save p ; path p ; p := meshcontour(getparameter "name",getparameter "kind") ;
+%         if (getparameter "kind") = "bytemap" :
+%             addto currentpicture doublepath unitsquare
+%                 withbytemap getparameter "bytemap"
+%         else :
+            addto currentpicture doublepath p
+                withprescript "ms_name=" & (getparameter "name")
+                withprescript "ms_kind=" & (getparameter "kind")
+%         fi ;
+
+        popparameters ;
+    )
+
+enddef ;
+
+%D For Keith McKay:
+
+newscriptindex mfid_perlinnoise   ; mfid_perlinnoise   := scriptindex "perlinnoise" ;
+newscriptindex mfid_simplexnoise  ; mfid_simplexnoise  := scriptindex "simplexnoise" ;
+newscriptindex mfid_perlinoctave  ; mfid_perlinoctave  := scriptindex "perlinoctave" ;
+newscriptindex mfid_simplexoctave ; mfid_simplexoctave := scriptindex "simplexoctave" ;
+
+vardef perlinnoise (expr p, q, r) = runscript mfid_perlinnoise  p q r enddef ;
+vardef simplexnoise(expr p, q, r) = runscript mfid_simplexnoise p q r enddef ;
+
+vardef perlinoctave (expr        iterations, amplitude, frequency, persistence, lacunarity, ang, minimum, maximum, x, y) =
+    runscript mfid_perlinoctave  iterations  amplitude  frequency  persistence  lacunarity  ang  minimum  maximum  x  y
+enddef ;
+vardef simplexoctave(expr        iterations, amplitude, frequency, persistence, lacunarity, ang, minimum, maximum, x, y) =
+    runscript mfid_simplexoctave iterations  amplitude  frequency  persistence  lacunarity  ang  minimum  maximum  x  y
+enddef ;
+
+presetparameters "noise" [
+    bytemap     = 1,
+    nx          = 10,
+    ny          = 10,
+    nz          = 1,
+    iteration   = 2,
+    persistence = 128,
+    scale       = 0.01,
+    low         = 0,
+    high        = 255,
+    colorcode   = "",
+    angle       = 0,
+    method      = "perlin", % simplex angle detail
+] ;
+
+def lmt_noise = applyparameters "noise" "lmt_do_noise" enddef ;
+
+def lmt_load_mlib_eff =
+    runscript("lua.registercode('mlib-eff')");
+    let lmt_load_mlib_eff = relax ;
+enddef ;
+
+vardef lmt_do_noise =
+    lmt_load_mlib_eff ;
+    image (
+        pushparameters "noise" ;
+        lua.mp.lmt_noise_do() ;
+        draw unitsquare
+            withbytemap (getparameterdefault "bytemap" 1)
+            withpen pencircle scaled 0 ;
+        popparameters ;
+    )
+enddef ;
+
+% bytemaps
+
+presetparameters "bytemap" [
+    bytemap   = 1,
+    colorcode = "",
+] ;
+
+def lmt_bytemap = applyparameters "bytemap" "lmt_do_bytemap" enddef ;
+
+def lmt_load_mlib_bmp =
+    runscript("lua.registercode('mlib-bmp')");
+    let lmt_load_mlib_bmp = relax ;
+enddef ;
+
+vardef lmt_do_bytemap =
+    lmt_load_mlib_bmp ;
+    image (
+        pushparameters "bytemap" ;
+        lua.mp.lmt_bytemap_do() ;
+        draw unitsquare
+            withbytemap (getparameterdefault "bytemap" 1)
+            withpen pencircle scaled 0 ;
+        popparameters ;
+    )
+enddef ;
+
+% A variant:
+
+presetparameters "domainmap" [
+    bytemap     = 1,
+    colorcode   = "",
+    xmin        = -10,
+    xmax        =  10,
+    ymin        = -10,
+    ymax        =  10,
+    xresolution = 1000,
+    yresolution = 1000,
+] ;
+
+def lmt_domainmap = applyparameters "domainmap" "lmt_do_domainmap" enddef ;
+
+vardef lmt_do_domainmap =
+    lmt_load_mlib_bmp ;
+    image (
+        pushparameters "domainmap" ;
+        lua.mp.lmt_domainmap_do() ;
+        draw unitsquare
+            withbytemap (getparameterdefault "bytemap" 1)
+            withpen pencircle scaled 0 ;
+        popparameters ;
+    )
+enddef ;
+
+% We need a vardef instead of def here in order to prevents expansion
+% of the suffix!
+
+vardef downsamplebytemap(expr source, target, n) =
+    lua.mp.downsamplebytemap(source,target,n);
+enddef ;
+
+vardef downgradebytemap(expr source, target, n) =
+    lua.mp.downgradebytemap(source,target,n);
+enddef ;
+
+permanent downsamplebytemap, downgradebytemap ;
+
+% Handy as otherwise we forget the withpen:
+
+vardef bytemap primary n =
+    image (
+        draw unitsquare
+            bytemapscaled n
+            withbytemap n
+            withpen pencircle scaled 0
+        ;
+    )
+enddef ;
+
+def withreduction expr t =
+    if string t :
+        withprescript ("bytereduce=" & t)
+    fi
+enddef ;
+
+def withpalette expr t =
+    if string t :
+        withprescript ("bytepalette=" & t)
+    fi
+enddef ;
+
+permanent bytemap, withreduction, withpalette ;
+
+% outlined text on a curve
+
+newscriptindex mfid_outlineposition   ; mfid_outlineposition   := scriptindex "outlineposition" ;
+newscriptindex mfid_outlinedimensions ; mfid_outlinedimensions := scriptindex "outlinedimensions" ;
+
+vardef outlineposition (expr n) =
+    runscript mfid_outlineposition n
+enddef ;
+
+vardef outlinedimensions =
+    runscript mfid_outlinedimensions
+enddef ;
+
+% Optimized for as less as possible parameter passing and copying variables as
+% well as avoiding using hide. For now we keep the a, b and c here but they might
+% to to a module. It all depends on if we need them for an article.
+
+numeric mfun_oscillate_depth, mfun_oscillate_resolution, mfun_oscillate_ratio, mfun_oscillate_stepsize ;
+path mfun_oscillate_shape, mfun_oscillate_path ;
+picture mfun_oscillate_outline ;
+
+def mfun_oscilatedsteps_a(expr p) =
+    for i within arcpointlist mfun_oscillate_resolution of p :
+        unitvector (
+            direction
+                (arctime pathxpart of mfun_oscillate_shape)
+            of mfun_oscillate_shape
+        )
+        rotated 90
+        scaled (pathypart - mfun_oscillate_depth)
+        shifted (arcpoint pathxpart of mfun_oscillate_shape)
+        --
+    endfor
+enddef ;
+
+vardef mfun_oscilatedstep_a(expr p) =
+    for i = 0 step 1 until length p - 1 :
+        mfun_oscilatedsteps_a(subpath(i,i + 1) of p)
+    endfor cycle
+enddef ;
+
+def mfun_oscilatedstep_b(expr p) =
+    for i within arcpointlist (length(p)*mfun_oscillate_resolution) of p :
+        unitvector (
+            direction
+                (arctime pathxpart of mfun_oscillate_shape)
+            of mfun_oscillate_shape
+        )
+        rotated 90
+        scaled (pathypart - mfun_oscillate_depth)
+        shifted (arcpoint pathxpart of mfun_oscillate_shape)
+        --
+    endfor cycle
+enddef ;
+
+def mfun_oscilatedsteps_c(expr p) =
+    for i within arcpointlist (arclength(p)/mfun_oscillate_stepsize) of p :
+        unitvector (
+            direction
+                (arctime pathxpart of mfun_oscillate_shape)
+            of mfun_oscillate_shape
+        )
+        rotated 90
+        scaled (pathypart - mfun_oscillate_depth)
+        shifted (arcpoint pathxpart of mfun_oscillate_shape)
+        --
+    endfor
+enddef ;
+
+vardef mfun_oscilatedstep_c(expr p) =
+    for i = 0 step 1 until length p - 1 :
+        mfun_oscilatedsteps_c(subpath(i,i + 1) of p)
+    endfor cycle
+enddef ;
+
+def mfun_oscilatedsteps_d(expr p,n) =
+    for i within arcpointlist n of p :
+        unitvector (
+            direction
+                (arctime pathxpart of mfun_oscillate_shape)
+            of mfun_oscillate_shape
+        )
+        rotated 90
+        scaled (pathypart - mfun_oscillate_depth)
+        shifted (arcpoint pathxpart of mfun_oscillate_shape)
+        --
+    endfor
+enddef ;
+
+vardef mfun_oscilatedstep_d(expr p) =
+    for i = 0 step 1 until length p - 1 :
+        hide(mfun_oscillate_path := subpath(i,i + 1) of p)
+        mfun_oscilatedsteps_d(
+            mfun_oscillate_path,
+            ceiling(arclength(mfun_oscillate_path)/mfun_oscillate_stepsize)
+        )
+    endfor cycle
+enddef ;
+
+presetparameters "oscillated" [
+    path       = fullcircle scaled 100,
+    text       = "test",
+    yoffset    =  0,
+    stepsize   =  0, % a dimension, but zero will auto set it
+  % resolution = 20,
+    resolution = 15,
+  % resolution = 10,
+  % method     =  1,
+  % method     =  2,
+  % method     =  3,
+    method     =  4,
+    scale      =  0,
+] ;
+
+def lmt_oscillated = applyparameters "oscillated" "lmt_do_oscillated" enddef ;
+
+vardef lmt_do_oscillated =
+    hide (
+        pushparameters "oscillated" ;
+        save result ; path result ;
+        mfun_oscillate_outline := lmt_outline [
+            text = getparameter "text",
+            kind = "path",
+        ] ;
+        mfun_oscillate_shape      := getparameter "path" ;
+        mfun_oscillate_resolution := getparameter "resolution" ;
+        mfun_oscillate_outline    := mfun_oscillate_outline xshifted - xpart llcorner mfun_oscillate_outline ;
+        mfun_oscillate_ratio      := getparameter "scale" ;
+        if mfun_oscillate_ratio = 0 :
+          mfun_oscillate_ratio := arclength(mfun_oscillate_shape) / bbwidth(mfun_oscillate_outline) ;
+        fi
+        mfun_oscillate_depth      := (zpart outlinedimensions) * mfun_oscillate_ratio - getparameter "yoffset" ;
+        mfun_oscillate_stepsize   := getparameter "stepsize" ;
+        if mfun_oscillate_stepsize = 0 :
+            mfun_oscillate_stepsize := mfun_oscillate_ratio * (ypart outlinedimensions) / mfun_oscillate_resolution ;
+        fi
+    )
+    if (getparameter "method") == 4 :
+        for i within mfun_oscillate_outline scaled mfun_oscillate_ratio :
+            mfun_oscilatedstep_d(pathpart i) &&
+        endfor cycle
+    elseif (getparameter "method") == 3 :
+        for i within mfun_oscillate_outline scaled mfun_oscillate_ratio :
+            mfun_oscilatedstep_c(pathpart i) &&
+        endfor cycle
+    elseif (getparameter "method") == 3 :
+        for i within mfun_oscillate_outline scaled mfun_oscillate_ratio :
+            mfun_oscilatedstep_b(pathpart i) &&
+        endfor cycle
+    else :
+        for i within mfun_oscillate_outline scaled mfun_oscillate_ratio :
+            mfun_oscilatedstep_a(pathpart i) &&
+        endfor cycle
+    fi
+    hide (
+        mfun_oscillate_shape := origin ;
+        mfun_oscillate_outline := nullpicture ;
+        popparameters ;
+    )
+enddef ;
+
+%D For the moment here:
+
+newinternal defaultpruneoptions ;
+
+defaultpruneoptions := 0
+    +  1 % collapse_regular_regular_prune 0x01
+    +  2 % collapse_begin_regular_prune   0x02
+    +  4 % collapse_regular_end_prune     0x03
+    +  8 % collapse_begin_end_prune       0x04
+;
+
+permanent defaultpruneoptions ;
+
+pruneoptions := defaultpruneoptions ;
+
+%D Experimental l-system code (Mikael, Keith, Hans), don't use this yet!
+
+numeric mfun_lsystem_angle_p ;
+numeric mfun_lsystem_angle_m ;
+numeric mfun_lsystem_angle   ;
+
+boolean mfun_lsystem_busy    ; mfun_lsystem_busy  := false ;
+boolean mfun_lsystem_image   ; mfun_lsystem_image := false ;
+numeric mfun_lsystem_s_level ; mfun_lsystem_level := 0 ;
+
+numeric mfun_lsystem_x ; mfun_lsystem_x := 0 ;
+numeric mfun_lsystem_y ; mfun_lsystem_y := 0 ;
+boolean mfun_lsystem_b ; mfun_lsystem_b := false ;
+
+transform mfun_lsystem_s_cache[] ;
+transform mfun_lsystem_s_cache ;
+
+def mfun_lsystem_check_busy_no_l =
+%     if previousxy <> lastxy :
+%         -- lastxy
+%     fi
+enddef ;
+def mfun_lsystem_check_busy_no_c =
+    % curious :
+%     if previousxy <> lastxy : .. lastxy fi
+enddef ;
+def mfun_lsystem_check_busy_do =
+    if not mfun_lsystem_busy :
+        hide(mfun_lsystem_busy := true)
+        ;
+        draw lastxy
+    fi
+enddef ;
+
+def mfun_lsystem_draw_l =
+    mfun_lsystem_check_busy
+    if mfun_lsystem_b :
+        hide(mfun_lsystem_b := false)
+        && xyrelative (
+            mfun_lsystem_x,
+            mfun_lsystem_y
+        )
+    fi
+        --
+        xyrelative (
+             cosd(mfun_lsystem_angle) * sx,
+           - sind(mfun_lsystem_angle) * sy
+        )
+enddef ;
+def mfun_lsystem_draw_c =
+    mfun_lsystem_check_busy
+    if mfun_lsystem_b :
+        hide(mfun_lsystem_b := false)
+        && xyrelative (
+            mfun_lsystem_x,
+            mfun_lsystem_y
+        )
+    fi
+    ..
+    xyrelative (
+         cosd(mfun_lsystem_angle) * sx,
+       - sind(mfun_lsystem_angle) * sy
+    )
+enddef ;
+
+def mfun_lsystem_minus_do =
+    mfun_lsystem_angle := (mfun_lsystem_angle - mfun_lsystem_angle_m) mod 360 ;
+enddef ;
+def mfun_lsystem_plus_do =
+    mfun_lsystem_angle := (mfun_lsystem_angle - mfun_lsystem_angle_p) mod 360 ;
+enddef;
+def mfun_lsystem_minus = hide(mfun_lsystem_minus_do) enddef ;
+def mfun_lsystem_plus  = hide(mfun_lsystem_plus_do ) enddef ;
+
+def mfun_lsystem_move_do =
+    if mfun_lsystem_b :
+        mfun_lsystem_x := mfun_lsystem_x + cosd(mfun_lsystem_angle) * sx ;
+        mfun_lsystem_y := mfun_lsystem_y - sind(mfun_lsystem_angle) * sy ;
+    else :
+        mfun_lsystem_x :=   cosd(mfun_lsystem_angle) * sx ;
+        mfun_lsystem_y := - sind(mfun_lsystem_angle) * sy ;
+        mfun_lsystem_b := true ;
+    fi
+enddef ;
+def mfun_lsystem_move  = hide(mfun_lsystem_move_do) enddef ;
+
+vardef mfun_lsystem_push_do =
+    mfun_lsystem_level := mfun_lsystem_level + 1 ;
+  % message("PUSH " & decimal mfun_lsystem_level);
+    mfun_lsystem_s_cache[mfun_lsystem_level] := ( sx, sy, mfun_lsystem_angle, lw, lastx, lasty ) ;
+    lastxy
+enddef ;
+% vardef mfun_lsystem_pop_do =
+%     mfun_lsystem_s_cache := mfun_lsystem_s_cache[mfun_lsystem_level] ; % xx xy yx yy x y
+%     sx := xxpart mfun_lsystem_s_cache ;
+%     sy := xypart mfun_lsystem_s_cache ;
+%     mfun_lsystem_angle := yxpart mfun_lsystem_s_cache ;
+%     lw := yypart mfun_lsystem_s_cache ;
+%   % message("POP  " & decimal mfun_lsystem_level);
+%     mfun_lsystem_level := mfun_lsystem_level - 1 ;
+%     (xpart mfun_lsystem_s_cache, ypart mfun_lsystem_s_cache)
+% enddef ;
+vardef mfun_lsystem_pop_do =
+    mfun_lsystem_s_cache := mfun_lsystem_s_cache[mfun_lsystem_level] ;
+    sx := partone mfun_lsystem_s_cache ;
+    sy := parttwo mfun_lsystem_s_cache ;
+    mfun_lsystem_angle := partthree mfun_lsystem_s_cache ;
+    lw := partfour mfun_lsystem_s_cache ;
+  % message("POP  " & decimal mfun_lsystem_level);
+    mfun_lsystem_level := mfun_lsystem_level - 1 ;
+    (partfive mfun_lsystem_s_cache, partsix mfun_lsystem_s_cache)
+enddef ;
+def mfun_lsystem_push =
+    mfun_lsystem_check_busy
+    --
+    mfun_lsystem_push_do
+enddef ;
+def mfun_lsystem_pop =
+    mfun_lsystem_check_busy
+if previousxy <> lastxy  :
+        -- lastxy
+fi
+    && mfun_lsystem_pop_do
+enddef ;
+
+def mfun_lsystem_close =
+    mfun_lsystem_check_busy && cycle
+enddef ;
+
+def mfun_lsystem_options(text t) =
+    if mfun_lsystem_busy :
+        mfun_lsystem_draw_options
+        ;
+        hide(def mfun_lsystem_draw_options = t enddef ; mfun_lsystem_busy := false)
+    else :
+        hide(def mfun_lsystem_draw_options = t enddef)
+    fi
+enddef ;
+
+def mfun_lsystem_expression(text t) =
+    hide(t)
+enddef ;
+
+presetparameters "lsystem" [
+    angle     = 0,
+    rotation  = -90,
+    start     = "start",
+    curved    = false,
+    iteration = 2,
+    scale     = 1,
+    isimage   = false,
+    linewidth = 0.1,
+    prune     = false,
+    syntax    = [
+        start = "R",
+        R     = "L",
+        L     = "R",
+    ]
+] ;
+
+def lmt_lsystem = applyparameters "lsystem" "lmt_do_lsystem" enddef ;
+
+def lmt_load_mlib_lsy =
+    runscript("lua.registercode('mlib-lsy.lmt')");
+    let lmt_load_mlib_lsy = relax ;
+enddef ;
+
+vardef lmt_do_lsystem =
+    save sx, sy, lw, prune ; boolean prune ;
+    lmt_load_mlib_lsy ;
+    % ready
+    pushparameters "lsystem" ;
+    % prepare
+    lua.mp.lsystem_prepare() ;
+    % apply
+    def mfun_lsystem_draw_options =
+        % dummy
+    enddef ;
+    sx := 1 ;
+    sy := 1 ;
+    lw := getparameter("linewidth") ;
+    prune := getparameter("prune") ;
+    if prune :
+        message("pruning lsystem") ;
+    fi
+    mfun_lsystem_b       := false ;
+    mfun_lsystem_busy    := false ;
+    mfun_lsystem_image   := getparameter("isimage") ;
+    mfun_lsystem_angle_p := getparameterdefault "rightangle" (getparameterdefault "angle") ;
+    mfun_lsystem_angle_m := getparameterdefault "leftangle"  (-mfun_lsystem_angle_p) ;
+    mfun_lsystem_angle   := if mfun_lsystem_angle_p <> 0 : (getparameter "rotation") else : 0 fi ;
+    if (getparameter("curved")) :
+        let mfun_lsystem_draw = mfun_lsystem_draw_c ;
+        let mfun_lsystem_check_busy = mfun_lsystem_check_busy_no_c ;
+    else :
+        let mfun_lsystem_draw = mfun_lsystem_draw_l ;
+        let mfun_lsystem_check_busy = mfun_lsystem_check_busy_no_l ;
+    fi ;
+    if mfun_lsystem_image :
+        let mfun_lsystem_check_busy = mfun_lsystem_check_busy_do ;
+if prune : prunesingularities fi
+        image (
+            def mfun_lsystem_draw_options = enddef ;
+            mfun_lsystem_start(getparameter "iteration")
+            if mfun_lsystem_busy :
+                mfun_lsystem_draw_options
+                ;
+            fi
+        )
+    else :
+        let mfun_lsystem_check_busy = relax ;
+if prune : prunesingularities fi
+        (origin mfun_lsystem_start(getparameter "iteration"))
+
+    fi
+    if (getparameter "scale") <> 1 :
+        scaled (getparameter "scale")
+    fi
+    hide(popparameters)
 enddef ;

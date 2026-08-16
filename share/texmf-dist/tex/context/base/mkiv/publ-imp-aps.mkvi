@@ -615,7 +615,7 @@
     \btxdoif {title} {
         % we make the title active, opening file
         \btxdoifelse {file} {
-            \texdefinition{btx:format:inject}
+            \texdefinition{btx:format:goto}
                 {url(file:\btxflush{file})}
                 {
                     \texdefinition{btx:aps:composed-title}{title}
@@ -807,6 +807,7 @@
 \stoptexdefinition
 
 \starttexdefinition mutable protected btx:aps:doi-url #text
+    % no: \texdefinition {btx:format:goto} because different test
     \ifconditional\btxinteractive
         \btxdoifelse {doi} {
             \goto {#text} [url(http://dx.doi.org/\btxflush{doi})]

@@ -632,7 +632,7 @@ function utf.replacer(t) -- no precheck, always string builder
     end
 end
 
-function utf.subtituter(t) -- with precheck and no building if no match
+function utf.substituter(t) -- with precheck and no building if no match
     local f = finder  (t)
     local r = replacer(t,false,false,true)
     return function(str)
@@ -1316,29 +1316,6 @@ if bit32 then
         end
     end
 
-end
-
--- goodie:
-
-local len = utf.len
-local rep = rep
-
-function string.utfpadd(s,n)
-    if n and n ~= 0 then
-        local l = len(s)
-        if n > 0 then
-            local d = n - l
-            if d > 0 then
-                return rep(c or " ",d) .. s
-            end
-        else
-            local d = - n - l
-            if d > 0 then
-                return s .. rep(c or " ",d)
-            end
-        end
-    end
-    return s
 end
 
 -- goodies

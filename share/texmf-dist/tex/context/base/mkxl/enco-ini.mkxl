@@ -37,7 +37,7 @@
 
 %D This one is obsolete but maybe sometimes still used in styles:
 
-\immutable\let\defaultencoding\s!default
+\aliased\let\defaultencoding\s!default
 
 %D \macros
 %D   {defineaccent, definecharacter, definecommand}
@@ -71,9 +71,20 @@
      \fi
    \endcsname}
 
-\immutable\letvalue{\??accents}\empty
+\aliased\letcsname\??accents\endcsname\empty
 
 %D Because now have this (\type {\chr} issues a one|-|time warning):
+%D
+%D \stopbuffer
+%D \chr {e acute}
+%D \chr {i circumflex}
+%D \^{i} \^i \^{\i}
+%D \^{a} \"{a}
+%D \withcircumflex{a}
+%D \withdiaeresis{a}
+%D \stopbuffer
+%D
+%D \typebuffer \getbuffer
 
 \permanent\protected\def\dodefinecombine#1#2%
   {\ifcsname\string#1\endcsname\else
@@ -85,7 +96,7 @@
 
 \permanent\protected\def\definecharacter#1 #2 %
   {\doifelsenumber{\string#2}
-     {\edefcsname\string#1\endcsname{\Uchar#2}}
+     {\edefcsname\string#1\endcsname{\tocharacter#2}}
      {\protected\defcsname\string#1\endcsname{#2}}}
 
 %D specials: \aa \ae \cc \i \ij \l \o \oe \sz \par
@@ -171,15 +182,15 @@
 
 \newbox\b_enco_accent
 
-\permanent\protected\def\buildmathaccent#1%
-  {\mathaccent#1 }
+% \permanent\protected\def\buildmathaccent#1% Don't use this!
+%   {\mathaccent#1 }
 
 \permanent\protected\def\buildtextaccent#1#2% we could do all at the lua end
   {\dontleavehmode\begingroup               % but that's no fun (yet)
    \setbox\scratchboxone\hbox{#1}% accent
    \setbox\scratchboxtwo\hbox{#2}% character
-   \scratchheight\dimexpr\ht\scratchboxtwo-\ht\scratchboxone\relax
-   \scratchdepth \dimexpr\dp\scratchboxtwo-\dp\scratchboxone\relax
+   \scratchheight{\ht\scratchboxtwo-\ht\scratchboxone}%
+   \scratchdepth {\dp\scratchboxtwo-\dp\scratchboxone}%
    \scratchwidth \wd\scratchboxtwo
    \hbox to \wd\ifdim\wd\scratchboxone>\wd\scratchboxtwo\scratchboxone\else\scratchboxtwo\fi\bgroup
      \hss\box\scratchboxtwo\hss
@@ -187,9 +198,9 @@
      \hss
      \ifdim\ht\scratchboxone>\exheight
        % top accent
-       \raise\dimexpr\scratchheight+\exheight/3\relax
+       \raise{\scratchheight+\exheight/3}%
      \else
-       \lower-\dimexpr\scratchdepth+\exheight/3\relax
+       \lower{-\scratchdepth-\exheight/3}%
      \fi
      \box\scratchboxone
      \hss
@@ -200,18 +211,19 @@
   {\dontleavehmode % why this align mess
    \vtop
      {\forgetall
-      \baselineskip\zeropoint
-      \lineskip#1%
+      \baselineskip\zeroskip
+      \lineskip#1\relax
       \everycr\emptytoks
-      \tabskip\zeropoint
+      \tabskip\zeroskip
       \lineskiplimit\zeropoint
       \setbox0\hbox{#4}%
       \halign
         {##\crcr\hbox{#5}\crcr
-         \hidewidth
+         \hskip\hideskip % \hidewidth
          \hskip#2\wd0
          \hskip-#3\slantperpoint % in plain 1ex * dimenless value
-         \vpack to .2\exheight{\box0\vss}\hidewidth
+         \vpack to .2\exheight{\box0\vss}%
+         \hskip\hideskip % \hidewidth
          \crcr}}}
 
 \permanent\protected\def\buildtextmacron     {\bottomaccent{.25ex}{0}{15}{\textmacron}}
@@ -236,7 +248,7 @@
   {\topaccent{0pt}{0}{15}{\textgrave}} % e.g.
 
 \permanent\protected\def\definemathaccent#1 #2%
-  {\setvalue{#1}{\mathaccent#2 }}
+  {\defcsname#1\endcsname{\mathaccent#2 }} % can be redefined
 
 % from enco-def:
 
@@ -246,26 +258,26 @@
 % \aliased\let\P\paragraphmark \aliased\let\textP\paragraphmark % obsolete (surfaced in bibliographic files)
 % \aliased\let\S\sectionmark   \aliased\let\textS\sectionmark   % obsolete (surfaced in bibliographic files)
 
-\immutable\def\eszett  {ß} \immutable\def\Eszett  {SS} \permanent\def\Ssharp{SS}
-\immutable\def\lslash  {ł} \immutable\def\Lslash  {Ł}
-\immutable\def\dslash  {đ} \immutable\def\Dslash  {Đ}
-%immutable\def\oslash  {ø} %immutable\def\Oslash  {Ø} % clashes with math: use \Ostroke
-\immutable\def\dcroat  {đ} \immutable\def\Dcroat  {Đ}
-\immutable\def\kcedilla{ķ} \immutable\def\Kcedilla{Ķ}
-\immutable\def\lcedilla{ļ} \immutable\def\Lcedilla{Ļ}
-\immutable\def\ncedilla{ņ} \immutable\def\Ncedilla{Ņ}
-\immutable\def\rcedilla{ŗ} \immutable\def\Rcedilla{Ŗ}
-\immutable\def\aumlaut {ä} \immutable\def\Aumlaut {Ä}
-\immutable\def\eumlaut {ë} \immutable\def\Eumlaut {Ë}
-\immutable\def\iumlaut {ï} \immutable\def\Iumlaut {Ï}
-\immutable\def\oumlaut {ö} \immutable\def\Oumlaut {Ö}
-\immutable\def\uumlaut {ü} \immutable\def\Uumlaut {Ü}
+\permanent\cdef\eszett  {ß} \permanent\cdef\Eszett  {SS} \aliased\let\Ssharp\Eszett
+\permanent\cdef\lslash  {ł} \permanent\cdef\Lslash  {Ł}
+\permanent\cdef\dslash  {đ} \permanent\cdef\Dslash  {Đ}
+%permanent\cdef\oslash  {ø} %permanent\cdef\Oslash  {Ø} % clashes with math: use \Ostroke
+\permanent\cdef\dcroat  {đ} \permanent\cdef\Dcroat  {Đ}
+\permanent\cdef\kcedilla{ķ} \permanent\cdef\Kcedilla{Ķ}
+\permanent\cdef\lcedilla{ļ} \permanent\cdef\Lcedilla{Ļ}
+\permanent\cdef\ncedilla{ņ} \permanent\cdef\Ncedilla{Ņ}
+\permanent\cdef\rcedilla{ŗ} \permanent\cdef\Rcedilla{Ŗ}
+\permanent\cdef\aumlaut {ä} \permanent\cdef\Aumlaut {Ä}
+\permanent\cdef\eumlaut {ë} \permanent\cdef\Eumlaut {Ë}
+\permanent\cdef\iumlaut {ï} \permanent\cdef\Iumlaut {Ï}
+\permanent\cdef\oumlaut {ö} \permanent\cdef\Oumlaut {Ö}
+\permanent\cdef\uumlaut {ü} \permanent\cdef\Uumlaut {Ü}
 
 %D For old times sake we keep these (obsolete):
 
-\immutable\def\textflorin{ƒ} \immutable\def\florin  {ƒ}
-\immutable\def\pound     {£} \immutable\def\sterling{£}
-\immutable\def\promille  {‰} \immutable\def\permille{‰}
+\permanent\cdef\textflorin{ƒ} \permanent\cdef\florin  {ƒ}
+\permanent\cdef\pound     {£} \permanent\cdef\sterling{£}
+\permanent\cdef\promille  {‰} \permanent\cdef\permille{‰}
 
 %D These are kind of \TEX\ specific
 
@@ -273,10 +285,10 @@
 
 \permanent\protected\def\ampersand{\mathortext\mathampersand\textampersand}
 
-\immutable\let\percent\textpercent
-\immutable\let\procent\textpercent
-\immutable\let\dollar \textdollar
-\immutable\let\hash   \texthash
+\aliased\let\percent\textpercent
+\aliased\let\procent\textpercent
+\aliased\let\dollar \textdollar
+\aliased\let\hash   \texthash
 
 \popoverloadmode
 
@@ -365,9 +377,18 @@
 
 \permanent\protected\def\fakeunderscore
   {\relax\ifmmode
-     \vrule\s!depth .12\fontexheight\mathstylefont\normalmathstyle\s!width \fontinterwordspace\mathstylefont\normalmathstyle\s!height\zeropoint\relax
+     \vrule
+       \s!depth    .12\fontexheight\mathstylefont\normalmathstyle
+       \s!width \fontinterwordspace\mathstylefont\normalmathstyle
+       \s!height\zeropoint
+     \relax
    \else
-     \dontleavehmode\hbox{\vrule\s!depth .12\fontexheight\font\s!width \fontinterwordspace\font\s!height\zeropoint}%
+     \dontleavehmode\hbox\bgroup
+       \vrule
+         \s!depth    .12\fontexheight\font
+         \s!width \fontinterwordspace\font
+         \s!height\zeropoint
+      \egroup
    \fi}
 
 \permanent\protected\def\fakeunderscores{\enforced\let\_\fakeunderscore}
@@ -407,8 +428,58 @@
 % \permanent\protected\def\fraction#1#2{\mathematics{#1\over#2}}
 
 \permanent\protected\def\celsius   #1{#1\iffontchar\font`℃℃\else\mathematics{^\circ}C\fi}   % 0x2103
-\permanent\protected\def\inch        {\iffontchar\font`″″\else\mathematics{\prime\prime}\fi} % 0x2103
+%permanent\protected\def\inch        {\iffontchar\font`″″\else\mathematics{\prime\prime}\fi} % 0x2103
 \permanent\protected\def\fraction#1#2{\mathematics{\Uabove exact .125\exheight {#1}{#2}}}
+
+% \permanent\protected\def\fakeminute
+%   {\dontleavehmode
+%    \begingroup
+%    \doifelseitalic
+%      {\scratchwidth\fontcharwd\font\singlequoteasciicode
+%       \hpack \s!to 1.2\scratchwidth \bgroup
+%         \glyphslant\plustwohundred
+%         \glyph \s!xoffset -0.6\scratchwidth\singlequoteasciicode
+%         \hss
+%       \egroup}%
+%      {\scratchwidth\fontcharwd\font\singlequoteasciicode
+%       \hpack \s!to 1.1\scratchwidth \bgroup
+%         \glyphslant\plusfivehundred
+%         \glyph \s!xoffset -\scratchwidth\singlequoteasciicode
+%         \hss
+%       \egroup}%
+%    \endgroup}
+
+% \permanent\protected\def\fakesecond
+%   {\dontleavehmode
+%    \begingroup
+%    \doifelseitalic
+%      {\scratchwidth\fontcharwd\font\singlequoteasciicode
+%       \hpack \s!to 1.7\scratchwidth \bgroup
+%         \glyphslant\plustwohundred
+%         \glyph \s!xoffset -0.6\scratchwidth\singlequoteasciicode
+%         \glyph \s!xoffset -1.1\scratchwidth\singlequoteasciicode
+%         \hss
+%       \egroup}%
+%      {\scratchwidth\fontcharwd\font\singlequoteasciicode
+%       \hpack \s!to 1.6\scratchwidth \bgroup
+%         \glyphslant\plusfivehundred
+%         \glyph \s!xoffset    -\scratchwidth\singlequoteasciicode
+%         \glyph \s!xoffset -1.5\scratchwidth\singlequoteasciicode
+%         \hss
+%       \egroup}%
+%    \endgroup}
+
+\permanent\protected\def\fakeminute{\startimath\mathsurround\zeropoint\mathatom \mathunspacedcode{}\prime      \stopimath}
+\permanent\protected\def\fakesecond{\startimath\mathsurround\zeropoint\mathatom \mathunspacedcode{}\doubleprime\stopimath}
+
+\permanent\protected\def\mathminute{\begingroup\resetmathcollapsing\textminute\endgroup}
+\permanent\protected\def\mathsecond{\begingroup\resetmathcollapsing\textsecond\endgroup}
+
+\permanent\protected\def\minute{\ifmmode\mathminute\orelse\iffontchar\font\textminute\textminute\else\fakeminute\fi}
+\permanent\protected\def\second{\ifmmode\mathsecond\orelse\iffontchar\font\textsecond\textsecond\else\fakesecond\fi}
+
+\aliased\let\foot\minute % $12\foot + 2$ $12\foot\foot + 2$ $12\inch + 2$
+\aliased\let\inch\second
 
 %D \startbuffer
 %D \startlines
@@ -442,19 +513,17 @@
 \protected\def\enco_periods_yes[#1]%
   {\doifelseassignment{#1}
      {\setupcurrentperiods[#1]%
-      \scratchcounter\periodsparameter\c!n}
-     {\doifelsenothing{#1}
-        {\scratchcounter\periodsparameter\c!n}%
-        {\scratchcounter#1}}%
+      \scratchcounter{\periodsparameter\c!n}}
+     {\scratchcounter{\ifempty{#1}\periodsparameter\c!n\else#1\fi}}%
    \enco_periods_finish}
 
 \protected\def\enco_periods_nop
-  {\scratchcounter\periodsparameter\c!n
+  {\scratchcounter{\periodsparameter\c!n}%
    \enco_periods_finish}
 
 \protected\def\enco_periods_finish
   {\edef\p_width{\periodsparameter\c!width}%
-   \ifx\p_width\v!fit
+   \ifx\p_width\v!fit % can be \ifcstoks (*)
      \enco_periods_finish_fit
    \else
      \enco_periods_finish_width
@@ -462,13 +531,13 @@
    \egroup}
 
 \protected\def\enco_periods_finish_width
-  {\setbox\scratchbox\hbox to \p_width
+  {\setbox\scratchbox\hbox to {\p_width}% can be \lastnamedcs (*)
      {\hss\periodsparameter\c!symbol\hss}%
    \dorecurse\scratchcounter{\copy\scratchbox}}
 
 \protected\def\enco_periods_finish_fit
   {\edef\p_symbol{\periodsparameter\c!symbol}%
-   \scratchdistance\periodsparameter\c!distance
+   \scratchdistance{\periodsparameter\c!distance}%
    \hskip\scratchdistance
    \dorecurse\scratchcounter{\p_symbol\hskip\scratchdistance}}
 

@@ -34,12 +34,10 @@
 %D graphics. The color control flags are also gone as we now integrate into the
 %D regular colorspace handling (i.e.\ no longer independent configurations.)
 
-\permanent\def\PDFMPformoffset{\ifdefined\objectoffset\objectoffset\else\zeropoint\fi} % obsolete, will go
-
-\mutable\let\MPfilename\empty
+\mutable\lettonothing\MPfilename
 
 \permanent\protected\def\convertMPtoPDF#1#2#3% scaling no longer supported at this level (so #2 & #3 are ignored)
-  {\dostarttagged\t!mpgraphic\empty
+  {\dostarttaggednodetail\t!mpgraphic
    \naturalvpack attr \imageattribute 1 \bgroup
      \message{[MP to PDF]}%
      \xdef\MPfilename{#1}%
@@ -47,8 +45,12 @@
      \forgetall
      \offinterlineskip
      \setbox\MPbox\vpack\bgroup
+       \dotaggedplaceholder
+       \dostartignoretagging\empty
+       \ignorespaces         % not that needed
        \clf_convertmpstopdf{\MPfilename}%
        \removeunwantedspaces % not that needed
+       \dostopignoretagging
      \egroup
      \finalizeMPbox
      \box\MPbox

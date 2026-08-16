@@ -1,4 +1,4 @@
-% $Id: language.us 61048 2021-11-13 22:12:58Z karl $
+% $Id: language.us 74081 2025-02-17 23:11:37Z karl $
 % language.us (and the start of language.dat)
 % - initial hyphenation patterns.
 % Created long ago by Sebastian Rahtz and others.  Public domain.
@@ -55,3 +55,5 @@ english hyphen.tex % do not change!
 % 
 dumylang	dumyhyph.tex    % for testing a new language.
 nohyphenation	zerohyph.tex    % a language with no patterns at all.
+
+% (end of static file language.us)

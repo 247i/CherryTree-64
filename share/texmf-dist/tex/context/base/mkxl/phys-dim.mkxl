@@ -11,7 +11,7 @@
 %C therefore copyrighted by \PRAGMA. See mreadme.pdf for
 %C details.
 
-\registerctxluafile{phys-dim}{}
+\registerctxluafile{phys-dim}{autosuffix}
 
 % TAGGING NEEDS CHECKING ... WILL DO WHEN PARSER IS OK
 
@@ -140,9 +140,9 @@
      \expandafter\phys_digits_normalized_text
    \fi}
 
-\def\phys_digits_normalized_math#1#2%
-  {\setbox\scratchbox\hbox{\normalstartimath\Ustack{#1}\normalstopimath}%
-   \hbox to \wd\scratchbox{\hss{\normalstartimath\Ustack{#2}\normalstopimath}\hss}}
+\def\phys_digits_normalized_math#1#2% todo
+  {\setbox\scratchbox\hbox{\normalstartimath\mathstack{#1}\normalstopimath}%
+   \hbox to \wd\scratchbox{\hss{\normalstartimath\mathstack{#2}\normalstopimath}\hss}}
 
 \def\phys_digits_normalized_text#1#2%
   {\setbox\scratchbox\hbox{#1}%
@@ -168,18 +168,13 @@
 % \definesymbol[units][times][\ifmmode\cdot\else\kern.2\emwidth\cdot\kern.2\emwidth\fi]
 
 \permanent\protected\def\digitstextbinop#1% assumes preceding
-  {\ifmmode#1\else\fourperemspace\nobreak#1\fourperemspace\fi}
+  {\ifmmode\mathord{#1}\else\nobreak#1\fi}
 
-%frozen\def\digitstimessymbol{\ifmmode\cdot\else\digitstextbinop\cdot\fi}
 \frozen\def\digitstimessymbol{\digitstextbinop\times}
 
 \frozen\protected\def\digitszeropadding   {\hphantom{0}}
-%frozen\protected\def\digitsnegative      {\phys_digits_normalized{0}{\phys_digits_raised{\textminus}}}
-%frozen\protected\def\digitspositive      {\phys_digits_normalized{0}{\phys_digits_raised{\textplus}}}
 \frozen\protected\def\digitsnegative      {\phys_digits_normalized{0}{\mathematics{\negative}}}
 \frozen\protected\def\digitspositive      {\phys_digits_normalized{0}{\mathematics{\positive}}}
-%frozen\protected\def\digitsminus         {\phys_digits_normalized{0}{\mathematics{-}}}
-%frozen\protected\def\digitsplus          {\phys_digits_normalized{0}{\mathematics{+}}}
 \frozen\protected\def\digitsminus         {\phys_digits_normalized{0}{\mathminus}}
 \frozen\protected\def\digitsplus          {\phys_digits_normalized{0}{\mathplus}}
 \frozen\protected\def\digitsplusminus     {\phys_digits_normalized{0}{\mathplusminus}}
@@ -229,9 +224,9 @@
 \letcsname\??digitsperiod6\endcsname\normaldigitsperiodsymbol
 \letcsname\??digitsspace 6\endcsname\thickspace
 
-\frozen\protected\def\digitscommasymbol       {\csname\??digitscomma \number\c_phys_digits_method\endcsname}
-\frozen\protected\def\digitsperiodsymbol      {\csname\??digitsperiod\number\c_phys_digits_method\endcsname}
-\frozen\protected\def\digitsseparatorspace    {\csname\??digitsspace \number\c_phys_digits_method\endcsname}
+\frozen\protected\def\digitscommasymbol       {\csname\??digitscomma \the\c_phys_digits_method\endcsname}
+\frozen\protected\def\digitsperiodsymbol      {\csname\??digitsperiod\the\c_phys_digits_method\endcsname}
+\frozen\protected\def\digitsseparatorspace    {\csname\??digitsspace \the\c_phys_digits_method\endcsname}
 
 \frozen\protected\def\digitsfinalcomma        {\digitsperiodsymbol} % more for tracing
 \frozen\protected\def\digitsfinalperiod       {\digitsperiodsymbol} % more for tracing
@@ -245,7 +240,7 @@
    \begingroup
    \ifcase\c_phys_digits_order\expandafter\clf_digits_normal\else\expandafter\clf_digits_reverse\fi{\detokenize{#1}}%
    \endgroup
-   \settrue\c_phys_units_dospace}
+   \c_phys_units_dospace\conditionaltrue}
 
 \permanent\protected\def\digits
   {\doifelsenextbgroup\phys_digits_argument\phys_digits_spaced}
@@ -329,7 +324,7 @@
 %D
 %D \typebuffer \getbuffer
 %D
-%D Punctuation can be configures usiing \type {method}:
+%D Punctuation can be configures using \type {method}:
 %D
 %D \startbuffer
 %D \starttabulate[|l|l|l|]
@@ -359,7 +354,8 @@
   [\c!alternative=,              % done: text
    \c!separator=\v!normal,       % done: cdot|big|medium|space
    \s!language=\currentlanguage, % done: (no interface yet)
-   \c!order=\v!normal,           % ,. (reverse: .,)
+   \c!order=,                    % reverse
+   \c!option=,                   % keep (case)
    \c!method=0,
   %\c!grid=\v!yes,               % (maybe)
   %\c!style=...,                 % done
@@ -388,31 +384,45 @@
 \frozen\protected\def\unitsmediumspace{\medspace}
 \frozen\protected\def\unitsbigspace   {\thickspace}
 \frozen\protected\def\unitsbackspace  {\negthinspace}
+\frozen\protected\def\unitsmathspace  {\ifmmode\mathatomskip\mathdimensioncode\mathdimensioncode\mathstyle\fi}
 
 \permanent\protected\def\installunitsseparator#1#2%
   {\defcsname\??unitseparator#1\endcsname{#2}}
 
 \protected\def\phys_units_separator
-  {\ifcsname\??unitseparator\unitparameter\c!separator\endcsname\lastnamedcs\else\cdot\fi}
+  {\ifcsname\??unitseparator\unitparameter\c!separator\endcsname\lastnamedcs\else\ifmmode\mathord\cdot\else\cdot\fi\fi} % Made \cdot an "ord" in math mode -GP
 
-\installunitsseparator\v!normal {\cdot}
-\installunitsseparator\v!big    {\unitsbigspace}
-\installunitsseparator\v!medium {\unitsmediumspace}
-\installunitsseparator\v!small  {\unitssmallspace}
-\installunitsseparator\v!none   {}
+\installunitsseparator\v!normal{\ifmmode\mathord\cdot\else\cdot\fi}  % Made \cdot an "ord" in math mode -GP
+\installunitsseparator\v!big   {\unitsbigspace}
+\installunitsseparator\v!medium{\unitsmediumspace}
+\installunitsseparator\v!small {\unitssmallspace}
+\installunitsseparator\v!none  {}
+\installunitsseparator\v!math  {\unitsmathspace}
 
 \permanent\protected\def\installunitsspace#1#2%
   {\defcsname\??unitspace#1\endcsname{#2}}
 
+% \protected\def\phys_units_space
+%   {\unskip % weird, why is unskip needed
+%    \ifcsname\??unitspace\unitparameter\c!space\endcsname\lastnamedcs\else\unitsmediumspace\fi}
+
+% \im{1 \unit{hour} 20 \unit{minute} 56 \unit{second}}
+% \im{\unit{1 hour} \unit{20 minute} 56 \unit{second}}
+
 \protected\def\phys_units_space
-  {\unskip % weird, why is unskip needed
-   \ifcsname\??unitspace\unitparameter\c!space\endcsname\lastnamedcs\else\unitsmediumspace\fi}
+  {\ifmmode
+     % let the atoms do the work
+   \else
+     \unskip % weird, why is unskip needed
+     \ifcsname\??unitspace\unitparameter\c!space\endcsname\lastnamedcs\else\unitsmediumspace\fi
+   \fi}
 
 \installunitsspace\v!normal{\unitsmediumspace}
 \installunitsspace\v!big   {\unitsbigspace}
 \installunitsspace\v!medium{\unitsmediumspace}
 \installunitsspace\v!small {\unitssmallspace}
 \installunitsspace\v!none  {}
+\installunitsspace\v!math  {\unitsmathspace}
 
 \newtoks \everyunits % we keep the old \units command so we need a longer one
 
@@ -422,34 +432,34 @@
 \to \everyunits
 
 \appendtoks
-    \frozen\instance\setuevalue\currentunit{\phys_units_direct{\currentunit}}
+    \protected\frozen\instance\edefcsname\currentunit\endcsname{\phys_units_direct{\currentunit}}
 \to \everydefineunit
 
 \protected\def\phys_units_direct#1%
   {\begingroup
-   \the\everyunits
+   \expand\everyunits\relax
    \ifdim\lastskip>\zeropoint
-     \settrue\c_phys_units_dospace
+     \c_phys_units_dospace\conditionaltrue
      \removelastskip
    \fi
+   \cdef\currentunit{#1}%
    \c_phys_digits_method\unitparameter\c!method\relax
    \ifmmode\else\dontleavehmode\fi
-   \edef\currentunit{#1}%
+%    \cdef\currentunit{#1}%
    \enforced\edef\unitlanguage{\unitparameter\s!language}%
    \enforced\let\prefixlanguage\unitlanguage
    \enforced\let\operatorlanguage\unitlanguage
 %    \the\everyunits
   %\removeunwantedspaces % not ok yet
    \useunitstyleandcolor\c!style\c!color
-   \edef\scratchstringone{\unitparameter\c!alternative}%
    \ifmmode
-     \ifx\scratchstringone\v!text
+     \ifcstok{\unitparameter\c!alternative}\v!text
        \expandafter\expandafter\expandafter\phys_units_direct_text_in_math
      \else
        \expandafter\expandafter\expandafter\phys_units_direct_math
      \fi
    \else
-     \ifx\scratchstringone\v!mathematics
+     \ifcstok{\unitparameter\c!alternative}\v!mathematics
        \expandafter\expandafter\expandafter\phys_units_direct_math_in_text
      \else
        \expandafter\expandafter\expandafter\phys_units_direct_text
@@ -495,12 +505,17 @@
     \let\phys_units_direct\phys_units_direct_nested
 \to \everyunits
 
-\protected\def\phys_units_indeed#1%
-  {\edef\p_order{\unitparameter\c!order}%
-   \ifx\p_order\v!reverse\expandafter\clf_unit_reverse\else\expandafter\clf_unit_normal\fi{\detokenize{#1}}}
+% \protected\def\phys_units_indeed#1%
+%   {\edef\p_order{\unitparameter\c!order}%
+%    \ifx\p_order\v!reverse
+%      \expandafter\clf_unit_reverse
+%    \else
+%      \expandafter\clf_unit_normal
+%    \fi
+%    {\detokenize{#1}}}
 
-\permanent\protected\def\digitstextbinnop#1%
-  {\ifmmode#1\else#1\fourperemspace\fi}
+\protected\def\phys_units_indeed#1%
+  {\clf_unit{\unitparameter\c!order}{\unitparameter\c!option}{\detokenize{#1}}}
 
 \permanent\protected\def\unitsPUS#1#2#3{\phys_units_next\prefixtext{#1}\unittext{#2}\unitsraise{\suffixtext{#3}}\c_phys_units_state\plusone} % suffix
 \permanent\protected\def\unitsPU   #1#2{\phys_units_next\prefixtext{#1}\unittext{#2}\c_phys_units_state\plusthree}                           % unit
@@ -516,21 +531,22 @@
 \permanent\protected\def\unitsR    #1#2{% todo: tagging
                                         \ifmmode
                                           #2%
-                                        \orelse\ifnum#1=\plusone
+                                        \orelse\ifnum#1=\plusone % why this test if we do the same in both cases
                                           \digitstextbinop{#2}% before and after
                                         \else
-                                          \digitstextbinnop{#2}% after
+                                          \digitstextbinop{#2}% after
                                         \fi
                                         \c_phys_units_state\zerocount
-                                        \setfalse\c_phys_units_dospace
-                                        \setfalse\c_phys_units_number
-                                        \setfalse\c_phys_units_quantity}
+                                        \c_phys_units_dospace\conditionalfalse
+                                        \c_phys_units_number\conditionalfalse
+                                        \c_phys_units_quantity\conditionalfalse}
 \permanent\protected\def\unitsRPM      {\unitsR\plusone  {±}} % todo: symbols
 \permanent\protected\def\unitsRTO      {\unitsR\plusone  {–}} % todo: symbols
 \permanent\protected\def\unitsRabout   {\unitsR\zerocount{±}} % todo: symbols
 \permanent\protected\def\unitsPopen    {(}
 \permanent\protected\def\unitsPclose   {)}
 \permanent\protected\def\unitrange   #1{}
+\permanent\protected\def\unitunknown #1{#1}
 
 % Fonts can have a celsius and lack a fahrenheit symbol and as we want to be
 % consistent so we check for the counterparts as well. It's slow but ok. Of course
@@ -577,15 +593,15 @@
 
 \permanent\protected\def\unitsNstartindeed
   {\ifmmode \else
-     \settrue\c_phys_units_quantity
-     \dostarttagged\t!quantity\empty
-     \settrue\c_phys_units_number
-     \dostarttagged\t!number\empty
+     \c_phys_units_quantity\conditionaltrue
+     \dostarttaggednodetail\t!quantity
+     \c_phys_units_number\conditionaltrue
+     \dostarttaggednodetail\t!number
    \fi}
 
 \permanent\protected\def\unitsNstop
   {\ifconditional\c_phys_units_number
-     \setfalse\c_phys_units_number
+     \c_phys_units_number\conditionalfalse
      \dostoptagged
    \fi
    \c_phys_units_state\plusfive}
@@ -608,21 +624,24 @@
 
 \def\phys_units_start
   {\ifmmode
-     \dostarttagged\t!maction\t!unit
-     \bgroup % make an mrow
+     \dostarttagged\t!munit{\lastunitstring}%
+     \mathatom
+        \s!leftclass  \mathdimensioncode
+        \s!rightclass \mathdimensioncode
+     \bgroup
    \else
-     \dostarttagged\t!unit\empty
+     \dostarttaggednodetail\t!unit
    \fi
    \let\phys_units_finish\phys_units_stop
    \let\phys_units_start\relax}
 
 \def\phys_units_stop
   {\ifconditional\c_phys_units_number
-     \setfalse\c_phys_units_number
+     \c_phys_units_number\conditionalfalse
      \dostoptagged
    \fi
    \ifconditional\c_phys_units_quantity
-     \setfalse\c_phys_units_quantity
+     \c_phys_units_quantity\conditionalfalse
      \dostoptagged
    \fi
    \dostoptagged
@@ -671,10 +690,10 @@
      \phys_units_space
    \or % 6: symbol (connected)
    \fi
-   \setfalse\c_phys_units_dospace
+   \c_phys_units_dospace\conditionalfalse
    \phys_units_start}
 
-\permanent\protected\def\unitsTIMES
+\permanent\protected\def\unitsTIMES % GP: Does this do anything? HH: yes "times"
   {\ifnum\c_phys_units_state=\plusone % suffix
    \else
      \unitssmallspace
@@ -688,9 +707,16 @@
    \fi
    :}
 
+% \permanent\protected\def\unitsSOLIDUS
+%   {\ifnum\c_phys_units_state=\plusone % suffix
+%      \unitsbackspace
+%    \fi
+%    {/}%
+%    }%\unitsbackspace}
+
 \permanent\protected\def\unitsSOLIDUS
   {\ifnum\c_phys_units_state=\plusone % suffix
-     \unitsbackspace
+    \ifmmode\else\unitsbackspace\fi % we have advanced solidus handling in math
    \fi
    {/}%
    }%\unitsbackspace}
@@ -729,79 +755,74 @@
 %D    cicero=cc]
 %D \stoptyping
 
-\permanent\tolerant\protected\def\registerunit[#1]#*[#2]% todo: public implementer
-  {\clf_registerunit{#1}{#2}}
+\permanent\tolerant\protected\def\registerunit        [#1]#*[#2]{\clf_registerunit        {#1}{#2}}
+\permanent\tolerant\protected\def\registerunitshortcut[#1]#*[#2]{\clf_registerunitshortcut{#1}{#2}}
 
-%D You can generate a list as follows:
-%D
 %D \starttyping
-%D \usemodule[phy-01]
+%D \registerunit
+%D   [unit]
+%D   [Point=PT,
+%D    point=pt,
+%D    Basepoint=BP,
+%D  % basepoint=bp,
+%D    ]
 %D
-%D \ShowUnitsTable % [prefixes]
+%D \registerunitshortcut
+%D   [unit]
+%D   [C=coulomb]
+%D
+%D \startlines
+%D 10 \unit {square meter per second}
+%D 10 \unit {square Meter per Second}
+%D 10 \unit {point}
+%D 10 \unit {Point}
+%D 10 \unit {basepoint}
+%D 10 \unit {Basepoint}
+%D 10 \unit {C}
+%D \stoplines
+%D
+%D \setupunit[unit][option=keep]
+%D
+%D \startlines
+%D 10 \unit {square meter per second}
+%D 10 \unit {square Meter per Second}
+%D 10 \unit {point}
+%D 10 \unit {Point}
+%D 10 \unit {basepoint}
+%D 10 \unit {Basepoint}
+%D 10 \unit {C}
+%D \stoplines
 %D \stoptyping
+
+%D Generating an overview is now in \type {s_physics-units} that you can just
+%D process.
 
 %D Now we define the standard units command:
 
 \defineunit
   [unit]
 
-%D Example:
-%D
-%D \startbuffer[definitions]
-%D \startluacode
-%D     languages.data.labels.prefixes.whatever = {
-%D         Kilo = "olik"
-%D     }
-%D
-%D     languages.data.labels.units.whatever = {
-%D         Meter  = "retem",
-%D         Second = "dnoces",
-%D     }
-%D
-%D     languages.data.labels.operators.whatever = {
-%D         Solidus = " rep "
-%D     }
-%D \stopluacode
-%D \stopbuffer
-%D
-%D \startbuffer[sample]
-%D \startlines
-%D \lunit{10 km/s}
-%D \lunit{10 Kilo Meter/s}
-%D \lunit{10 kilo Meter/s}
-%D \lunit{10 Kilo m/s}
-%D \lunit{10 k Meter/s}
-%D \stoplines
-%D \stopbuffer
-%D
-%D \typebuffer[definitions] \getbuffer[definitions]
-%D
-%D \startbuffer
-%D \typebuffer[sample]
-%D
-%D \defineunits[lunit]                 \getbuffer[sample]
-%D \defineunits[lunit][label=test]     \getbuffer[sample]
-%D \defineunits[lunit][label=whatever] \getbuffer[sample]
-%D \stopbuffer
-%D
-%D \typebuffer \getbuffer
-%D
-%D Another example:
+%D We used to support patching the tables but already for a while that aspect of
+%D units has been moved to the language department so that \quote {team Tomas} can
+%D deal with translations comign from his multilingual courses.
 %D
 %D \starttyping
-%D \startluacode
-%D     languages.data.labels.units.foo = {
-%D         Liter = "l"
-%D     }
-%D     languages.data.labels.units.bar = {
-%D         Liter = "L"
-%D     }
-%D \stopluacode
+%D \setupunittext[en][second=vv]
+%D \setupunittext[nl][second=ww]
 %D
-%D \defineunits[lunit]            \lunit{10 l/s}\par
-%D \defineunits[funit][label=foo] \funit{10 l/s}\par
-%D \defineunits[bunit][label=bar] \bunit{10 l/s}\par
+%D \defineunit[bunit][style=bold]
+%D
+%D \startlines
+%D \bunit{10 km/s}
+%D {\nl \bunit{10 km/s}}
+%D \bunit{10 Kilo Meter/s}
+%D \bunit{10 kilo Meter/s}
+%D \bunit{10 Kilo m/s}
+%D \bunit{10 k Meter/s}
+%D \stoplines
 %D \stoptyping
+%D
+%D We can add more features but it depends on user demands.
 
 %D Bonus:
 %D

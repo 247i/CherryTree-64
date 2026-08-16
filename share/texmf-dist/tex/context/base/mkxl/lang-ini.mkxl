@@ -58,9 +58,9 @@
 %D    \startmode[*nl] dutch   \stopmode}
 %D \stoptyping
 
-\mutable\let\askedlanguage      \empty
-\mutable\let\currentlanguage    \empty
-\mutable\let\currentmainlanguage\empty
+\mutable\lettonothing\askedlanguage
+\mutable\lettonothing\currentlanguage
+\mutable\lettonothing\currentmainlanguage
 
 %D \macros
 %D   {defaultlanguage,languageparameter,specificlanguageparameter}
@@ -71,7 +71,7 @@
 \installcorenamespace{language}
 \installcorenamespace{languagelinked}
 
-\mutable\def\currentusedlanguage{\currentlanguage}
+\mutable\def\currentusedlanguage{\currentlanguage} % no \cdef
 
 \permanent\def\defaultlanguage#1%
   {\ifcsname\??language#1\s!default\endcsname
@@ -119,7 +119,7 @@
    \fi}
 
 \permanent\protected\def\setusedlanguage#1%
-  {\edef\currentusedlanguage{\reallanguagetag{#1}}%
+  {\cdef\currentusedlanguage{\reallanguagetag{#1}}%
    \ifempty\currentusedlanguage
      \let\currentusedlanguage  \currentlanguage
      \enforced\let\usedlanguageparameter\languageparameter
@@ -191,18 +191,18 @@
 
 % \language[#1] gave unwanted side effect of loading language specifics
 
-\mutable\let\currentsetuplanguage\empty
+\mutable\lettonothing\currentsetuplanguage
 
-\permanent\tolerant\protected\def\installlanguage[#1]#*[#2]%
-  {\ifcondition\validassignment{#2}%
+\permanent\tolerant\protected\def\installlanguage[#1]#*[#S#2]%
+  {\ifhastok={#2}%
      \doifelselanguage{#1}
        {\getparameters[\??language#1][#2]}
        {\defcsname\??languagelinked#1\endcsname{#1}%
         \getparameters[\??language#1][\c!state=\v!start,#2]%
         \lang_basics_install_indeed{#1}{#1}}%
-     \edef\currentsetuplanguage{#1}%
+     \cdef\currentsetuplanguage{#1}%
      \clf_definelanguage{#1}{\specificlanguageparameter{#1}\s!default}%
-     \the\everysetuplanguage
+     \expand\everysetuplanguage
    \else
      \defcsname\??languagelinked#1\endcsname{#2}%
      \clf_setlanguagesynonym{#1}{#2}%
@@ -210,8 +210,8 @@
   \fi}
 
 \def\lang_basics_install_indeed#1#2%
-  {\ifcstok{\specificlanguageparameter{#1}\c!command}\v!no\orelse\ifcsname#1\endcsname\else
-     \frozen\instance\protected\defcsname#1\endcsname{\lang_basics_set_current[#2]}%
+  {\ifcstok{\specificlanguageparameter{#1}\c!define}\v!no\orelse\ifcsname#1\endcsname\else
+     \protected\frozen\instance\defcsname#1\endcsname{\lang_basics_set_current[#2]}%
    \fi}
 
 %D When the second argument is a language identifier, a synonym is created. This
@@ -244,20 +244,19 @@
 
 \installmacrostack\currentlanguage
 
-\permanent\tolerant\protected\def\setuplanguage[#1]#*[#2]%
+\permanent\tolerant\protected\def\setuplanguage[#S#1]#*[#S#2]%
   {\ifarguments
      % only synchronize
    \or
      \let\currentsetuplanguage\currentlanguage
      \getparameters[\??language\currentsetuplanguage][#1]%
-     \the\everysetuplanguage
+     \expand\everysetuplanguage
    \or
      \push_macro_currentlanguage % can be default
-     \edef\currentsetuplanguage{\reallanguagetag{#1}}%
+     \cdef\currentsetuplanguage{\reallanguagetag{#1}}%
      \getparameters[\??language\currentsetuplanguage][#2]%
-     \the\everysetuplanguage
+     \expand\everysetuplanguage
      \pop_macro_currentlanguage
-    %\doif\currentsetuplanguage\currentlanguage we can have influenced inheritance (default)
    \fi
    \lang_basics_synchronize}
 
@@ -268,14 +267,18 @@
 \setuplanguage
   [\s!default]
   [\s!patterns=,
+   \s!goodies=,
    \s!lefthyphenmin=2,
    \s!righthyphenmin=2,
    \s!lefthyphenchar=-1,
    \s!righthyphenchar=45,
+   \s!explicitlefthyphenchar=\languageparameter\s!lefthyphenchar,
+   \s!explicitrighthyphenchar=\languageparameter\s!righthyphenchar,
    % used in compound i.e. interfaced with c! and can be anything so no numbers
    \c!lefthyphen=,
    \c!righthyphen=-,
    \c!hyphen=-,
+   \s!apostrophe=\v!yes, % Per 2025-11-01 this is enabled by default
    \c!spacing=\v!packed,
    \c!compoundhyphen=\compoundhyphen,
    \c!rightcompoundhyphen=\compoundhyphen,
@@ -369,16 +372,17 @@
         {\currentlanguage}%
         {\defaultlanguage\currentlanguage}%
         {\languageparameter\s!patterns}%
+        {\languageparameter\s!goodies}%
         {\languageparameter\c!factor}%
       \relax
    \normallanguage\csname\??languagenumbers\currentlanguage\endcsname}
 
 \let\lang_basics_synchronize_nop\zerocount % not loaded anyway
 
-\letvalue{\??languagenumbers}\lang_basics_synchronize_nop % initime
+\letcsname\??languagenumbers\endcsname\lang_basics_synchronize_nop % initime
 
 \appendtoks
-    \letvalue{\??languagenumbers}\lang_basics_synchronize_yes % runtime
+    \letcsname\??languagenumbers\endcsname\lang_basics_synchronize_yes % runtime
 \to \everydump
 
 \def\lang_basics_synchronize
@@ -388,11 +392,11 @@
      \fi
    \endcsname
    \relax
-   \the\everylanguage
+   \expand\everylanguage
    \relax}
 
-\newcount\hyphenstate
-\newcount\hyphenminoffset
+\newinteger\hyphenstate
+\newinteger\hyphenminoffset
 
 % This is the old implementation: a hack that sets the min values, because we want
 % to keep the language set:
@@ -416,30 +420,88 @@
 
 % \uchyph\plusone :
 
-% \chardef \completehyphenationmodecode \numexpr
-\permanent \integerdef \completehyphenationmodecode \numexpr
-    \normalhyphenationmodecode            % \discretionary
-  + \automatichyphenationmodecode         % -
-  + \explicithyphenationmodecode          % \-
-  + \syllablehyphenationmodecode          % pattern driven
-  + \uppercasehyphenationmodecode         % replaces \uchyph
-  + \compoundhyphenationmodecode          % replaces \compoundhyphenmode
-  % \strictstarthyphenationmodecode       % replaces \hyphenationbounds (strict = original tex)
-  % \strictendhyphenationmodecode         % replaces \hyphenationbounds (strict = original tex)
-  + \automaticpenaltyhyphenationmodecode  % replaces \hyphenpenaltymode (otherwise use \exhyphenpenalty)
-  + \explicitpenaltyhyphenationmodecode   % replaces \hyphenpenaltymode (otherwise use \exhyphenpenalty)
-  + \permitgluehyphenationmodecode        % turn glue into kern in \discretionary
-  + \permitallhyphenationmodecode         % okay, let's be even more tolerant
-  + \permitmathreplacehyphenationmodecode % and again we're more permissive
+% \chardef \completehyphenationcode \numexpr
+\permanent \integerdef \completehyphenationcode \numexpr
+    \normalhyphenationcode            % \discretionary
+  + \automatichyphenationcode         % -
+  + \explicithyphenationcode          % \-
+  + \syllablehyphenationcode          % pattern driven
+  + \uppercasehyphenationcode         % replaces \uchyph
+  + \compoundhyphenationcode          % replaces \compoundhyphenmode
+  % \strictstarthyphenationcode       % replaces \hyphenationbounds (strict = original tex)
+  % \strictendhyphenationcode         % replaces \hyphenationbounds (strict = original tex)
+  + \automaticpenaltyhyphenationcode  % replaces \hyphenpenaltymode (otherwise use \exhyphenpenalty)
+  + \explicitpenaltyhyphenationcode   % replaces \hyphenpenaltymode (otherwise use \exhyphenpenalty)
+  + \permitgluehyphenationcode        % turn glue into kern in \discretionary
+  + \permitallhyphenationcode         % okay, let's be even more tolerant
+  + \permitmathreplacehyphenationcode % and again we're more permissive
+  + \forcehandlerhyphenationcode      % kick in the handler (could be an option)
+  + \feedbackcompoundhyphenationcode  % feedback compound snippets
+  + \ignoreboundshyphenationcode      % just in case we have hyphens at the edges
+  + \collapsehyphenationcode          % collapse -- and ---
+  + \replaceapostrophehyphenationcode % replace ' by 0x2019
 \relax
 
-\permanent\protected\def\dohyphens{\hyphenationmode\completehyphenationmodecode}
-\permanent\protected\def\nohyphens{\hyphenationmode\zerocount}
+\permanent \integerdef \partialhyphenationcode \numexpr
+    \ignoreboundshyphenationcode      % just in case we have hyphens at the edges
+% + \explicithyphenationcode          % \-
+  + \collapsehyphenationcode          % collapse -- and ---
+  + \replaceapostrophehyphenationcode % replace ' by 0x2019
+  + \permitgluehyphenationcode        % turn glue into kern in \discretionary
+  + \permitallhyphenationcode         % okay, let's be even more tolerant
+\relax
+
+\hccode"002D "002D % hyphen
+\hccode"00B7 "00B7 % centered text period (used in some languages)
+
+\permanent\protected\def\keephyphensequences
+  {\hccode"2010 \zerocount
+   \hccode"2013 \zerocount
+   \hccode"2014 \zerocount}
+
+\permanent\protected\def\collapsehyphensequences
+  {\hccode"2010 "2010\relax
+   \hccode"2013 "2013\relax
+   \hccode"2014 "2014\relax}
+
+\collapsehyphensequences
+
+% maybe a (un)setter for handlers
+
+\permanent\protected\def\dohyphens{\hyphenationmode\completehyphenationcode}
+\permanent\protected\def\nohyphens{\hyphenationmode\partialhyphenationcode}
+
+\permanent\protected\def\doapostrophes{\hyphenationmode\bitwiseflip\hyphenationmode \replaceapostrophehyphenationcode}
+\permanent\protected\def\noapostrophes{\hyphenationmode\bitwiseflip\hyphenationmode-\replaceapostrophehyphenationcode}
+
+% \permanent\protected\def\dohyphens
+%   {\ifbitwiseand\hyphenationmode\collapsehyphenationcode
+%      \hyphenationmode\completehyphenationcode
+%    \else
+%      \hyphenationmode\numexpr\completehyphenationcode-\collapsehyphenationcode\relax
+%    \fi}
+
+% \permanent\protected\def\nohyphens
+%   {\ifbitwiseand\hyphenationmode\collapsehyphenationcode
+%      \hyphenationmode\partialhyphenationcode
+%    \else
+%      \hyphenationmode\numexpr\partialhyphenationcode-\collapsehyphenationcode\relax
+%    \fi}
+
+\permanent\protected\def\dohyphencollapsing{\hyphenationmode\bitwiseflip\hyphenationmode \collapsehyphenationcode}
+\permanent\protected\def\nohyphencollapsing{\hyphenationmode\bitwiseflip\hyphenationmode-\collapsehyphenationcode}
+
+\permanent\protected\def\doexplicithyphens{\hyphenationmode\bitwiseflip\hyphenationmode \explicithyphenationcode}
+\permanent\protected\def\noexplicithyphens{\hyphenationmode\bitwiseflip\hyphenationmode-\explicithyphenationcode}
 
 \permanent\protected\def\usehyphensparameter#1%
-  {\edef\p_hyphens{#1\c!hyphens}%
-   \ifx\p_hyhens\v!no
-     \nohyphens
+  {\ifcstok{#1\c!hyphens}\v!no
+     \ifbitwiseand\hyphenationmode\collapsehyphenationcode
+       \nohyphens
+     \else
+       \nohyphens
+       \nohyphencollapsing
+     \fi
    \fi}
 
 \dohyphens
@@ -447,27 +509,53 @@
 %D The rest stays the same as in mkiv:
 
 \permanent\protected\def\lesshyphens
-  {\advance\hyphenminoffset\plusone
+  {\advanceby\hyphenminoffset\plusone
    \lang_basics_synchronize_min_max}
 
 \permanent\protected\def\morehyphens
   {\ifcase\hyphenminoffset \else
-     \advance\hyphenminoffset\minusone
+     \advanceby\hyphenminoffset\minusone
    \fi
    \lang_basics_synchronize_min_max}
 
+% \protected\def\lang_basics_synchronize_min_max % maybe store this at the lua end
+%   {% these values are stored along with glyph nodes
+%    \lefthyphenmin \numexpr0\languageparameter\s!lefthyphenmin +\hyphenminoffset\relax
+%    \righthyphenmin\numexpr0\languageparameter\s!righthyphenmin+\hyphenminoffset\relax
+%    \hyphenationmin\numexpr0\languageparameter\s!hyphenmin\relax
+%    % these values are stored with the language (global!)
+%    \prehyphenchar \languageparameter\s!righthyphenchar\relax
+%    \posthyphenchar\languageparameter\s!lefthyphenchar \relax}
+
 \protected\def\lang_basics_synchronize_min_max % maybe store this at the lua end
   {% these values are stored along with glyph nodes
-   \lefthyphenmin \numexpr0\languageparameter\s!lefthyphenmin +\hyphenminoffset\relax
-   \righthyphenmin\numexpr0\languageparameter\s!righthyphenmin+\hyphenminoffset\relax
-   \hyphenationmin\numexpr0\languageparameter\s!hyphenmin\relax
+  %\lefthyphenmin \numexpr0\languageparameter\s!lefthyphenmin +\hyphenminoffset\relax
+  %\righthyphenmin\numexpr0\languageparameter\s!righthyphenmin+\hyphenminoffset\relax
+  %\hyphenationmin\numexpr0\languageparameter\s!hyphenmin\relax
+   \lefthyphenmin {\ifchknumexpr\languageparameter\s!lefthyphenmin \or\lastchknumber+\fi\hyphenminoffset}%
+   \righthyphenmin{\ifchknumexpr\languageparameter\s!righthyphenmin\or\lastchknumber+\fi\hyphenminoffset}%
+   \hyphenationmin{\ifchknumexpr\languageparameter\s!hyphenmin     \or\lastchknumber\else\zeropoint\fi}%
    % these values are stored with the language (global!)
-   \prehyphenchar \languageparameter\s!righthyphenchar\relax
-   \posthyphenchar\languageparameter\s!lefthyphenchar \relax}
+   \prehyphenchar   \languageparameter\s!righthyphenchar\relax
+   \posthyphenchar  \languageparameter\s!lefthyphenchar \relax
+   \preexhyphenchar \languageparameter\s!explicitrighthyphenchar\relax
+   \postexhyphenchar\languageparameter\s!explicitlefthyphenchar \relax}
 
 \appendtoks
-    \lang_basics_synchronize_min_max
+    \lang_basics_synchronize_min_max % todo: also sync when already in language
 \to \everylanguage
+
+\appendtoks
+    \ifcstok{\languageparameter\s!apostrophe}\v!yes
+      \doapostrophes
+    \else
+      \noapostrophes
+    \fi
+\to \everylanguage
+
+\doapostrophes % enabled by default
+
+\exapostrophechar\singlequoteasciicode
 
 \permanent\protected\def\unhyphenated
   {\groupedcommand{\lefthyphenmin\maxdimen}\donothing}
@@ -478,7 +566,7 @@
 
 %D You can setup the default language to reset settings.
 
-\mutable\let\currentlanguagesetups\empty
+\mutable\lettonothing\currentlanguagesetups
 
 \appendtoks
     \edef\currentlanguagesetups{\languageparameter\c!setups}%
@@ -487,17 +575,10 @@
     \fi
 \to \everylanguage
 
-% new
-
-\appendtoks
-    \usebidiparameter\languageparameter
-\to \everylanguage
-
 % this will move to core-spa !
 
 \appendtoks
-    \edef\p_spacing{\languageparameter\c!spacing}%
-    \ifx\p_spacing\v!broad
+    \ifcstok{\languageparameter\c!spacing}\v!broad
       \nonfrenchspacing
     \else
       \frenchspacing
@@ -518,6 +599,8 @@
 % \setuplanguage[\s!default][\c!font=\v!auto]
 % \setuplanguage[nl][\c!font=\v!auto]
 
+\lettonothing\p_language_font
+
 \appendtoks
     \edef\p_language_font{\languageparameter\c!font}%
     \ifempty\p_language_font
@@ -530,25 +613,43 @@
 
 %D Fast switcher
 
+\permanent\protected\def\uselanguageparameter#1%
+  {\cdef\currentlanguageparameter{#1\c!language}%
+   \ifempty\currentlanguageparameter\else\dousecurrentlanguageparameter\fi}
+
+\permanent\protected\def\douselanguageparameter#1% fast setter
+  {\cdef\currentlanguageparameter{#1}%
+   \ifempty\currentlanguageparameter\else\dousecurrentlanguageparameter\fi}
+
+\permanent\protected\def\dousecurrentlanguageparameter% fast setter
+  {\ifcsname\??languagelinked\currentlanguageparameter\endcsname
+     \edef\currentlanguageparameter{\lastnamedcs}%
+     \ifx\currentlanguage\currentlanguageparameter \else
+       \setcurrentlanguage\currentmainlanguage\currentlanguageparameter
+       \lang_basics_synchronize
+     \fi
+   \fi}
+
+\def\lang_basics_one_time_warning
+  {\ifconditional\c_strc_tags_enabled
+     \writestatus\m!languages{}% todo: move to mult-mes.lua
+     \writestatus\m!languages{use a language parameter or define an environment}%
+     \writestatus\m!languages{}%
+   \fi
+   \glettonothing\lang_basics_one_time_warning}
+
 \def\lang_basics_switch_asked
   {\ifcsname\??languagelinked\askedlanguage\endcsname
-     \edef\askedlanguage{\lastnamedcs}%
+     \cdef\askedlanguage{\lastnamedcs}%
      \ifx\currentlanguage\askedlanguage \else
+       \lang_basics_one_time_warning
        \setcurrentlanguage\currentmainlanguage\askedlanguage
        \lang_basics_synchronize
      \fi
    \fi}
 
-\permanent\protected\def\uselanguageparameter#1%
-  {\edef\askedlanguage{#1\c!language}%
-   \ifempty\askedlanguage\else\lang_basics_switch_asked\fi}
-
-\permanent\protected\def\douselanguageparameter#1% fast setter
-  {\edef\askedlanguage{#1}%
-   \ifempty\askedlanguage\else\lang_basics_switch_asked\fi}
-
 \protected\def\lang_basics_set_current[#1]%
-  {\edef\askedlanguage{#1}%
+  {\cdef\askedlanguage{#1}%
    \ifempty\askedlanguage\else\lang_basics_switch_asked\fi}
 
 \pushoverloadmode
@@ -562,7 +663,7 @@
 
 \popoverloadmode
 
-\newcount\mainlanguagenumber
+\newinteger\mainlanguagenumber
 
 %D Beware: you might need to use \type {\dontleavehmode} outside and|/|or \type {\par}
 %D inside the group!
@@ -573,11 +674,11 @@
 \permanent\let\stoplanguage\endgroup
 
 \permanent\protected\def\mainlanguage[#1]%
-  {\edef\askedlanguage{#1}%
+  {\cdef\askedlanguage{#1}%
    \ifempty\askedlanguage
    \orelse\ifcsname\??languagelinked\askedlanguage\endcsname
     %\edef\askedlanguage{\csname\??languagelinked\askedlanguage\endcsname}%
-     \edef\askedlanguage{\lastnamedcs}%
+     \cdef\askedlanguage{\lastnamedcs}%
      \ifx\currentlanguage\askedlanguage
        \ifx\currentmainlanguage\askedlanguage \else
          \setcurrentlanguage\askedlanguage\askedlanguage
@@ -596,8 +697,14 @@
 
 %D Used at all?
 
-\permanent\def\splitsequence#1#2%
-  {\doifelse{#1}\v!no{#2}{\doifelse{#1}\v!yes{\languageparameter\c!limittext}{#1}}}
+\permanent\def\splitsequence#1#2% append periods etc
+  {\ifcstok{#1}\v!no
+     #2%
+   \orelse\ifcstok{#1}\v!yes
+      \languageparameter\c!limittext
+   \else
+     #1%
+   \fi}
 
 \permanent\def\splitsymbol#1%
   {\splitsequence{#1}{\languageparameter\c!limittext}}
@@ -727,17 +834,29 @@
 
 \tolerant\permanent\protected\def\startexceptions[#1]#:#2\stopexceptions
   {\begingroup
-   \edef\askedlanguage{\reallanguagetag{#1}}%
+   \cdef\askedlanguage{\reallanguagetag{#1}}%
    \ifempty\askedlanguage
      \let\askedlanguage\currentlanguage
    \fi
    \clf_setlanguageexceptions{\askedlanguage}{#2}%
    \endgroup}
 
+\permanent\let\stoppatterns\relax
+
+\tolerant\permanent\protected\def\startpatterns[#1]#:#2\stoppatterns
+  {\begingroup
+   \cdef\askedlanguage{\reallanguagetag{#1}}%
+   \ifempty\askedlanguage
+     \let\askedlanguage\currentlanguage
+   \fi
+   \clf_setlanguagepatterns{\askedlanguage}{#2}%
+   \endgroup}
+
+
 \pushoverloadmode
 
-\permanent\protected\def\hyphenation
-  {\clf_setlanguageexceptions{\currentlanguage}}
+\permanent\protected\def\hyphenation{\clf_setlanguageexceptions{\currentlanguage}}
+\permanent\protected\def\patterns   {\clf_setlanguagepatterns  {\currentlanguage}}
 
 \popoverloadmode
 
@@ -749,10 +868,14 @@
 \protected\def\lang_basics_traced_discretionary#1#2#3#4%
   {\normaldiscretionary#1{\darkred#2}{\darkgreen#3}{\darkblue#4}}
 
+\def\lang_basics_trace_discretionary_yes{\enforced\let\discretionary\traceddiscretionary} % indirect because of overload
+\def\lang_basics_trace_discretionary_nop{\enforced\let\discretionary\normaldiscretionary} % indirect because of overload
+
+
 \installtextracker
   {discretionaries}
-  {\enforced\let\discretionary\traceddiscretionary}
-  {\enforced\let\discretionary\normaldiscretionary}
+  {\lang_basics_trace_discretionary_yes}
+  {\lang_basics_trace_discretionary_nop}
 
 \permanent\protected\def\samplediscretionary
   {\traceddiscretionary
@@ -773,15 +896,58 @@
 %D {ef{\norightligaturing f}icient ff fi}\par
 %D \stoptyping
 
-\immutable\chardef\nokerningcode   \numexpr\noleftkerncode    +\norightkerncode    \relax
-\immutable\chardef\noligaturingcode\numexpr\noleftligaturecode+\norightligaturecode\relax
+\permanent\immutable\integerdef\nokerningcode   \numexpr\noleftkernglyphoptioncode        +\norightkernglyphoptioncode           \relax
+\permanent\immutable\integerdef\noligaturingcode\numexpr\noleftligatureglyphoptioncode    +\norightligatureglyphoptioncode       \relax
+\permanent\immutable\integerdef\noitalicscode   \numexpr\noitaliccorrectionglyphoptioncode+\nozeroitaliccorrectionglyphoptioncode\relax
 
-\permanent\protected\def\nokerning   {\bitwiseflip\glyphoptions\nokerningcode}
-\permanent\protected\def\noligaturing{\bitwiseflip\glyphoptions\noligaturingcode}
+\permanent\protected\def\nokerning         {\bitwiseflip\glyphoptions\nokerningcode}
+\permanent\protected\def\noligaturing      {\bitwiseflip\glyphoptions\noligaturingcode}
+\permanent\protected\def\noitaliccorrection{\bitwiseflip\glyphoptions\noitalicscode}
 
-\permanent\protected\def\noleftkerning    {\bitwiseflip\glyphoptions\noleftkerncode}
-\permanent\protected\def\noleftligaturing {\bitwiseflip\glyphoptions\noleftligaturecode}
-\permanent\protected\def\norightkerning   {\bitwiseflip\glyphoptions\norightkerncode}
-\permanent\protected\def\norightligaturing{\bitwiseflip\glyphoptions\norightligaturecode}
+\permanent\protected\def\noleftkerning     {\bitwiseflip\glyphoptions\noleftkernglyphoptioncode}
+\permanent\protected\def\noleftligaturing  {\bitwiseflip\glyphoptions\noleftligatureglyphoptioncode}
+\permanent\protected\def\norightkerning    {\bitwiseflip\glyphoptions\norightkernglyphoptioncode}
+\permanent\protected\def\norightligaturing {\bitwiseflip\glyphoptions\norightligatureglyphoptioncode}
+
+\bitwiseflip\glyphoptions\nozeroitaliccorrectionglyphoptioncode % for the moment default avoid the side effect
+
+%D Also \LMTX:
+
+% \startlanguageoptions[de]
+%     Zapf|innovation
+% \stoplanguageoptions
+
+\permanent\let\stoplanguageoptions\relax
+
+\permanent\protected\def\startlanguageoptions
+  {\begingroup
+   \catcode`|\othercatcode
+   \lang_startlanguageoptions}
+
+\tolerant\def\lang_startlanguageoptions[#1]#:#2\stoplanguageoptions
+  {\cdef\askedlanguage{\reallanguagetag{#1}}%
+   \ifempty\askedlanguage
+     \let\askedlanguage\currentlanguage
+   \fi
+   \clf_setlanguageoptions{\askedlanguage}{#2}%
+   \endgroup}
+
+% \startluacode
+%     table.save("oeps-fixes.llg", {
+%         name    = "demo",
+%         options = {
+%             { patterns = { fio  = "f|io" }, words = [[ fioot fiots ]] },
+%             { patterns = { fio  = "t|h"  }, words = [[ this that ]]   },
+%         },
+%     })
+% \stopluacode
+%
+% \setuplanguage[en][goodies={oeps-fixes.llg}] \setupbodyfont[ebgaramond]
+%
+% \starttext
+%     fiets fiots fiats fioot this that
+% \stoptext
+
+% new
 
 \protect \endinput

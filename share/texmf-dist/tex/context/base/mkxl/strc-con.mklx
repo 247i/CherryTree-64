@@ -105,64 +105,67 @@
 
 %aliased\let\currentconstructionhash           \??construction
 
-\mutable\let\currentconstructionmain           \empty
-\mutable\let\currentconstructionlevel          \empty
-\mutable\let\currentconstructionhandler        \empty
+\mutable\lettonothing\currentconstructionmain
+\mutable\lettonothing\currentconstructionlevel
+\mutable\lettonothing\currentconstructionhandler
+\mutable\lettonothing\currentconstructionattribute
+\mutable\lettonothing\currentconstructionbookmark
+\mutable\lettonothing\currentconstructioncatcodes
+\mutable\lettonothing\currentconstructioncoding
+\mutable\lettonothing\currentconstructionexpansion
+\mutable\lettonothing\currentconstructionincrementnumber
+\mutable\lettonothing\currentconstructionlabel
+\mutable\lettonothing\currentconstructionlist
+\mutable\lettonothing\currentconstructionlistentry
+\mutable\lettonothing\currentconstructionlistnumber
+\mutable\lettonothing\currentconstructionmarking
+\mutable\lettonothing\currentconstructionnumber
+\mutable\lettonothing\currentconstructionreference
+\mutable\lettonothing\currentconstructionreferencetext
+\mutable\lettonothing\currentconstructionreferenceprefix
+\mutable\lettonothing\currentconstructionsynchronize
+\mutable\lettonothing\currentconstructiontitle
+\mutable\lettonothing\currentconstructionxmlsetup
 
-\mutable\let\currentconstructionattribute      \empty
-\mutable\let\currentconstructionbookmark       \empty
-\mutable\let\currentconstructioncatcodes       \empty
-\mutable\let\currentconstructioncoding         \empty
-\mutable\let\currentconstructionexpansion      \empty
-\mutable\let\currentconstructionincrementnumber\empty
-\mutable\let\currentconstructionlabel          \empty
-\mutable\let\currentconstructionlist           \empty
-\mutable\let\currentconstructionlistentry      \empty
-\mutable\let\currentconstructionlistnumber     \empty
-\mutable\let\currentconstructionmarking        \empty
-\mutable\let\currentconstructionnumber         \empty
-\mutable\let\currentconstructionreference      \empty
-\mutable\let\currentconstructionreferencetext  \empty
-\mutable\let\currentconstructionreferenceprefix\empty
-\mutable\let\currentconstructionsynchronize    \empty
-\mutable\let\currentconstructiontitle          \empty
-\mutable\let\currentconstructionxmlsetup       \empty
-
-\settrue\c_strc_constructions_define_commands % use with care, might become a proper key
+\newconditional\c_strc_constructions_define_commands \c_strc_constructions_define_commands\conditionaltrue % use with care, might become a proper key
 
 \appendtoks
     \ifempty\currentconstructionparent
-        \letvalue{\??constructionmain\currentconstruction}\currentconstruction
+        \letcsname\??constructionmain\currentconstruction\endcsname\currentconstruction
         \definelist[\currentconstruction]% goodie
     \else
-        \letvalue{\??constructionmain\currentconstruction}\currentconstructionparent
+        \letcsname\??constructionmain\currentconstruction\endcsname\currentconstructionparent
         \definelist[\currentconstruction][\currentconstructionparent]% goodie
     \fi
-    \setevalue{\??constructionlevel\currentconstruction}{\number\constructionparameter\c!level}%
-    \setevalue{\??constructionclass\currentconstruction}{\constructionparameter\s!handler}%
+    \edefcsname\??constructionlevel\currentconstruction\endcsname{\number\constructionparameter\c!level}%
+    \edefcsname\??constructionclass\currentconstruction\endcsname{\constructionparameter\s!handler}%
+    \expandafter\newconditional\csname\??constructionclosesymbol\currentconstruction\endcsname
 \to \everydefineconstruction
 
 % todo: inhibit this when we have a different handle .. current we cannot do \frozen
 
 \appendtoks
     \ifconditional\c_strc_constructions_define_commands
-     %% \instance\setuevalue{\e!start\currentconstruction}{\strc_constructions_start{\currentconstruction}}%
-        \instance\setuevalue{\e!start\currentconstruction}{\strc_constructions_start[\currentconstruction]}%
-        \instance\setuevalue{\e!stop \currentconstruction}{\strc_constructions_stop}%
+        \protected\instance\edefcsname\e!start\currentconstruction\endcsname{\startnamedconstruction[\currentconstruction]}%
+        \protected\instance \defcsname\e!stop \currentconstruction\endcsname{\stopnamedconstruction}%
     \fi
 \to \everydefineconstruction
 
 %D Just a basic environment (mostly for testing). We will provide a 'setup' based
 %D plugin once the rest is sorted out.
 
-\tolerant\protected\def\strc_constructions_start[#1]#*[#2]#*[#3]%
+\installmacrostack\currentconstructionreference
+
+\tolerant\permanent\protected\def\startnamedconstruction[#1]#*[#S#2]#*[#3]%
   {\begingroup
+   \push_macro_currentconstructionreference % global
    \strc_constructions_initialize{#1}%
-   \strc_constructions_register[#3][\c!label={\constructionparameter\c!text},\c!reference=,\c!title=,\c!bookmark=,\c!list=,\c!referencetext=,#2]%
+   \strc_constructions_register[#3][\c!reference=,\c!title=,\c!bookmark=,\c!list=,\c!referencetext=,#2]%
    \csname\??constructionstarthandler\currentconstructionhandler\endcsname}
 
-\protected\def\strc_constructions_stop
+\permanent\protected\def\stopnamedconstruction
   {\csname\??constructionstophandler\currentconstructionhandler\endcsname
+   \pop_macro_currentconstructionreference
    \endgroup}
 
 %D As we will build on top of the generic construction mechanism we have handlers
@@ -181,7 +184,7 @@
 \installcorenamespace{constructionnotehandler}
 
 \protected\def\strc_constructions_initialize#1% class instance
-  {\edef\currentconstruction{#1}%
+  {\cdef\currentconstruction{#1}%
    \enforced\let\currentconstructionhash\??construction
    \let\currentconstructionlistentry\!!zerocount
    \enforced\expandafter\let\expandafter\currentconstructionmain   \csname\??constructionmain \currentconstruction\endcsname
@@ -190,17 +193,16 @@
    \csname\??constructioninitializer\currentconstructionhandler\endcsname}
 
 \protected\def\strc_constructions_finalize
-  {\csname\??constructionfinalizer\currentconstructionhandler\endcsname
-   \strc_constructions_discard}
+  {\csname\??constructionfinalizer\currentconstructionhandler\endcsname}
 
 \newconditional\c_strc_constructions_number_state
 \newconditional\c_strc_constructions_title_state
 
-\protected\setvalue{\??constructioninitializer\v!construction}%
-  {\setfalse\c_strc_constructions_number_state
-   \setfalse\c_strc_constructions_title_state}
+\protected\defcsname\??constructioninitializer\v!construction\endcsname
+  {\c_strc_constructions_number_state\conditionalfalse
+   \c_strc_constructions_title_state\conditionalfalse}
 
-\protected\setvalue{\??constructionfinalizer\v!construction}%
+\protected\defcsname\??constructionfinalizer\v!construction\endcsname
   {}
 
 %D We keep the command variant around but rather would move to the start-stop one.
@@ -261,7 +263,7 @@
      \currentconstructiontext
    \endgroup}
 
-\protected\setvalue{\??constructionmainhandler\v!construction}#1%
+\protected\defcsname\??constructionmainhandler\v!construction\endcsname#1%
   {\iftrialtypesetting \else
      \begingroup
      \currentconstructionsynchronize % reinstated
@@ -270,10 +272,10 @@
      \endgroup
    \fi#1}
 
-\protected\setvalue{\??constructiontexthandler\v!construction}%
+\protected\defcsname\??constructiontexthandler\v!construction\endcsname
   {\begingroup
    \useconstructionstyleandcolor\c!headstyle\c!headcolor % move to \currentconstructiontext
-   \the\everyconstruction
+   \expand\everyconstruction
    \constructionparameter\c!headcommand
      {\strut
       \constructionparameter\c!text
@@ -294,20 +296,22 @@
 % \def\resetconstructions % to be used in e.g. footnotes
 %   {\c_strc_constructions_nested_state\zerocount}
 
-\protected\setvalue{\??constructioncommandhandler\v!construction}%
+\protected\defcsname\??constructioncommandhandler\v!construction\endcsname
   {\endgroup}
 
-\let\p_strc_constructions_sample        \empty
-\let\p_strc_constructions_align         \empty
-\let\p_strc_constructions_indenting     \empty
-\let\p_strc_constructions_width         \empty
-\let\p_strc_constructions_aligntitle    \empty
-\let\p_strc_constructions_renderingsetup\empty
-\let\p_strc_constructions_headalign     \empty
-\let\p_strc_constructions_hang          \empty
-\let\p_strc_constructions_inbetween     \empty
-\let\p_strc_constructions_closesymbol   \empty
-\let\p_strc_constructions_distance      \empty
+\lettonothing\p_strc_constructions_align
+\lettonothing\p_strc_constructions_aligntitle
+\lettonothing\p_strc_constructions_closesymbol
+\lettonothing\p_strc_constructions_distance
+\lettonothing\p_strc_constructions_hang
+\lettonothing\p_strc_constructions_headalign
+\lettonothing\p_strc_constructions_inbetween
+\lettonothing\p_strc_constructions_indenting
+\lettonothing\p_strc_constructions_number
+\lettonothing\p_strc_constructions_renderingsetup
+\lettonothing\p_strc_constructions_sample
+\lettonothing\p_strc_constructions_title
+\lettonothing\p_strc_constructions_width
 
 \newconditional\c_strc_constructions_distance_none
 
@@ -329,10 +333,10 @@
   {\constructionsheaddistance\zeropoint
    \constructionsheadwidth   \zeropoint
    % we also need to make sure that no stretch creeps in (new per 2015-02-02, for Alan)
-   \settrue\c_strc_constructions_distance_none}
+   \c_strc_constructions_distance_none\conditionaltrue}
 
-\protected\setvalue{\??constructionstarthandler\v!construction}% this will be redone (reorganized) .. too much boxing
-  {\dostarttaggedchained\t!construction\currentconstruction\currentconstructionhash
+\protected\defcsname\??constructionstarthandler\v!construction\endcsname % this will be redone (reorganized) .. too much boxing
+  {\dostarttaggedchained\t!construction\currentconstruction\currentconstruction\currentconstructionhash
 %    \dotagsetconstruction
    \constructionparameter\c!before
    \begingroup
@@ -355,10 +359,10 @@
    \edef\p_strc_constructions_distance{\constructionalternativeparameter\c!distance}%
    \edef\p_strc_constructions_width{\constructionalternativeparameter\c!width}%
    \ifx\p_strc_constructions_distance\v!none
-     \settrue\c_strc_constructions_distance_none
+     \c_strc_constructions_distance_none\conditionaltrue
      \constructionsheaddistance\zeropoint
    \else
-     \setfalse\c_strc_constructions_distance_none
+     \c_strc_constructions_distance_none\conditionalfalse
      \constructionsheaddistance\p_strc_constructions_distance\relax
      \ifdim\constructionsheaddistance=\zeropoint
        \ifx\p_strc_constructions_width\v!broad
@@ -398,24 +402,29 @@
      \fi
    \fi
    %
-   \dostarttagged\t!constructiontag\empty % todo
+   \dostarttaggednodetail\t!constructiontag % todo
    \setbox\constructionheadbox\hbox
-     {\forgetall
+     {\scratchskip\parindent
+      \forgetall
       \dontcomplain
+      % new and under testing
+      \ifcstok{\constructionparameter\c!headindenting}\v!yes
+        \hskip\scratchskip
+      \fi
+      %
       \ifx\currentconstructionalternative\v!serried % brrr, hack, will change
         \csname\??constructionmainhandler\currentconstructionhandler\endcsname\currentconstructiontext
       \else
         \csname\??constructionmainhandler\currentconstructionhandler\endcsname{\boxedconstructionhead\currentconstructiontext}%
       \fi}%
+   \dostoptagged % tag
    \edef\p_strc_constructions_aligntitle{\constructionparameter\c!aligntitle}%
    \ifx\p_strc_constructions_aligntitle\v!no
      \leftconstructionskip \leftskip
      \rightconstructionskip\rightskip
-   \else
-     \ifcase\c_strc_constructions_nested_state
-       \leftconstructionskip \leftskip
-       \rightconstructionskip\rightskip
-     \fi
+   \orelse\ifcase\c_strc_constructions_nested_state
+     \leftconstructionskip \leftskip
+     \rightconstructionskip\rightskip
    \fi
    \edef\p_strc_constructions_align{\constructionparameter\c!align}%
    \ifempty\p_strc_constructions_align \else
@@ -432,20 +441,41 @@
    %
    \directsetup\p_strc_constructions_renderingsetup\relax
    % moved to here 2014-07-03
+   % we'd like to use \useindentingparameter\constructionparameter but ...
    \edef\p_strc_constructions_indenting{\constructionparameter\c!indenting}%
    \ifempty\p_strc_constructions_indenting \else
-     \indenting[\p_strc_constructions_indenting]% \use...
+     \c_spac_indentation_indent_first\conditionaltrue % recently added, better no v!reset
+     \indenting[\v!first,\p_strc_constructions_indenting]% Wolfgang needs to check this
    \fi
    %
-   \dostoptagged % tag
-   \dostarttagged\t!constructioncontent\empty
+   \dostarttaggednodetail\t!constructioncontent
   %\freezeparagraphproperties
    \updateparagraphshapes
    \ignorespaces} % args not needed
 
-\protected\setvalue{\??constructionstophandler\v!construction}%
+% This is why we need the \v!first in indentation above
+%
+% \defineenumeration
+%   [foo]
+%   [alternative=serried,
+%    indenting={yes,medium}]
+%
+% \startitemize
+%     \startitem
+%         \startfoo
+%             AAA\par
+%             BBB\par
+%             CCC\par
+%             DDD\par
+%         \stopfoo
+%     \stopitem
+% \stopitemize
+
+\protected\defcsname\??constructionstophandler\v!construction\endcsname
   {\strc_constructions_close_symbol_place
-   \doifnot{\constructionparameter\c!display}\v!no\par
+   \ifcstok{\constructionparameter\c!display}\v!no\else
+     \par
+   \fi
    \dostoptagged % content
    \dostoptagged % construction
    \endgroup
@@ -456,13 +486,15 @@
    \dorechecknextindentation}
 
 \permanent\protected\def\boxedconstructionhead#1%
-  {\doifelse{\constructionalternativeparameter\c!alignbottom}{\v!yes}\vbox\vtop
-     {\hsize\constructionsheadwidth
-      \edef\p_strc_constructions_headalign{\constructionparameter\c!headalign}%
-      \ifempty\p_strc_constructions_headalign \else
-        \setupalign[\p_strc_constructions_headalign]% \use...
-      \fi
-      #1}}
+  {\ifcstok{\constructionalternativeparameter\c!alignbottom}\v!yes \vbox \else \vtop \fi
+     \bgroup
+       \hsize\constructionsheadwidth
+       \edef\p_strc_constructions_headalign{\constructionparameter\c!headalign}%
+       \ifempty\p_strc_constructions_headalign \else
+         \setupalign[\p_strc_constructions_headalign]% \use...
+       \fi
+       #1%
+     \egroup}
 
 \installcorenamespace{constructionalternative}
 \installcorenamespace{constructionrenderings}
@@ -552,11 +584,11 @@
   [\c!renderingsetup=\??constructionrenderings:\v!label,
    \c!width=]
 
-\newbox   \constructionheadbox
-\newskip  \leftconstructionskip
-\newskip  \rightconstructionskip
-\newdimen \constructionsheadwidth
-\newdimen \constructionsheaddistance
+\newbox      \constructionheadbox
+\newgluespec \leftconstructionskip
+\newgluespec \rightconstructionskip
+\newdimension\constructionsheadwidth
+\newdimension\constructionsheaddistance
 
 \def\strc_constructions_set_hang_box#1% messy left/rightskip
   {\setbox\constructionheadbox\vtop   % \vbox gaat fout in hang
@@ -569,7 +601,7 @@
         \setupalign[\p_strc_constructions_headalign]% use fast one
       \fi
       \ifconditional\c_strc_constructions_distance_none \else
-        \advance\ifx#1\v!flushleft\rightskip\else\leftskip\fi\constructionsheaddistance % only difference and wrong anyway
+        \advanceby\ifx#1\v!flushleft\rightskip\else\leftskip\fi\constructionsheaddistance % only difference and wrong anyway
       \fi
       \flushconstructionheadbox}%
    \setbox\constructionheadbox\hpack{\box\constructionheadbox}% needed in case of e.g. a real big head font, see descriptions-006.tex
@@ -599,7 +631,7 @@
      \getnoflines\scratchdimen
      \hangafter-\noflines
    \orelse\ifx\p_strc_constructions_hang\v!broad
-     \scratchdimen\dimexpr\htdp\constructionheadbox+.5\strutht\relax
+     \scratchdimen{\htdp\constructionheadbox+.5\strutht}%
      \getnoflines\scratchdimen
      \hangafter-\noflines
    \else
@@ -610,6 +642,12 @@
 
 \permanent\protected\def\flushconstructionheadbox
   {\ifhbox\constructionheadbox\unhbox\else\box\fi\constructionheadbox}
+
+% \permanent\protected\def\flushconstructionheadbox
+%   {\ifhbox\constructionheadbox
+%      \scratchdimen\boxrepack\constructionheadbox
+%    \fi
+%    \box\constructionheadbox}
 
 % The setups. These only deal with placement of the descriptor and initializing the
 % environment. The wrapping happens elsewhere.
@@ -641,7 +679,7 @@
     \enforced\let\\\crlf
     \noindent
     \strc_constructions_set_pure_box\v!flushleft
-    \leftskip\dimexpr\leftconstructionskip+\constructionsheadwidth+\constructionsheaddistance\relax
+    \leftskip{\leftconstructionskip+\constructionsheadwidth+\constructionsheaddistance}%
     \rightskip\rightconstructionskip\relax
     \llap {
         \hpack to \leftskip {
@@ -667,16 +705,16 @@
     \enforced\let\\\crlf
     \noindent
     \leftskip\leftconstructionskip
-    \rightskip\dimexpr\rightconstructionskip+\constructionsheadwidth\relax
+    \rightskip{\rightconstructionskip+\constructionsheadwidth}%
    %\strc_constructions_pure_hang_box\raggedleft
     \strc_constructions_set_pure_box\v!flushright
     \rlap {
-        \hskip\dimexpr\hsize-\leftskip-\rightskip\relax
+        \hskip{\hsize-\leftskip-\rightskip}%
         \copy\constructionheadbox
         \hskip\rightconstructionskip
     }
     \nobreak
-    \advance\rightskip \constructionsheaddistance
+    \advanceby\rightskip \constructionsheaddistance
     \useconstructionstyleandcolor\c!style\c!color
     \ignorespaces
 \stopsetups
@@ -722,7 +760,7 @@
 \startsetups[\??constructionrenderings:\v!left:\v!hanging]%
     \enforced\let\\\crlf
     \dontcomplain
-    \advance\constructionsheadwidth \constructionsheaddistance
+    \advanceby\constructionsheadwidth \constructionsheaddistance
     \strc_constructions_set_hang_box\v!flushleft
     \strc_constructions_set_hang\v!left
     \noindent
@@ -739,12 +777,12 @@
 \startsetups[\??constructionrenderings:\v!right:\v!hanging]%
     \enforced\let\\\crlf
     \dontcomplain
-    \advance\constructionsheadwidth \constructionsheaddistance
+    \advanceby\constructionsheadwidth \constructionsheaddistance
     \strc_constructions_set_hang_box\v!flushright
     \strc_constructions_set_hang\v!right
     \noindent
     \rlap {
-        \hpack to \dimexpr\hsize-\leftskip-\rightskip\relax {
+        \hpack to {\hsize-\leftskip-\rightskip} {
             \hss
             \tpack to \zeropoint {
                 \box\constructionheadbox
@@ -883,7 +921,7 @@
     % tricky: leftskipadaption is somewhat unpredictable
     \enforced\let\\\crlf
     \noindent
-    \advance\leftskip-\leftskipadaption\relax
+    \advanceby\leftskip-\leftskipadaption\relax
     \ifdim\leftskipadaption=\zeropoint
         \leftskipadaption1.5\emwidth\relax % just some default
         \ifnum\c_strc_constructions_nested_state=\plusone
@@ -893,7 +931,7 @@
         \fi
     \fi
     \ifnum\c_strc_constructions_nested_state>\zerocount % was \ifnum\c_strc_constructions_nested_state=\plusone
-        \advance\leftskip\leftskipadaption % but we're already further on
+        \advanceby\leftskip\leftskipadaption % but we're already further on
     \fi
     \hskip-\leftskipadaption\relax
     \ifhbox\constructionheadbox \unhbox\else\box\fi\constructionheadbox
@@ -939,10 +977,6 @@
     \endgroup
 \stopsetups
 
-\ifcase\contextlmtxmode \else
-    % just an empty check so that we can grep for contextlmtxmode in mkiv files
-\fi
-
 % \definedescription[whatever][alternative=right:bottom]
 %
 % \startwhatever{just a small\\example}
@@ -960,8 +994,8 @@
     \enforced\let\\\crlf
     \noindent
     \leftskip\leftconstructionskip
-    \rightskip\dimexpr\rightconstructionskip+\constructionsheadwidth+\constructionsheaddistance\relax
-    \parfillskip\zeropoint
+    \rightskip{\rightconstructionskip+\constructionsheadwidth+\constructionsheaddistance}%
+    \parfillskip\zeroskip
     \strc_constructions_set_pure_box\v!flushright
     \directparwrapper \relax {%
       \hfilll
@@ -985,13 +1019,13 @@
 \mutable\let\qed             \donothing
 
 \def\strc_constructions_close_symbol_reset % no need for global
-  {\global\expandafter\settrue\csname\??constructionclosesymbol\currentconstruction\endcsname
+  {\global\csname\??constructionclosesymbol\currentconstruction\endcsname\conditionaltrue
    \let\placeclosesymbol\strc_constructions_close_symbol_place
    \let\qed             \strc_constructions_close_symbol_place}
 
 \protected\def\strc_constructions_close_symbol_place
   {\ifconditional\csname\??constructionclosesymbol\currentconstruction\endcsname
-     \global\expandafter\setfalse\csname\??constructionclosesymbol\currentconstruction\endcsname
+     \global\csname\??constructionclosesymbol\currentconstruction\endcsname\conditionalfalse
      \edef\p_strc_constructions_closesymbol{\constructionparameter\c!closesymbol}%
      \ifempty\p_strc_constructions_closesymbol \else
        \constructionparameter\c!closecommand{\p_strc_constructions_closesymbol}% hm why {} maybe because box expected
@@ -1005,86 +1039,239 @@
 \mutable\let\currentconstructionlistentry\!!zerocount
 
 \protected\def\strc_constructions_register
-  {\clf_doifelselisthasentry\numexpr\currentconstructionlistentry\relax
+  {\doifelselisthasentry{\currentconstructionlistentry}%
      \strc_constructions_register_nop
      \strc_constructions_register_yes}
 
 % \def\strc_constructions_register{\strc_constructions_register_yes}
 
-\def\strc_constructions_register_nop[#1][#2]% #1=optional user data #2=interfaced-settings
+\def\strc_constructions_register_nop[#S#1][#S#2]% #1=optional user data #2=interfaced-settings
  %{\writestatus{constructions}{reusing \currentconstruction: \number\currentconstructionlistentry}}
   {}
 
-\def\strc_constructions_discard
+\def\strc_constructions_discard % thisne is not reliable
   {\iftrialtypesetting
    % \writestatus{constructions}{discarding \currentconstruction: \number\currentconstructionlistentry}%
-     \clf_discardfromlist\currentconstructionlistentry\relax
+   % \clf_discardfromlist\currentconstructionlistentry\relax
    \fi}
 
 \let\currentconstructionlistnumber \!!zerocount
 \let\currentconstructionsynchronize\relax
 \let\currentconstructionattribute  \attributeunsetvalue
 
-\def\strc_constructions_register_yes[#1][#2]% #1=optional user data #2=interfaced-settings
+% \def\strc_constructions_register_yes[#S#1][#S#2]% #1=optional user data #2=interfaced-settings
+%   {\begingroup                              % similar to structure so we might generalize this
+%    \setupcurrentconstruction[#2]%           % xdef's will become edef's
+%    \xdef\currentconstructionexpansion      {\constructionparameter\c!expansion}%
+%    \xdef\currentconstructionxmlsetup       {\constructionparameter\c!xmlsetup}%
+%    \xdef\currentconstructioncatcodes       {\constructionparameter\s!catcodes}%
+%    \xdef\currentconstructionlabel          {\constructionparameter\c!label}%
+%    \xdef\currentconstructionreference      {\constructionparameter\c!reference}%
+%    \xdef\currentconstructionreferencetext  {\constructionparameter\c!referencetext}%
+%    \xdef\currentconstructionreferenceprefix{\constructionparameter\c!referenceprefix}%
+%    %xdef\currentconstructionshownumber     {\constructionparameter\c!number}%
+%    \xdef\currentconstructionincrementnumber{\constructionparameter\c!incrementnumber}%
+%    \xdef\currentconstructiondelay          {\constructionparameter\c!delay}%
+%    %
+%    \ifempty\currentconstructionexpansion
+%      \glet\currentconstructionexpansion\v!no
+%    \fi
+%    %
+%    \ifempty\currentconstructionreferenceprefix
+%      \glet\currentconstructionreferenceprefix\referenceprefix
+%    \fi
+%    \ifx\currentconstructionexpansion\s!xml
+%      \xmlstartraw
+%        \xdef\currentconstructiontitle        {\constructionparameter\c!title}%
+%        \xdef\currentconstructionbookmark     {\constructionparameter\c!bookmark}%
+%        \xdef\currentconstructionmarking      {\constructionparameter\c!marking}%
+%        \xdef\currentconstructionlist         {\constructionparameter\c!list}%
+%        \xdef\currentconstructionreferencetext{\constructionparameter\c!referencetext}%
+%      \xmlstopraw
+%      \iflocation \ifempty\currentconstructionbookmark
+%        \xdef\currentconstructionbookmark{\prerolltostring{\currentconstructiontitle}}%
+%      \fi \fi
+%      \ifempty\currentconstructionlist
+%        \glet\currentconstructionlist\currentconstructiontitle
+%      \fi
+%      \glet\currentconstructioncoding\s!xml
+%    \else
+%      \ifx\currentconstructionexpansion\v!yes
+%        \xdef\currentconstructiontitle        {\constructionparameter\c!title}%
+%        \xdef\currentconstructionbookmark     {\constructionparameter\c!bookmark}%
+%        \xdef\currentconstructionmarking      {\constructionparameter\c!marking}%
+%        \xdef\currentconstructionlist         {\constructionparameter\c!list}%
+%        \xdef\currentconstructionreferencetext{\constructionparameter\c!referencetext}%
+%        \iflocation \ifempty\currentconstructionbookmark
+%          \xdef\currentconstructionbookmark{\prerolltostring{\currentconstructiontitle}}%
+%        \fi \fi
+%      \else
+%        \xdef\currentconstructiontitle        {\detokenizedconstructionparameter\c!title}%
+%        \xdef\currentconstructionbookmark     {\detokenizedconstructionparameter\c!bookmark}%
+%        \xdef\currentconstructionmarking      {\detokenizedconstructionparameter\c!marking}%
+%        \xdef\currentconstructionlist         {\detokenizedconstructionparameter\c!list}%
+%        \xdef\currentconstructionreferencetext{\detokenizedconstructionparameter\c!referencetext}%
+%        \iflocation \ifempty\currentconstructionbookmark
+%          \xdef\currentconstructionbookmark{\prerolltostring{\constructionparameter\c!title}}%
+%        \fi \fi
+%      \fi
+%      \ifempty\currentconstructionlist
+%        \glet\currentconstructionlist\currentconstructiontitle
+%      \fi
+%      \glet\currentconstructioncoding\s!tex
+%    \fi
+%    %
+%    \ifx\currentconstructiontitle\v!none % will become obsolete
+%      \global\noconstructioncaptiontrue
+%    \fi
+%    %
+%    \ifnoconstructioncaption % then why analyze anyway?
+%      \endgroup
+%      \let\currentconstructionlistnumber \relax
+%      \let\currentconstructionsynchronize\relax
+%      \let\currentconstructionattribute  \relax
+%    \else
+%      \setnextinternalreferences{construction}\currentconstructionmain % plural
+%      \relax
+%      \scratchcounter\clf_addtolist
+%         metadata {
+%             kind     \s!construction
+%             name     \currentconstructionmain
+%           % level    structures.sections.currentlevel()
+%             catcodes \catcodetable
+%         }
+%         references {
+%             internal  \locationcount
+%             order     \locationorder
+%             reference {\currentconstructionreference}
+%             prefix    {\currentconstructionreferenceprefix}
+%           % block     {\currentsectionblock}
+%           % section   structures.sections.currentid(),
+%             delay     {\currentconstructiondelay}
+%         }
+%         titledata  {
+%             label     {\detokenize\expandafter{\currentconstructionlabel}}
+%             title     {\detokenize\expandafter{\currentconstructiontitle}}
+%         \ifx\currentconstructionbookmark\currentconstructiontitle \else
+%             bookmark  {\detokenize\expandafter{\currentconstructionbookmark}}
+%         \fi
+%         \ifx\currentconstructionreferencetext\currentconstructiontitle \else
+%             reference {\detokenize\expandafter{\currentconstructionreferencetext}}
+%         \fi
+%         \ifx\currentconstructionlist\currentconstructiontitle \else
+%             list      {\detokenize\expandafter{\currentconstructionlist}}
+%         \fi
+%         }
+%     \ifconditional\c_strc_constructions_number_state
+%         prefixdata {
+%             prefix        {\constructionparameter\c!prefix}
+%             separatorset  {\constructionparameter\c!prefixseparatorset}
+%             conversion    {\constructionparameter\c!prefixconversion}
+%             conversionset {\constructionparameter\c!prefixconversionset}
+%             set           {\constructionparameter\c!prefixset}
+%             segments      {\constructionparameter\c!prefixsegments}
+%             connector     {\constructionparameter\c!prefixconnector}
+%         }
+%         numberdata {
+%             numbers       {\currentconstructionnumber}
+%             separatorset  {\constructionparameter\c!numberseparatorset}
+%             conversion    {\constructionparameter\c!numberconversion}
+%             conversionset {\constructionparameter\c!numberconversionset}
+%             starter       {\constructionparameter\c!numberstarter}
+%             stopper       {\constructionparameter\c!numberstopper}
+%             segments      {\constructionparameter\c!numbersegments}
+%         }
+%     \else
+%        % symbol
+%     \fi
+%         userdata {\detokenize{#1}}
+%      \relax
+%    % \writestatus{constructions}{registering \currentconstruction: \number\scratchcounter}%
+%      \clf_setinternalreference
+%        prefix    {\currentconstructionreferenceprefix}%
+%        reference {\currentconstructionreference}%
+%        internal  \locationcount
+%        view      {\interactionparameter\c!focus}%
+%      \relax
+%      \expanded {%
+%        \endgroup
+%        \edef\noexpand\currentconstructionlistentry  {\the\scratchcounter}%
+%        \edef\noexpand\currentconstructionattribute  {\the\lastdestinationattribute}%
+%        \edef\noexpand\currentconstructionsynchronize{\clf_deferredenhancelist\the\scratchcounter}%
+%      }%
+%    \fi}
+
+\def\strc_constructions_preroll#1%
+  {\iflocation
+     \ifempty\currentconstructionbookmark % maybe also when tagging
+       \ifconditional\c_strc_tags_enabled
+         \ifcstok{\currentconstructiondelay}\v!text\else
+           \edef\currentconstructionbookmark{\prerolltostring{#1}}%
+         \fi
+       \fi
+    \fi
+  \fi}
+
+\def\strc_constructions_register_yes[#S#1][#S#2]% #1=optional user data #2=interfaced-settings
   {\begingroup                              % similar to structure so we might generalize this
    \setupcurrentconstruction[#2]%           % xdef's will become edef's
-   \xdef\currentconstructionexpansion      {\constructionparameter\c!expansion}%
-   \xdef\currentconstructionxmlsetup       {\constructionparameter\c!xmlsetup}%
-   \xdef\currentconstructioncatcodes       {\constructionparameter\s!catcodes}%
-   \xdef\currentconstructionlabel          {\constructionparameter\c!label}%
+   \edef\currentconstructionexpansion      {\constructionparameter\c!expansion}%
+   \edef\currentconstructionxmlsetup       {\constructionparameter\c!xmlsetup}%
+   \edef\currentconstructioncatcodes       {\constructionparameter\s!catcodes}%
+   \edef\currentconstructionlabel          {\constructionparameter\c!label}%
+   % watch out, this one is global, see usage in strc-enu
    \xdef\currentconstructionreference      {\constructionparameter\c!reference}%
-   \xdef\currentconstructionreferencetext  {\constructionparameter\c!referencetext}%
-   \xdef\currentconstructionreferenceprefix{\constructionparameter\c!referenceprefix}%
-   %xdef\currentconstructionshownumber     {\constructionparameter\c!number}%
-   \xdef\currentconstructionincrementnumber{\constructionparameter\c!incrementnumber}%
+   %
+   \edef\currentconstructionreferencetext  {\constructionparameter\c!referencetext}%
+   \edef\currentconstructionreferenceprefix{\constructionparameter\c!referenceprefix}%
+   %edef\currentconstructionshownumber     {\constructionparameter\c!number}%
+   \edef\currentconstructionincrementnumber{\constructionparameter\c!incrementnumber}%
+   \edef\currentconstructiondelay          {\constructionparameter\c!delay}%
    %
    \ifempty\currentconstructionexpansion
-     \glet\currentconstructionexpansion\v!no
+     \let\currentconstructionexpansion\v!no
    \fi
    %
    \ifempty\currentconstructionreferenceprefix
-     \glet\currentconstructionreferenceprefix\referenceprefix
+     \let\currentconstructionreferenceprefix\referenceprefix
    \fi
    \ifx\currentconstructionexpansion\s!xml
      \xmlstartraw
-       \xdef\currentconstructiontitle        {\constructionparameter\c!title}%
-       \xdef\currentconstructionbookmark     {\constructionparameter\c!bookmark}%
-       \xdef\currentconstructionmarking      {\constructionparameter\c!marking}%
-       \xdef\currentconstructionlist         {\constructionparameter\c!list}%
-       \xdef\currentconstructionreferencetext{\constructionparameter\c!referencetext}%
+       \edef\currentconstructiontitle        {\constructionparameter\c!title}%
+       \edef\currentconstructionbookmark     {\constructionparameter\c!bookmark}%
+       \edef\currentconstructionmarking      {\constructionparameter\c!marking}%
+       \edef\currentconstructionlist         {\constructionparameter\c!list}%
+       \edef\currentconstructionreferencetext{\constructionparameter\c!referencetext}%
      \xmlstopraw
+     \strc_constructions_preroll\currentconstructiontitle
      \ifempty\currentconstructionlist
-       \glet\currentconstructionlist\currentconstructiontitle
+       \let\currentconstructionlist\currentconstructiontitle
      \fi
-     \glet\currentconstructioncoding\s!xml
+     \let\currentconstructioncoding\s!xml
    \else
      \ifx\currentconstructionexpansion\v!yes
-       \xdef\currentconstructiontitle        {\constructionparameter\c!title}%
-       \xdef\currentconstructionbookmark     {\constructionparameter\c!bookmark}%
-       \xdef\currentconstructionmarking      {\constructionparameter\c!marking}%
-       \xdef\currentconstructionlist         {\constructionparameter\c!list}%
-       \xdef\currentconstructionreferencetext{\constructionparameter\c!referencetext}%
+       \edef\currentconstructiontitle        {\constructionparameter\c!title}%
+       \edef\currentconstructionbookmark     {\constructionparameter\c!bookmark}%
+       \edef\currentconstructionmarking      {\constructionparameter\c!marking}%
+       \edef\currentconstructionlist         {\constructionparameter\c!list}%
+       \edef\currentconstructionreferencetext{\constructionparameter\c!referencetext}%
+       \strc_constructions_preroll\currentconstructiontitle
      \else
-       \xdef\currentconstructiontitle        {\detokenizedconstructionparameter\c!title}%
-       \xdef\currentconstructionbookmark     {\detokenizedconstructionparameter\c!bookmark}%
-       \xdef\currentconstructionmarking      {\detokenizedconstructionparameter\c!marking}%
-       \xdef\currentconstructionlist         {\detokenizedconstructionparameter\c!list}%
-       \xdef\currentconstructionreferencetext{\detokenizedconstructionparameter\c!referencetext}%
-       \iflocation \ifempty\currentconstructionbookmark
-         \begingroup
-         \simplifycommands
-         \xdef\currentconstructionbookmark{\detokenize\expandafter{\normalexpanded{\constructionparameter\c!title}}}%
-         \endgroup
-       \fi \fi
+       \edef\currentconstructiontitle        {\detokenizedconstructionparameter\c!title}%
+       \edef\currentconstructionbookmark     {\detokenizedconstructionparameter\c!bookmark}%
+       \edef\currentconstructionmarking      {\detokenizedconstructionparameter\c!marking}%
+       \edef\currentconstructionlist         {\detokenizedconstructionparameter\c!list}%
+       \edef\currentconstructionreferencetext{\detokenizedconstructionparameter\c!referencetext}%
+       \strc_constructions_preroll{\constructionparameter\c!title}%
      \fi
      \ifempty\currentconstructionlist
-       \glet\currentconstructionlist\currentconstructiontitle
+       \let\currentconstructionlist\currentconstructiontitle
      \fi
-     \glet\currentconstructioncoding\s!tex
+     \let\currentconstructioncoding\s!tex
    \fi
    %
    \ifx\currentconstructiontitle\v!none % will become obsolete
-     \global\noconstructioncaptiontrue
+     \noconstructioncaptiontrue
    \fi
    %
    \ifnoconstructioncaption % then why analyze anyway?
@@ -1097,18 +1284,26 @@
      \relax
      \scratchcounter\clf_addtolist
         metadata {
-            kind     {construction}
-            name     {\currentconstructionmain}
+            kind     \s!construction
+            name     \currentconstructionmain
+            detail   {\currentconstruction}
           % level    structures.sections.currentlevel()
             catcodes \catcodetable
         }
         references {
             internal  \locationcount
             order     \locationorder
+        \ifx\currentconstructionreference\!!plustoken
+            % special in enumnerations
+        \orelse\ifx\currentconstructionreference\!!minustoken
+            % special in enumnerations
+        \else
             reference {\currentconstructionreference}
             prefix    {\currentconstructionreferenceprefix}
+        \fi
           % block     {\currentsectionblock}
           % section   structures.sections.currentid(),
+            delay     {\currentconstructiondelay}
         }
         titledata  {
             label     {\detokenize\expandafter{\currentconstructionlabel}}
@@ -1142,7 +1337,7 @@
             stopper       {\constructionparameter\c!numberstopper}
             segments      {\constructionparameter\c!numbersegments}
         }
-    \or
+    \else
        % symbol
     \fi
         userdata {\detokenize{#1}}
@@ -1154,7 +1349,7 @@
        internal  \locationcount
        view      {\interactionparameter\c!focus}%
      \relax
-     \normalexpanded {%
+     \expanded {%
        \endgroup
        \edef\noexpand\currentconstructionlistentry  {\the\scratchcounter}%
        \edef\noexpand\currentconstructionattribute  {\the\lastdestinationattribute}%

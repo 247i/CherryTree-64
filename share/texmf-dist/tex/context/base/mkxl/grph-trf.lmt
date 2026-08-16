@@ -10,11 +10,27 @@ if not modules then modules = { } end modules ['grph-trf'] = {
 
 local sind, cosd, tand, abs = math.sind, math.cosd, math.tand, math.abs
 
+local isdimen      = tex.isdimen
 local setdimension = tex.setdimensionvalue
+
+local d_grph_rotate_x_size     <const> = isdimen("d_grph_rotate_x_size")
+local d_grph_rotate_y_size     <const> = isdimen("d_grph_rotate_y_size")
+local d_grph_rotate_x_position <const> = isdimen("d_grph_rotate_x_position")
+local d_grph_rotate_y_position <const> = isdimen("d_grph_rotate_y_position")
+local d_grph_rotate_x_offset   <const> = isdimen("d_grph_rotate_x_offset")
+local d_grph_rotate_y_offset   <const> = isdimen("d_grph_rotate_y_offset")
+local d_grph_rotate_new_width  <const> = isdimen("d_grph_rotate_new_width")
+local d_grph_rotate_new_height <const> = isdimen("d_grph_rotate_new_height")
+local d_grph_rotate_new_depth  <const> = isdimen("d_grph_rotate_new_depth")
 
 local function analyzerotate(rotation,width,height,depth,total,notfit,obeydepth)
     --
  -- print(rotation,width,height,depth,notfit,obeydepth)
+    --
+    rotation = rotation % 360
+    if rotation < 0 then
+        rotation = 360 - rotation
+    end
     --
     local sin       = sind(rotation)
     local cos       = cosd(rotation)
@@ -114,7 +130,7 @@ interfaces.implement {
     name      = "analyzerotate",
     actions   = analyzerotate,
     arguments = {
---         "integer",
+     -- "integer",
         "number",
         "dimension",
         "dimension",

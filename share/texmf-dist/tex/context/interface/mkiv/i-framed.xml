@@ -4,7 +4,7 @@
 
 <cd:interface xmlns:cd="http://www.pragma-ade.com/commands">
 
-    <cd:command name="defineframed" level="style" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="defineframed" level="style" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name"/>
             <cd:resolve name="keyword-name-optional"/>
@@ -14,7 +14,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="setupframed" level="style" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="setupframed" level="style" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name-list-optional"/>
             <cd:assignments list="yes">
@@ -22,16 +22,100 @@
                     <cd:constant type="rectangular" default="yes"/>
                     <cd:constant type="round"/>
                     <cd:constant type="cd:number"/>
+                    <cd:constant type="l"/>
+                    <cd:constant type="r"/>
+                    <cd:constant type="b"/>
+                    <cd:constant type="t"/>
+                    <cd:constant type="lr"/>
+                    <cd:constant type="rl"/>
+                    <cd:constant type="tb"/>
+                    <cd:constant type="bt"/>
+                    <cd:constant type="rt"/>
+                    <cd:constant type="tr"/>
+                    <cd:constant type="rb"/>
+                    <cd:constant type="br"/>
+                    <cd:constant type="bl"/>
+                    <cd:constant type="lb"/>
+                    <cd:constant type="tl"/>
+                    <cd:constant type="lt"/>
+                    <cd:constant type="trb"/>
+                    <cd:constant type="rtl"/>
+                    <cd:constant type="tlb"/>
+                    <cd:constant type="blt"/>
+                    <cd:constant type="ltr"/>
+                    <cd:constant type="rtl"/>
+                    <cd:constant type="lbr"/>
+                    <cd:constant type="rbl"/>
+                    <cd:constant type="ltrb"/>
+                    <cd:constant type="trbl"/>
+                    <cd:constant type="rblt"/>
+                    <cd:constant type="bltr"/>
                 </cd:parameter>
                 <cd:parameter name="framecorner">
                     <cd:constant type="rectangular" default="yes"/>
                     <cd:constant type="round"/>
                     <cd:constant type="cd:number"/>
+                    <cd:constant type="l"/>
+                    <cd:constant type="r"/>
+                    <cd:constant type="b"/>
+                    <cd:constant type="t"/>
+                    <cd:constant type="lr"/>
+                    <cd:constant type="rl"/>
+                    <cd:constant type="tb"/>
+                    <cd:constant type="bt"/>
+                    <cd:constant type="rt"/>
+                    <cd:constant type="tr"/>
+                    <cd:constant type="rb"/>
+                    <cd:constant type="br"/>
+                    <cd:constant type="bl"/>
+                    <cd:constant type="lb"/>
+                    <cd:constant type="tl"/>
+                    <cd:constant type="lt"/>
+                    <cd:constant type="trb"/>
+                    <cd:constant type="rtl"/>
+                    <cd:constant type="tlb"/>
+                    <cd:constant type="blt"/>
+                    <cd:constant type="ltr"/>
+                    <cd:constant type="rtl"/>
+                    <cd:constant type="lbr"/>
+                    <cd:constant type="rbl"/>
+                    <cd:constant type="ltrb"/>
+                    <cd:constant type="trbl"/>
+                    <cd:constant type="rblt"/>
+                    <cd:constant type="bltr"/>
                 </cd:parameter>
                 <cd:parameter name="backgroundcorner">
                     <cd:constant type="rectangular" default="yes"/>
                     <cd:constant type="round"/>
                     <cd:constant type="cd:number"/>
+                    <cd:constant type="l"/>
+                    <cd:constant type="r"/>
+                    <cd:constant type="b"/>
+                    <cd:constant type="t"/>
+                    <cd:constant type="lr"/>
+                    <cd:constant type="rl"/>
+                    <cd:constant type="tb"/>
+                    <cd:constant type="bt"/>
+                    <cd:constant type="rt"/>
+                    <cd:constant type="tr"/>
+                    <cd:constant type="rb"/>
+                    <cd:constant type="br"/>
+                    <cd:constant type="bl"/>
+                    <cd:constant type="lb"/>
+                    <cd:constant type="tl"/>
+                    <cd:constant type="lt"/>
+                    <cd:constant type="trb"/>
+                    <cd:constant type="rtl"/>
+                    <cd:constant type="tlb"/>
+                    <cd:constant type="blt"/>
+                    <cd:constant type="ltr"/>
+                    <cd:constant type="rtl"/>
+                    <cd:constant type="lbr"/>
+                    <cd:constant type="rbl"/>
+                    <cd:constant type="ltrb"/>
+                    <cd:constant type="trbl"/>
+                    <cd:constant type="rblt"/>
+                    <cd:constant type="bltr"/>
                 </cd:parameter>
                 <cd:parameter name="radius">
                     <cd:constant type="cd:dimension"/>
@@ -58,24 +142,28 @@
                     <cd:constant type="on" default="yes"/>
                     <cd:constant type="off"/>
                     <cd:constant type="small"/>
+                    <cd:constant type="dash"/>
                     <cd:constant type="cd:name"/>
                 </cd:parameter>
                 <cd:parameter name="bottomframe">
                     <cd:constant type="on" default="yes"/>
                     <cd:constant type="off"/>
                     <cd:constant type="small"/>
+                    <cd:constant type="dash"/>
                     <cd:constant type="cd:name"/>
                 </cd:parameter>
                 <cd:parameter name="leftframe">
                     <cd:constant type="on" default="yes"/>
                     <cd:constant type="off"/>
                     <cd:constant type="small"/>
+                    <cd:constant type="dash"/>
                     <cd:constant type="cd:name"/>
                 </cd:parameter>
                 <cd:parameter name="rightframe">
                     <cd:constant type="on" default="yes"/>
                     <cd:constant type="off"/>
                     <cd:constant type="small"/>
+                    <cd:constant type="dash"/>
                     <cd:constant type="cd:name"/>
                 </cd:parameter>
                 <cd:parameter name="region">
@@ -93,6 +181,7 @@
                     <cd:constant type="off"/>
                     <cd:constant type="overlay"/>
                     <cd:constant type="small"/>
+                    <cd:constant type="dash"/>
                     <cd:constant type="closed"/>
                     <cd:constant type="none"/>
                 </cd:parameter>
@@ -104,7 +193,7 @@
                     <cd:constant type="cd:dimension"/>
                 </cd:parameter>
                 <cd:parameter name="backgroundcolor">
-                    <cd:resolve name="cd:color"/>
+                    <cd:constant type="cd:color"/>
                 </cd:parameter>
                 <cd:parameter name="component">
                     <cd:constant type="cd:name"/>
@@ -173,6 +262,7 @@
                     <cd:constant type="formula"/>
                     <cd:constant type="mathematics"/>
                     <cd:constant type="normal" default="yes"/>
+                    <cd:constant type="inline"/>
                 </cd:parameter>
                 <cd:parameter name="autowidth">
                     <cd:constant type="yes" default="yes"/>
@@ -241,23 +331,40 @@
                     <cd:constant type="normal" default="yes"/>
                     <cd:constant type="reverse"/>
                 </cd:parameter>
+                <cd:parameter name="dashstep">
+                    <cd:constant type="cd:dimension"/>
+                </cd:parameter>
+                <cd:parameter name="synchronize">
+                    <cd:constant type="yes"/>
+                    <cd:constant type="no" default="yes"/>
+                    <cd:constant type="text"/>
+                    <cd:constant type="background"/>
+                </cd:parameter>
+                <cd:parameter name="adaptive">
+                    <cd:constant type="yes"/>
+                    <cd:constant type="delay"/>
+                    <cd:constant type="cd:number"/>
+                </cd:parameter>
+                <cd:parameter name="freezespacing">
+                    <cd:constant type="cd:number"/>
+                </cd:parameter>
             </cd:assignments>
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="frameddimension" level="system" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="frameddimension" level="system" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="argument-key"/>
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="framedparameter" level="system" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="framedparameter" level="system" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="argument-key"/>
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="framed" level="document" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="framed" level="document" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:assignments list="yes" optional="yes">
                 <cd:inherit name="setupframed"/>
@@ -266,7 +373,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="framed" generated="yes" variant="instance" level="document" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="framed" generated="yes" variant="instance" level="document" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:sequence>
             <cd:instance value="framed"/>
         </cd:sequence>
@@ -281,7 +388,7 @@
         </cd:instances>
     </cd:command>
 
-    <cd:command name="normalframedwithsettings" level="system" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="normalframedwithsettings" level="system" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:assignments list="yes">
                 <cd:inherit name="setupframed"/>
@@ -290,7 +397,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="framed" type="environment" level="document" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="framed" type="environment" level="document" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name-optional"/>
             <cd:assignments list="yes" optional="yes">
@@ -299,7 +406,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="fastlocalframed" level="system" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="fastlocalframed" level="system" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name"/>
             <cd:assignments list="yes">
@@ -309,7 +416,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="localframed" level="system" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="localframed" level="system" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name"/>
             <cd:assignments list="yes" optional="yes">
@@ -319,14 +426,14 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="directlocalframed" level="system" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="directlocalframed" level="system" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name"/>
             <cd:content/>
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="localframedwithsettings" level="system" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="localframedwithsettings" level="system" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name"/>
             <cd:assignments list="yes">
@@ -336,7 +443,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="placeframed" level="document" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="placeframed" level="document" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name"/>
             <cd:assignments list="yes" optional="yes">
@@ -346,47 +453,13 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="inframed" level="document" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="inframed" level="document" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:assignments list="yes" optional="yes">
                 <cd:inherit name="setupframed"/>
             </cd:assignments>
             <cd:content/>
         </cd:arguments>
-    </cd:command>
-
-    <cd:command name="definemathframed" level="style" category="rules" keywords="background mathematics" file="pack-rul.mkiv">
-        <cd:arguments>
-            <cd:resolve name="keyword-name"/>
-            <cd:resolve name="keyword-name-optional"/>
-            <cd:assignments list="yes" optional="yes">
-                <cd:inherit name="setupmathframed"/>
-            </cd:assignments>
-        </cd:arguments>
-    </cd:command>
-
-    <cd:command name="setupmathframed" level="style" category="rules" keywords="background mathematics" file="pack-rul.mkiv">
-        <cd:arguments>
-            <cd:resolve name="keyword-name-list-optional"/>
-            <cd:assignments list="yes">
-                <cd:inherit name="setupframed"/>
-            </cd:assignments>
-        </cd:arguments>
-    </cd:command>
-
-    <cd:command name="mathframed" generated="yes" variant="instance" level="document" category="rules" keywords="background mathematics" file="pack-rul.mkiv">
-        <cd:sequence>
-            <cd:instance value="mathframed"/>
-        </cd:sequence>
-        <cd:arguments>
-            <cd:assignments list="yes" optional="yes">
-                <cd:inherit name="setupmathframed"/>
-            </cd:assignments>
-            <cd:content/>
-        </cd:arguments>
-        <cd:instances>
-            <cd:resolve name="instance-mathframed"/>
-        </cd:instances>
     </cd:command>
 
     <cd:command name="defineformulaframed" level="style" category="rules" keywords="background mathematics" file="math-for.mkiv">
@@ -408,7 +481,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="defineframedtext" level="style" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="defineframedtext" level="style" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name"/>
             <cd:resolve name="keyword-name-optional"/>
@@ -418,7 +491,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="setupframedtext" level="style" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="setupframedtext" level="style" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name-list-optional"/>
             <cd:assignments list="yes">
@@ -459,7 +532,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="setupframedtexts" level="style" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="setupframedtexts" level="style" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name-list-optional"/>
             <cd:assignments list="yes">
@@ -468,7 +541,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="framedtext" generated="yes" variant="instance" level="document" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="framedtext" generated="yes" variant="instance" level="document" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:sequence>
             <cd:instance value="framedtext"/>
         </cd:sequence>
@@ -483,7 +556,7 @@
         </cd:instances>
     </cd:command>
 
-    <cd:command name="framedtext" type="environment" generated="yes" variant="instance" level="document" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="framedtext" type="environment" generated="yes" variant="instance" level="document" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:sequence>
             <cd:instance value="framedtext"/>
         </cd:sequence>
@@ -503,7 +576,7 @@
         </cd:instances>
     </cd:command>
 
-    <cd:command name="defineframedcontent" level="style" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="defineframedcontent" level="style" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name"/>
             <cd:resolve name="keyword-name-optional"/>
@@ -513,7 +586,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="setupframedcontent" level="style" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="setupframedcontent" level="style" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:resolve name="keyword-name-list-optional"/>
             <cd:assignments list="yes">
@@ -523,7 +596,7 @@
                 <cd:parameter name="right">
                     <cd:constant type="cd:command"/>
                 </cd:parameter>
-                <cd:parameter name="leftoffser">
+                <cd:parameter name="leftoffset">
                     <cd:constant type="cd:dimension"/>
                 </cd:parameter>
                 <cd:parameter name="rightoffset">
@@ -544,7 +617,7 @@
         </cd:arguments>
     </cd:command>
 
-    <cd:command name="framedcontent" type="environment" level="system" category="rules" keywords="background" file="pack-rul.mkiv">
+    <cd:command name="framedcontent" type="environment" level="system" category="rules" keywords="background" file="pack-rul.mkxl">
         <cd:arguments>
             <cd:keywords optional="yes">
                 <cd:constant type="cd:name"/>
@@ -589,4 +662,12 @@
         </cd:arguments>
     </cd:command>
 
+    <cd:command name="clipframed" type="environment" file="pack-rul.mkxl">
+        <cd:arguments>
+            <cd:assignments list="yes" optional="yes">
+                <cd:inherit name="setupframed"/>
+            </cd:assignments>
+        </cd:arguments>
+    </cd:command>
+    
 </cd:interface>

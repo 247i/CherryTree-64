@@ -11,6 +11,9 @@
 %C therefore copyrighted by \PRAGMA. See mreadme.pdf for
 %C details.
 
+% \ifexporting\dostarttaggednodetail\t!link\fi
+% \ifexporting\dostoptagged\fi
+
 % todo: (1) configure references, (2) rendering => with presets
 %
 % \defineconversionset[default][Character,number,Romannumerals,Character][number]
@@ -27,9 +30,17 @@
 
 \writestatus{loading}{ConTeXt Structure Macros / Cross Referencing}
 
-\registerctxluafile{strc-rsc}{}
-\registerctxluafile{strc-ref}{}
-\registerctxluafile{node-ref}{autosuffix,optimize}
+\newif     \iflocation
+\newinteger\locationcount
+\newinteger\locationorder
+\newbox    \locationbox
+\newinteger\lastreferenceattribute
+\newinteger\lastdestinationattribute
+\newinteger\prefixcounter
+
+\registerctxluafile{strc-rsc}{autosuffix}
+\registerctxluafile{strc-ref}{autosuffix}
+\registerctxluafile{node-ref}{autosuffix}
 
 \unprotect
 
@@ -62,35 +73,33 @@
 
 \installdirectcommandhandler \??referencing {referencing} % \??referencing
 
-\mutable\let\referenceprefix               \empty
+\mutable\lettonothing\referenceprefix
 
-\mutable\let\currentdestinationattribute   \empty
+%mutable\lettonothing\currentdestinationattribute
+%mutable\lettonothing\currentreferenceattribute
 
-\mutable\let\currentreferenceattribute     \empty
-\mutable\let\currentreferencecoding        \empty
-\mutable\let\currentreferencecontent       \empty
-\mutable\let\currentreferencedata          \empty
-\mutable\let\currentreferenceexpansion     \empty
-\mutable\let\currentreferenceformatautocase\empty
-\mutable\let\currentreferenceformatlabel   \empty
-\mutable\let\currentreferenceformatsetups  \empty
-\mutable\let\currentreferenceformattype    \empty
-\mutable\let\currentreferencekind          \empty
-\mutable\let\currentreferencelabels        \empty
-%mutable\let\currentreferencenumber        \empty
-\mutable\let\currentreferenceorder         \empty
-%mutable\let\currentreferencepage          \empty
-%mutable\let\currentreferencerealpage      \empty
-%mutable\let\currentreferencetext          \empty
-%mutable\let\currentreferencetitle         \empty
-\mutable\let\currentreferenceuserdata      \empty
-
+\mutable\lettonothing\currentreferencecoding
+\mutable\lettonothing\currentreferencecontent
+\mutable\lettonothing\currentreferencedata
+\mutable\lettonothing\currentreferenceexpansion
+\mutable\lettonothing\currentreferenceformatautocase
+\mutable\lettonothing\currentreferenceformatlabel
+\mutable\lettonothing\currentreferenceformatsetups
+\mutable\lettonothing\currentreferenceformattype
+\mutable\lettonothing\currentreferencekind
+\mutable\lettonothing\currentreferencelabels
+%mutable\lettonothing\currentreferencenumber
+%mutable\lettonothing\currentreferenceorder
+%mutable\lettonothing\currentreferencepage
+%mutable\lettonothing\currentreferencerealpage
+%mutable\lettonothing\currentreferencetext
+%mutable\lettonothing\currentreferencetitle
+\mutable\lettonothing\currentreferenceuserdata
 
 \newif\ifreferencing \referencingtrue
 
 \appendtoks
-    \edef\p_state{\referencingparameter\c!state}%
-    \ifx\p_state\v!start
+    \ifcstok{\referencingparameter\c!state}\v!start
       \referencingtrue
     \else
       \referencingfalse
@@ -122,12 +131,14 @@
 
 %D These are implemented in a low level form as:
 
-\permanent\tolerant\protected\def\textreference                  [#labels]{\strc_references_set_named_reference\s!text{#labels}{}}
-\permanent\tolerant\protected\def\pagereference                  [#labels]{\strc_references_set_named_reference\s!page{#labels}{}{}}
-\permanent\tolerant\protected\def\reference                      [#labels]{\strc_references_set_named_reference\s!full{#labels}{}}
-\permanent\tolerant\protected\def\setreference [#labels]#spacer[#settings]{\strc_references_set_named_reference\s!user{#labels}{#settings}{}}
+\permanent\tolerant\protected\def\textreference                   [#labels]{\strc_references_set_named_reference\s!text{#labels}{}}
+\permanent\tolerant\protected\def\pagereference                   [#labels]{\strc_references_set_named_reference\s!page{#labels}{}{}}
+\permanent\tolerant\protected\def\reference                       [#labels]{\strc_references_set_named_reference\s!full{#labels}{}}
+\permanent\tolerant\protected\def\setreference [#labels]#spacer[#S#settings]{\strc_references_set_named_reference\s!user{#labels}{#settings}{}}
 
 \permanent\protected\def\dosetdirectpagereference#1{\strc_references_set_named_reference\s!page{#1}{}{}} % low level, maybe use _
+
+\lettonothing\m_strc_references_asked
 
 \permanent\protected\def\usereferenceparameter#1% faster local variant
   {\edef\m_strc_references_asked{#1\c!reference}%
@@ -138,11 +149,11 @@
 %D Actually there is not much difference between a text and a full reference, but
 %D it's the concept that counts. The low level implementation is:
 
-\newcount\lastreferenceattribute
-\newcount\lastdestinationattribute
+% sett top : \newinteger\lastreferenceattribute
+% sett top : \newinteger\lastdestinationattribute
 
 \def\strc_references_finish#prefix#reference#internal% gets expanded anyway
-  {\normalexpanded{\clf_deferredenhancereference{#prefix}{#reference}}}
+  {\expanded{\clf_deferredenhancereference{#prefix}{#reference}}}
 
 \permanent\let\dofinishreference\strc_references_finish % used at lua end
 
@@ -163,7 +174,6 @@
    \or
      \prewordbreak % to be tested: \removeunwantedspaces\permithyphenation
    \fi}
-
 
 \protected\def\strc_references_set_named_reference
   {\ifreferencing
@@ -187,35 +197,35 @@
 
 \protected\def\strc_references_destination_point_yes
   {\strc_references_inject_before % new
-   \dostarttagged\t!reference\empty
-   \dontleavehmode\hbox attr \destinationattribute\lastdestinationattribute\bgroup
+   %dostarttaggednodetail\t!reference
+   \dontleavehmode\hbox attr \destinationattribute\lastdestinationattribute\bgroup % \hpack
      \strc_references_flush_destination_nodes
      \strc_references_placeholder
      \egroup
-   \dostoptagged
+   %dostoptagged
    \strc_references_inject_after}
 
 \protected\def\strc_references_destination_point_nop
   {\strc_references_inject_before % new
-   \dostarttagged\t!reference\empty
-   \dontleavehmode\hbox \bgroup
+   %\dostarttaggednodetail\t!reference
+   \dontleavehmode\hbox \bgroup % \hpack
      \strc_references_flush_destination_nodes
      \strc_references_placeholder
    \egroup
-   \dostoptagged
+   %\dostoptagged
    \strc_references_inject_after}
 
 \protected\def\strc_references_start_destination_nodes % messy but we need the delay
   {\setbox\b_strc_destination_nodes\hbox\bgroup}       % also sets lastdestinationattribute
 
 \protected\def\strc_references_stop_destination_nodes
-  {\normalexpanded{\egroup\lastdestinationattribute\the\lastdestinationattribute\relax}}
+  {\expanded{\egroup\lastdestinationattribute\the\lastdestinationattribute\relax}}
 
 \protected\def\strc_references_set_named_reference_indeed#kind#labels#userdata#text% labels userdata text -> todo: userdata
   {\ifreferencing
      % we could have a more efficient one for page references but for the moment
      % we don't care too much
-     \edef\currentreferencekind     {#kind}%
+     \cdef\currentreferencekind     {#kind}%
      \edef\currentreferencelabels   {#labels}%
      \edef\currentreferenceuserdata {#userdata}%
      \edef\currentreferenceexpansion{\referencingparameter\c!expansion}% {\referenceparameter\c!expansion}
@@ -250,7 +260,7 @@
                     reference {\currentreferencelabels}%
                 }%
                 metadata {%
-                    kind     {\currentreferencekind}%
+                    kind     \currentreferencekind % argument
             \ifx\currentreferencekind\s!page\else
                 \ifx\currentreferencecoding\s!xml
                     xmlroot  {\xmldocument}%
@@ -275,7 +285,7 @@
      \lastdestinationattribute\attributeunsetvalue
    \fi
    % will become obsolete:
-   \xdef\currentdestinationattribute{\number\lastdestinationattribute}%
+   \global\currentdestinationattribute\lastdestinationattribute
    % will become an option:
    \ifnum\lastdestinationattribute>\zerocount
      \strc_references_destination_point_yes
@@ -304,7 +314,7 @@
                     reference {\currentreferencelabels}%
                 }%
                 metadata {%
-                    kind {page}%
+                    kind \s!page % argument
                 }%
             }%
        \relax
@@ -314,6 +324,9 @@
      \setbox\b_strc_destination_nodes\emptyhbox
      \lastdestinationattribute\attributeunsetvalue
    \fi}
+
+\lettonothing\m_strc_references_text
+\lettonothing\m_strc_references_user
 
 \protected\def\strc_references_direct_full_user#user#labels#text%
   {\ifreferencing
@@ -333,7 +346,7 @@
                 reference {#labels}%
             }%
             metadata {%
-                kind {\s!full}%
+                kind \s!full % argument
             }%
         \ifempty\m_strc_references_text \else
             entries {%
@@ -341,7 +354,7 @@
             }%
         \fi
         \ifempty\m_strc_references_user \else
-            userdata {\m_strc_references_user}% \detokenize\expandafter{\normalexpanded{...}}
+            userdata {\m_strc_references_user}% \detokenize\expandafter{\expanded{...}}
         \fi
         }%
      \relax
@@ -351,7 +364,7 @@
      \lastdestinationattribute\attributeunsetvalue
    \fi
    % will become obsolete:
-   \xdef\currentdestinationattribute{\number\lastdestinationattribute}%
+   \global\currentdestinationattribute\lastdestinationattribute
    % will become an option:
    \ifnum\lastdestinationattribute>\zerocount
      \strc_references_destination_point_yes
@@ -369,7 +382,7 @@
    \ifnum\lastdestinationattribute>\zerocount
      \edef#cs{attr \destinationattribute\number\lastdestinationattribute}%
    \else
-     \let#cs\empty
+     \lettonothing#cs%
    \fi}
 
 %D It's about time to clean up references .. stable enough now.
@@ -406,15 +419,15 @@
                 internal  \locationcount
             }%
             metadata {%
-                kind {\s!page}%
+                kind \s!page % argument
             }%
         }%
      \relax
      \strc_references_stop_destination_nodes
-     \xdef\currentdestinationattribute{\number\lastdestinationattribute}%
+     \global\currentdestinationattribute\lastdestinationattribute
    \else
      \setbox\b_strc_destination_nodes\emptyhbox
-     \xdef\currentdestinationattribute{\number\attributeunsetvalue}%
+     \global\currentdestinationattribute\attributeunsetvalue
    \fi}
 
 \def\strc_references_set_simple_internal_reference#label% no prefix
@@ -429,15 +442,15 @@
                 internal  \locationcount
             }%
             metadata {%
-                kind {\s!page}%
+                kind  \s!page % argument
             }%
         }%
      \relax
      \strc_references_stop_destination_nodes
-     \xdef\currentdestinationattribute{\number\lastdestinationattribute}%
+     \global\currentdestinationattribute\lastdestinationattribute
    \else
      \setbox\b_strc_destination_nodes\emptyhbox
-     \xdef\currentdestinationattribute{\number\attributeunsetvalue}%
+     \global\currentdestinationattribute\attributeunsetvalue
    \fi}
 
 \def\strc_references_get_simple_reference#label%
@@ -446,14 +459,14 @@
         {\referenceprefix}%
         {#label}%
         {%
-            height \ht\strutbox
-            depth  \dp\strutbox
+            height \strutht
+            depth  \strutdp
             \extrareferencearguments
         }%
      \relax
-     \xdef\currentreferenceattribute{\number\lastreferenceattribute}%
+     \global\currentreferenceattribute\lastreferenceattribute
    \else
-     \xdef\currentreferenceattribute{\number\attributeunsetvalue}%
+     \global\currentreferenceattribute\attributeunsetvalue
    \fi}
 
 %D \macros
@@ -476,7 +489,7 @@
 %D
 %D \stoptyping
 
-\permanent\tolerant\protected\def\contentreference[#1]#*[#2]%
+\permanent\tolerant\protected\def\contentreference[#1]#*[#S#2]%
   {\ifarguments
      \expandafter\gobbletwoarguments
    \or
@@ -536,7 +549,7 @@
 %D one keeps references local, but the global ones in view. To enable this feature,
 %D we explictly split the prefix from the reference.
 
-\let\referenceprefix\empty
+\lettonothing\referenceprefix
 
 %D For a long time the only way to access an external file was to use the file
 %D prefix (\type {somefile::}. However, when you split up a document, redefining the
@@ -551,7 +564,7 @@
 %D \NC               \NC $\star$              \NC         \NC\NR
 %D \stoptabulate
 
-\permanent\protected\def\usereferences[#filename]{} % obsolete
+% \permanent\protected\def\usereferences[#filename]{} % defined at the lua end
 
 %D As mentioned we will also use the cross reference mechanism for navigational
 %D purposes. The main reason for this is that we want to treat both categories
@@ -574,13 +587,11 @@
 %D
 %D We also use the odd/even characteristic to determine the page state.
 
-\mutable\let\currentrealreference      \empty
-\mutable\let\currentpagereference      \empty
-\mutable\let\currenttextreference      \empty
-\mutable\let\currentsubtextreference   \empty
-\mutable\let\currentsubsubtextreference\empty
-
-\newcount\referencehastexstate % set in backend
+\mutable\lettonothing\currentrealreference
+\mutable\lettonothing\currentpagereference
+\mutable\lettonothing\currenttextreference
+\mutable\lettonothing\currentsubtextreference
+\mutable\lettonothing\currentsubsubtextreference
 
 % referencepagestate:
 %
@@ -657,7 +668,7 @@
 %D
 %D We can trace references by setting the next switch to true.
 
-\permanent\tolerant\protected\def\definereference[#name]#spacer[#specification]%
+\permanent\tolerant\protected\def\definereference[#name]#spacer[#S#specification]%
   {\clf_definereference{\referenceprefix}{#name}{\detokenize{#specification}}}
 
 \permanent\protected\def\resetreference[#name]%
@@ -681,7 +692,7 @@
 %D The next switch can be used to make user hyperlinks are not highlighted when
 %D clicked on.
 
-\newconditional\highlighthyperlinks \settrue\highlighthyperlinks
+\newconditional\highlighthyperlinks \highlighthyperlinks\conditionaltrue
 
 %D \macros
 %D   {gotonewwindow}
@@ -690,21 +701,22 @@
 %D one file, it makes sense to force the viewer to open a new window for each file
 %D opened.
 
-\newconditional\gotonewwindow \setfalse\gotonewwindow
+\newconditional\gotonewwindow \gotonewwindow\conditionalfalse
 
-\permanent\def\expandtexincurrentreference % will happen in lua some time
-  {\ifcase\referencehastexstate\else\clf_expandcurrentreference\fi}
-
-\permanent\def\expandreferenceoperation#tag#content{\clf_setreferenceoperation#tag{#content}}
-\permanent\def\expandreferencearguments#tag#content{\clf_setreferencearguments#tag{#content}}
-
-\permanent\def\doifelsereferencefound#label#yes#nop%
-  {\clf_doifelsereference{\referenceprefix}{#label}{\extrareferencearguments}%
-     {\expandtexincurrentreference
-      #yes}%
-     {#nop}}
+\permanent\def\doifelsereferencefound#label%
+  {\clf_doifelsereference{\referenceprefix}{#label}{\extrareferencearguments}}
 
 \aliased\let\doifreferencefoundelse\doifelsereferencefound
+
+\permanent\def\doifelsereferencechecked#label%
+  {\clf_doifelsereferencechecked{\referenceprefix}{#label}{\extrareferencearguments}}
+
+\aliased\let\doifcheckedreferencefoundelse\doifelsereferencechecked
+
+\permanent\def\doifelsereferenced#label%
+  {\clf_doifelsereferenced{\referenceprefix}{#label}}
+
+\aliased\let\doifreferencedelse\doifelsereferenced
 
 %D The tester only splits the reference in components but does not look into them.
 %D The following macro does a preroll and determines for instance the current real
@@ -798,8 +810,8 @@
 %D
 %D The flag \type {\iflocation} signals if we're in interactive mode.
 
-\ifdefined\buttonheight \else \newdimen\buttonheight \fi
-\ifdefined\buttonwidth  \else \newdimen\buttonwidth  \fi
+\ifdefined\buttonheight \else \newdimension\buttonheight \fi
+\ifdefined\buttonwidth  \else \newdimension\buttonwidth  \fi
 
 %D Internal references can best be set using the next few macros. Setting such
 %D references to unique values is completely up to the macros that call them.
@@ -811,22 +823,28 @@
 %D
 %D We could do this in \LUA\ \unknown
 
-\newif   \iflocation
-\newcount\locationcount
-\newcount\locationorder
-\newbox  \locationbox
+% set top: \newif     \iflocation
+% set top: \newinteger\locationcount
+% set top: \newinteger\locationorder
+% set top: \newbox    \locationbox
+
+\appendtoks
+    \locationfalse
+\to \everypreroll
 
 \permanent\def\nextinternalreference     {\the\locationcount}
 \permanent\def\nextinternalorderreference{\the\locationorder}
 
 \permanent\def\setnextinternalreference
-  {\global\advance\locationcount\plusone}
+  {\global\advanceby\locationcount\plusone}
 
-\permanent\def\setnextinternalreferences#kind#name% plural
-  {\clf_setnextinternalreference{#kind}{#name}}
-
-\permanent\def\getinternalorderreference#kind#name%
-  {\clf_currentreferenceorder{#kind}{#name}}
+% defined at the lua end
+%
+% \permanent\def\setnextinternalreferences#kind#name% plural
+%   {\clf_setnextinternalreference{#kind}{#name}}
+%
+% \permanent\def\getinternalorderreference#kind#name%
+%   {\clf_currentreferenceorder{#kind}{#name}}
 
 \permanent\def\thisissomeinternal#kind#name% only for old time sake, will go away
   {\begingroup
@@ -838,7 +856,7 @@
 
 \installcorenamespace{savedinternalreference}
 
-\letvalue{\??savedinternalreference\s!default}\!!zerocount
+\letcsname\??savedinternalreference\s!default\endcsname\!!zerocount
 
 \permanent\protected\def\storeinternalreference#1#2%
   {\xdefcsname\??savedinternalreference\currentstructurename\endcsname{\number#2}}
@@ -876,22 +894,20 @@
 %D \type {\prefix} variable to \type {+}, the prefix is incremented, when set to
 %D \type {-} or empty, the prefix is reset. Other values become the prefix.
 
-\newcount\prefixcounter
+% \see top: newinteger\prefixcounter
 
 \newconditional\autocrossfilereferences
 
 \appendtoks
-    \edef\p_autofile{\referencingparameter\c!autofile}%
-    \ifx\p_autofile\v!yes
-      \settrue \autocrossfilereferences
+    \ifcstok{\referencingparameter\c!autofile}\v!yes
+      \autocrossfilereferences\conditionaltrue
     \else
-      \setfalse\autocrossfilereferences
+      \autocrossfilereferences\conditionalfalse
     \fi
 \to \everysetupreferencing
 
 \appendtoks
-    \edef\p_export{\referencingparameter\c!export}%
-    \ifx\p_export\v!yes
+    \ifcstok{\referencingparameter\c!export}\v!yes
       \clf_exportreferences
     \fi
 \to \everygoodbye
@@ -917,14 +933,14 @@
 \permanent\protected\def\setupreferenceprefix[#prefix]%
   {\edef\p_prefix{#prefix}%
    \ifempty\p_prefix
-     \let\referenceprefix\empty
+     \lettonothing\referenceprefix
    \orelse\ifx\p_prefix\m_strc_references_prefix_yes
      \letreferencingparameter\c!prefix\s!unknown
-     \global\advance\prefixcounter\plusone
+     \global\advanceby\prefixcounter\plusone
      \edef\referenceprefix{\the\prefixcounter}%
    \orelse\ifx\p_prefix\m_strc_references_prefix_nop
      \letreferencingparameter\c!prefix\s!unknown
-     \let\referenceprefix\empty
+     \lettonothing\referenceprefix
    \orelse\ifx\p_prefix\s!unknown
      % forget about it
    \else
@@ -978,8 +994,7 @@
 \appendtoks
     % likely math
     \ifdefined\in    \aliased\let\normalmathin   \in    \permanent\protected\def\in   {\mathortext\normalmathin   \strc_references_in   } \else \aliased\let\in   \strc_references_in    \fi
-    \ifdefined\over  \aliased\let\normalmathover \over  \permanent\protected\def\over {\mathortext\normalmathover \strc_references_about} \else \aliased\let\over \strc_references_about \fi
-    %
+  % \ifdefined\over  \aliased\let\normalmathover \over  \permanent\protected\def\over {\mathortext\normalmathover \strc_references_about} \else \aliased\let\over \strc_references_about \fi
   % \ifdefined\at    \aliased\let\normalmathat   \at    \permanent\protected\def\at   {\mathortext\normalmathat   \strc_references_at   } \else \aliased\let\at   \strc_references_at    \fi
   % \ifdefined\about \aliased\let\normalmathabout\about \permanent\protected\def\about{\mathortext\normalmathabout\strc_references_about} \else \aliased\let\about\strc_references_about \fi
   % \ifdefined\from  \aliased\let\normalmathfrom \from  \permanent\protected\def\from {\mathortext\normalmathfrom \strc_references_from } \else \aliased\let\from \strc_references_from  \fi
@@ -987,6 +1002,8 @@
     \aliased\let\about\strc_references_about
     \aliased\let\from \strc_references_from
 \to \everydump
+
+% can be defined visible at lua end
 
 \permanent          \def\filterreference  #key{\clf_filterreference{#key}} % no checking, expandable
 \permanent\protected\def\getreferenceentry#key{\clf_filterreference{#key}} % no checking, not expandable
@@ -997,6 +1014,7 @@
 \permanent\def\currentreferencetext    {\clf_filterreference{text}}
 %permanent\def\currentreferencedefault {\clf_filterreference{default}}
 \permanent\def\currentreferencerealpage{\clf_filterreference{realpage}}
+\aliased  \let\currentreferenceorder    \getinternalorderreference
 
 %D The most straightforward way of retrieving references is using \type {\ref}.
 
@@ -1009,6 +1027,25 @@
 
 \aliased\let\ref\getreference
 
+% setnumber-001.tex
+%
+% \starttext
+%     \chapter[one]{One} see setnumber-002
+%     \chapter[two]{Two} see setnumber-002
+% \stoptext
+%
+% setnumber-002.tex
+%
+% \setupreferencing[autofile=yes]
+% \useexternaldocument[foo] [setnumber-001] [{TEST 1}]
+% \setupheadnumber[chapter][\getreferencesectionnumber{foo::two}]
+% \starttext
+%     \chapter[three]{Three} from setnumber-001, one: \getreferencesectionnumber{foo::one}\par
+%     \chapter[four] {Four}  from setnumber-001, two: \getreferencesectionnumber{foo::two}\par
+% \stoptext
+%
+% \getreferencesectionnumber{reference} : defined at the lua end
+
 %D Special cases:
 
 \permanent\protected\def\strc_references_about[#label]%
@@ -1019,7 +1056,7 @@
    \postponenotes % might go
    \referencingparameter\c!left
    \doifelsereferencefound{#label}
-     {\goto{\limitatetext\currentreferencetitle{\referencingparameter\c!width}\unknown}[#label]}% not so efficient (dup lookup)
+     {\goto{\limitatetext\currentreferencetitle{\dimexpr\referencingparameter\c!width\relax}\unknown}[#label]}% not so efficient (dup lookup)
      {}% todo
    \flushnotes % might go
    \referencingparameter\c!right
@@ -1068,11 +1105,15 @@
 %     }
 % }
 
-\newcount      \nofreferencestates
+\newinteger    \nofreferencestates
 \newconditional\pagestatespread
 
 \appendtoks
-    \doifelse{\referencingparameter\c!doublesided}\v!yes\settrue\setfalse\pagestatespread
+    \ifcstok{\referencingparameter\c!doublesided}\v!yes
+        \pagestatespread\conditionaltrue
+    \else
+        \pagestatespread\conditionalfalse
+    \fi
 \to \everysetupreferencing
 
 \setupreferencing
@@ -1117,7 +1158,7 @@
      % issue warning that not stable
    \else
      % needs checking ... but probably never in trialmode
-     \global\advance\nofreferencestates\plusone
+     \global\advanceby\nofreferencestates\plusone
      \xypos{rst::\number\nofreferencestates}%
      % \tracedpagestate
    \fi
@@ -1130,7 +1171,7 @@
 
 \def\strc_references_handle_page_state_yes
   {\markreferencepage
-   \ifcase\referencepagedetail
+   \ifcase\referencepagedetail\relax
      \expandafter\sixthofsixarguments \or
      \expandafter\thirdofsixarguments \or
      \expandafter\firstofsixarguments \or
@@ -1162,11 +1203,11 @@
 
 \permanent\protected\def\someplace#preceding#backward#current#foreward#following#dummy[#label]% #dummy gobbles space around #foreward
   {\doifcheckedpagestate{#label}%
-     {\doifelsenothing{#preceding}{\goto{#preceding}[#label]}\ignorespaces}%
-     {\doifelsenothing {#backward}{\goto {#backward}[#label]}\ignorespaces}%
-     {\doifelsenothing  {#current}{\goto  {#current}[#label]}\ignorespaces}%
-     {\doifelsenothing {#foreward}{\goto {#foreward}[#label]}\ignorespaces}%
-     {\doifelsenothing{#following}{\goto{#following}[#label]}\ignorespaces}%
+     {\ifempty{#preceding}\goto{#preceding}[#label]\fi\ignorespaces}%
+     {\ifempty {#backward}\goto {#backward}[#label]\fi\ignorespaces}%
+     {\ifempty  {#current}\goto  {#current}[#label]\fi\ignorespaces}%
+     {\ifempty {#foreward}\goto {#foreward}[#label]\fi\ignorespaces}%
+     {\ifempty{#following}\goto{#following}[#label]\fi\ignorespaces}%
      {#label}}
 
 \permanent\protected\def\atpage[#label]% todo
@@ -1183,11 +1224,11 @@
 %
 % \protected\def\strc_references_conditional#action#text[#condition]#dummy[#label]%
 %   {\doifcheckedpagestate{#label}%
-%      {\doifelse{#condition}\v!precedingpage{#action{#text}[#label]}\ignorespaces}%
-%      {\doifelse{#condition}\v!hencefore    {#action{#text}[#label]}\ignorespaces}%
-%      {\doifelse{#condition}\v!current      {#action{#text}[#label]}\ignorespaces}%
-%      {\doifelse{#condition}\v!hereafter    {#action{#text}[#label]}\ignorespaces}%
-%      {\doifelse{#condition}\v!followingpage{#action{#text}[#label]}\ignorespaces}%
+%      {\ifempty{#condition}\v!precedingpage#action{#text}[#label]\fi\ignorespaces}%
+%      {\ifempty{#condition}\v!hencefore    #action{#text}[#label]\fi\ignorespaces}%
+%      {\ifempty{#condition}\v!current      #action{#text}[#label]\fi\ignorespaces}%
+%      {\ifempty{#condition}\v!hereafter    #action{#text}[#label]\fi\ignorespaces}%
+%      {\ifempty{#condition}\v!followingpage#action{#text}[#label]\fi\ignorespaces}%
 %      {#label}}
 %
 % \protected\def\conditionalat   {\strc_references_conditional\at}
@@ -1209,9 +1250,9 @@
 \newtoks\defaultleftreferencetoks
 \newtoks\defaultrightreferencetoks
 
-\permanent\let\rightofreferencecontent\empty
-\permanent\let\leftofreference        \empty
-\permanent\let\rightofreference       \empty
+\permanent\lettonothing\rightofreferencecontent
+\permanent\lettonothing\leftofreference
+\permanent\lettonothing\rightofreference
 
 \permanent\protected\def\leftofreferencecontent
   {\removeunwantedspaces
@@ -1221,29 +1262,35 @@
 \installcorenamespace{referencinginteraction}
 
 \def\strc_references_interaction_all
-  {\the\leftreferencetoks
-   \doifelsesometoks\leftreferencetoks \leftofreferencecontent \donothing
-   \leftofreference
-   \doifelsesometoks\leftreferencetoks\onlynonbreakablespace\relax % new, replace space by nonbreakable if present
+  {\ifempty\leftreferencetoks
+     \leftofreference
+   \else
+     \expand\leftreferencetoks
+     \leftofreferencecontent
+     \leftofreference
+     \onlynonbreakablespace\relax % new, replace space by nonbreakable if present
+   \fi
    \currentreferencecontent
    \rightofreference
-   \doifelsesometoks\rightreferencetoks\rightofreferencecontent\donothing
-   \the\rightreferencetoks}
+   \ifempty\rightreferencetoks\else
+     \rightofreferencecontent
+     \expand\rightreferencetoks
+   \fi}
 
-\letvalue{\??referencinginteraction\v!all}\strc_references_interaction_all
+\letcsname\??referencinginteraction\v!all\endcsname\strc_references_interaction_all
 
-\setvalue{\??referencinginteraction\v!label}%
+\defcsname\??referencinginteraction\v!label\endcsname
   {\leftofreference
-   \the\leftreferencetoks
-   \the\rightreferencetoks
+   \expand\leftreferencetoks
+   \expand\rightreferencetoks
    \rightofreference}
 
-\setvalue{\??referencinginteraction\v!text}%
+\defcsname\??referencinginteraction\v!text\endcsname
   {\leftofreference
    \currentreferencecontent
    \rightofreference}
 
-\setvalue{\??referencinginteraction\v!symbol}%
+\defcsname\??referencinginteraction\v!symbol\endcsname
   {\referencesymbol}
 
 \permanent\def\referencesequence
@@ -1265,25 +1312,25 @@
    \begingroup}
 
 \def\strc_references_stop_goto
-  {\the\everyresetinatreference
+  {\expand\everyresetinatreference
    \endgroup}
 
 % NEEDS TESTING:
 
-\tolerant\def\strc_references_pickup_goto#=#=#:#*[#3]%
+\tolerant\def\strc_references_pickup_goto#=#*#=#:#*[#3]% #* added so that we can do \in {} {} []
   {\leftreferencetoks
      \ifparameter#1\or
        {#1}%
      \else
        \defaultleftreferencetoks
-       \enforced\let\leftofreferencecontent\empty
+       \enforced\lettonothing\leftofreferencecontent
      \fi
    \rightreferencetoks
      \ifparameter#2\or
        {#2}%
      \else
        \defaultrightreferencetoks
-       \enforced\let\rightofreferencecontent\empty
+       \enforced\lettonothing\rightofreferencecontent
      \fi
    % inefficient: double resolve
    \doifelsereferencefound{#3} % we need to resolve the text
@@ -1349,7 +1396,7 @@
 \installcommandhandler \??referenceformat {referenceformat} \??referenceformat
 
 \appendtoks
-    \setuevalue\currentreferenceformat{\strc_references_apply_format{\currentreferenceformat}}%
+    \protected\frozen\instance\edefcsname\currentreferenceformat\endcsname{\strc_references_apply_format{\currentreferenceformat}}%
 \to \everydefinereferenceformat
 
 \setupreferenceformat
@@ -1363,52 +1410,131 @@
    \c!setups=,
    \c!color=]
 
-\protected\def\strc_references_apply_format#name%
-  {\strc_references_start_goto
-   \edef\currentreferenceformat{#name}%
-   \enforced\gdef\leftofreference      {\referenceformatparameter\c!left    }%
-   \enforced\gdef\rightofreference     {\referenceformatparameter\c!right   }%
-   \edef\currentreferenceformatlabel   {\referenceformatparameter\c!label   }%
-   \edef\currentreferenceformattype    {\referenceformatparameter\c!type    }%
-   \edef\currentreferenceformatsetups  {\referenceformatparameter\c!setups  }%
-   \edef\currentreferenceformatautocase{\referenceformatparameter\c!autocase}%
-   \usereferenceformatstyleandcolor\c!style\c!color
-   \ifempty\currentstyleparameter \else
-     \resetinteractionparameter\c!style
-   \fi
-   \ifempty\currentcolorparameter \else
-     \resetinteractionparameter\c!contrastcolor
-     \resetinteractionparameter\c!color
-   \fi
-   \ifx\currentreferenceformatlabel\wildcardsymbol
-      \edef\currentreferenceformatlabel{\autoreferencelabeltext}%
-   \fi
-   \ifx\currentreferenceformatautocase\v!yes
-     \setcharactercleaning[1]%
-   \fi
-   \ifempty\currentreferenceformatlabel
-     \defaultleftreferencetoks {\referenceformatparameter\c!text}%
-     \defaultrightreferencetoks\emptytoks
-   \else
-     \defaultleftreferencetoks {\leftlabeltext \currentreferenceformatlabel}%
-     \defaultrightreferencetoks{\rightlabeltext\currentreferenceformatlabel}%
-   \fi
-   \ifempty\currentreferenceformattype
-     \def\currentreferenceformattype{default}%
-   \fi
-   %
-   \ifempty\currentreferenceformatsetups
-     \def\currentreferencecontent{\filterreference\currentreferenceformattype}%
-   \else
-     \def\currentreferencecontent{\directsetup\currentreferenceformatsetups}%
-   \fi
-   %
-   \enforced\let\leftofreferencecontent \empty
-   \enforced\let\rightofreferencecontent\empty
-   \strc_references_pickup_goto}
+% see labels-003.tex in test suite
+%
+% label=*             same section as currenty
+% label=reference:*   use detail/name/kind metatable field with fallback
+%
+% \setuplabeltext
+%   [en]
+%   [theorem=Theorem~,
+%    lemma=Lemma~]
+%
+% \setuplabeltext
+%   [en]
+%   [reference:section=RefSection~,
+%    reference:formula=RefFormula~,
+%   %reference:lemma=RefLemma~,
+%    reference:theorem=RefTheorem~,
+%   ]
 
-\permanent\protected\def\autoreferencelabeltext
-  {\clf_getcurrentreferencemetadata{name}}
+% Time consuming heuristics ...  so we comment the cases that don't occur.
+
+\def\strc_references_check_wildcard
+  {% detail
+          \iftext          {\labeltext{\v!reference:\autoreferencedetailtext}}%
+     \cdef\currentreferenceformatlabel{\v!reference:\autoreferencedetailtext}%
+ % \orelse\iftext          {\labeltext{\??hiddenlabel\v!reference:\autoreferencedetailtext}}%
+ %   \cdef\currentreferenceformatlabel{\??hiddenlabel\v!reference:\autoreferencedetailtext}%
+   \orelse\iftext          {\labeltext{\autoreferencedetailtext}}%
+     \cdef\currentreferenceformatlabel{\autoreferencedetailtext}%
+ % \orelse\iftext          {\labeltext{\??hiddenlabel\autoreferencedetailtext}}%
+ %   \cdef\currentreferenceformatlabel{\??hiddenlabel\autoreferencedetailtext}%
+   % name
+   \orelse\iftext          {\labeltext{\v!reference:\autoreferencenametext}}%
+     \cdef\currentreferenceformatlabel{\v!reference:\autoreferencenametext}%
+ % \orelse\iftext          {\labeltext{\??hiddenlabel\v!reference:\autoreferencenametext}}%
+ %   \cdef\currentreferenceformatlabel{\??hiddenlabel\v!reference:\autoreferencenametext}%
+   \orelse\iftext          {\labeltext{\autoreferencenametext}}%
+     \cdef\currentreferenceformatlabel{\autoreferencenametext}%
+   \orelse\iftext          {\labeltext{\??hiddenlabel\autoreferencenametext}}%
+     \cdef\currentreferenceformatlabel{\??hiddenlabel\autoreferencenametext}%
+   % kind
+   \orelse\iftext          {\labeltext{\v!reference:\autoreferencekindtext}}%
+     \cdef\currentreferenceformatlabel{\v!reference:\autoreferencekindtext}%
+ % \orelse\iftext          {\labeltext{\??hiddenlabel\v!reference:\autoreferencekindtext}}%
+ %   \cdef\currentreferenceformatlabel{\??hiddenlabel\v!reference:\autoreferencekindtext}%
+   \orelse\iftext          {\labeltext{\autoreferencekindtext}}%
+     \cdef\currentreferenceformatlabel{\autoreferencekindtext}%
+ % \orelse\iftext          {\labeltext{\??hiddenlabel\autoreferencekindtext}}%
+ %   \cdef\currentreferenceformatlabel{\??hiddenlabel\autoreferencekindtext}%
+   % whatever
+   \else
+     \cdef\currentreferenceformatlabel{\clf_replacewildcard\currentreferenceformatlabel\autoreferencenametext}%
+   \fi}
+
+\immutable\cdef\referencewildcard{\v!reference:\wildcardsymbol}
+
+\tolerant\protected\def\strc_references_apply_format#1#*#=#*#=#:#*[#4]% #* added so that we can do \in {} {} []
+  {\strc_references_start_goto
+  % we need to resolve the metadata etc
+  \edef\currentreferenceformat{#1}%
+  \doifelsereferencefound{#4}\donetrue\donefalse
+  \enforced\gdef\leftofreference      {\referenceformatparameter\c!left    }%
+  \enforced\gdef\rightofreference     {\referenceformatparameter\c!right   }%
+  \edef\currentreferenceformatlabel   {\referenceformatparameter\c!label   }%
+  \edef\currentreferenceformattype    {\referenceformatparameter\c!type    }%
+  \edef\currentreferenceformatsetups  {\referenceformatparameter\c!setups  }%
+  \edef\currentreferenceformatautocase{\referenceformatparameter\c!autocase}%
+  \usereferenceformatstyleandcolor\c!style\c!color
+  \ifempty\currentstyleparameter \else
+    \resetinteractionstyle
+  \fi
+  \ifempty\currentcolorparameter \else
+    \resetinteractioncolor
+  \fi
+  \ifx\currentreferenceformatlabel\wildcardsymbol
+    \let\currentreferenceformatlabel\autoreferencelabeltext
+  \orelse\ifx\currentreferenceformatlabel\referencewildcard
+    \strc_references_check_wildcard
+  \fi
+  \ifempty\currentreferenceformatlabel
+    \defaultleftreferencetoks {\referenceformatparameter\c!text}%
+    \defaultrightreferencetoks\emptytoks
+  \else
+    \defaultleftreferencetoks {\leftlabeltext \currentreferenceformatlabel}%
+    \defaultrightreferencetoks{\rightlabeltext\currentreferenceformatlabel}%
+  \fi
+  \ifempty\currentreferenceformattype
+    \def\currentreferenceformattype{default}%
+  \fi
+  %
+  \ifempty\currentreferenceformatsetups
+    \def\currentreferencecontent{\filterreference\currentreferenceformattype}%
+  \else
+    \def\currentreferencecontent{\directsetup\currentreferenceformatsetups}%
+  \fi
+  %
+  \enforced\lettonothing\leftofreferencecontent
+  \enforced\lettonothing\rightofreferencecontent
+  %
+  \ifx\currentreferenceformatautocase\v!yes
+    \setcharactercleaning[1]%
+  \fi
+  \ifdone\else
+    \let\currentreferencecontent\strc_references_dummy
+  \fi
+  \leftreferencetoks
+    \ifparameter#2\or
+      {#2}%
+    \else
+      \defaultleftreferencetoks
+      \enforced\lettonothing\leftofreferencecontent
+    \fi
+  \rightreferencetoks
+    \ifparameter#3\or
+      {#3}%
+    \else
+      \defaultrightreferencetoks
+      \enforced\lettonothing\rightofreferencecontent
+    \fi
+   \goto{\referencesequence}[#4]% redundant lookup
+   \strc_references_stop_goto}
+
+\permanent\def\autoreferencelabeltext {\clf_getcurrentreferencelabel}
+\permanent\def\autoreferencenametext  {\clf_getcurrentreferencemetadata{name}}
+\permanent\def\autoreferencekindtext  {\clf_getcurrentreferencemetadata{kind}}
+\permanent\def\autoreferencedetailtext{\clf_getcurrentreferencemetadata{detail}}
 
 % \starttext
 %     \definereferenceformat[inxx]  [left=(,right=),text=txt]
@@ -1447,11 +1573,11 @@
 %     [\goto{state} [file(mk-last-state)]]
 % \stoptext
 
-\newconditional\uselocationstrut \settrue\uselocationstrut
+\newconditional\uselocationstrut \uselocationstrut\conditionaltrue
 
 \permanent\def\extrareferencearguments
-  {highlight \luaconditional\highlighthyperlinks\space
-   newwindow \luaconditional\gotonewwindow\space
+  {highlight \luaconditional\highlighthyperlinks\relaxedspace
+   newwindow \luaconditional\gotonewwindow\relaxedspace
    layer     {\currentviewerlayer}}
 
 \permanent\protected\def\directgoto
@@ -1468,10 +1594,18 @@
      \expandafter\strc_references_goto_htdp
    \fi}
 
+\permanent\tolerant\protected\def\namedgoto[#1]#:#*#=#*[#3]%
+  {\dontleavehmode\begingroup
+   \setinteraction[#1]%
+   \goto{#2}[#3]%
+   \endgroup}
+
 % The unbox trick is needed in order to permit \par inside a reference. Otherwise
 % the reference attribute migrates to the outer boxes.
 
-\newcount\lastsavedreferenceattribute
+\newinteger\lastsavedreferenceattribute \lastsavedreferenceattribute\attributeunsetvalue
+\newinteger\currentreferenceattribute   \currentreferenceattribute  \attributeunsetvalue
+\newinteger\currentdestinationattribute \currentdestinationattribute\attributeunsetvalue
 
 \newbox\referencebox
 
@@ -1488,8 +1622,8 @@
         {\referenceprefix}%
         {#label}%
         {%
-            height \ht\strutbox
-            depth  \dp\strutbox
+            height \strutht
+            depth  \strutdp
             \extrareferencearguments
         }%
      \relax
@@ -1497,9 +1631,9 @@
      \setstrut % can be option
      \global\lastsavedreferenceattribute\lastreferenceattribute
      \c_attr_reference\lastreferenceattribute
-     \dostarttagged\t!link\empty % not here
+     \ifexporting\dostarttaggednodetail\t!link\fi
      #content%
-     \dostoptagged
+     \ifexporting\dostoptagged\fi
    \else
      #content%
    \fi
@@ -1515,17 +1649,17 @@
         {\referenceprefix}%
         {#label}%
         {%
-            height \dimexpr\interactionparameter\c!height\relax
-            depth  \dimexpr\interactionparameter\c!depth \relax
+            height {\interactionparameter\c!height}%
+            depth  {\interactionparameter\c!depth}%
             \extrareferencearguments
         }%
      \relax
      \setlocationattributes
      \c_attr_reference\lastreferenceattribute
      \global\lastsavedreferenceattribute\lastreferenceattribute
-     \dostarttagged\t!link\empty
+     \ifexporting\dostarttaggednodetail\t!link\fi
      #content%
-     \dostoptagged
+     \ifexporting\dostoptagged\fi
    \else
      #content%
    \fi
@@ -1539,18 +1673,17 @@
    \c_attr_reference\attributeunsetvalue
    \iflocation
      \clf_doifelsereference{\referenceprefix}{#label}{\extrareferencearguments}%
-       {\expandtexincurrentreference
-        \clf_injectcurrentreferencehtdp
-          \ht\strutbox
-          \dp\strutbox
+       {\clf_injectcurrentreferencehtdp
+          \strutht
+          \strutdp
         \relax
         \setlocationattributes
         \setstrut % can be option
         \global\lastsavedreferenceattribute\lastreferenceattribute
         \c_attr_reference\lastreferenceattribute
-        \dostarttagged\t!link\empty
+        \ifexporting\dostarttaggednodetail\t!link\fi
         #content%
-        \dostoptagged}%
+        \ifexporting\dostoptagged\fi}%
        {#content}%
    \else
      #content%
@@ -1569,9 +1702,9 @@
      \global\lastsavedreferenceattribute\currentreferenceattribute
      \c_attr_reference\currentreferenceattribute
      \setlocationattributes
-     \dostarttagged\t!link\empty
+     \ifexporting\dostarttaggednodetail\t!link\fi
      #content%
-     \dostoptagged
+     \ifexporting\dostoptagged\fi
    \else
      #content%
    \fi
@@ -1588,7 +1721,7 @@
      \expandafter\strc_references_start_goto_nop
    \fi}
 
-\aliased\let\stopgoto\relax
+\permanent\protected\lettonothing\stopgoto
 
 \permanent\protected\def\strc_references_start_goto_nop
   {\enforced\let\stopgoto\strc_references_stop_goto_nop}
@@ -1597,20 +1730,19 @@
   {\endgroup}
 
 \protected\def\strc_references_start_goto_yes
-  {\expandtexincurrentreference
-   \clf_injectcurrentreferencehtdp
-     \ht\strutbox
-     \dp\strutbox
+  {\clf_injectcurrentreferencehtdp
+     \strutht
+     \strutdp
    \relax
    \setlocationattributes
    \setstrut % can be option
    \global\lastsavedreferenceattribute\lastreferenceattribute
    \c_attr_reference\lastreferenceattribute
-   \dostarttagged\t!link\empty
+   \ifexporting\dostarttaggednodetail\t!link\fi
    \let\stopgoto\strc_references_stop_goto_yes}
 
 \protected\def\strc_references_stop_goto_yes
-  {\dostoptagged
+  {\ifexporting\dostoptagged\fi
    \endgroup}
 
 \def\strc_references_goto_htdp#content#dummy[#label]% dummy gobbles spaces
@@ -1620,17 +1752,16 @@
    \c_attr_reference\attributeunsetvalue
    \iflocation
      \clf_doifelsereference{\referenceprefix}{#label}{\extrareferencearguments}%
-       {\expandtexincurrentreference
-        \clf_injectcurrentreferencehtdp
-          \dimexpr\interactionparameter\c!height\relax
-          \dimexpr\interactionparameter\c!depth \relax
+       {\clf_injectcurrentreferencehtdp
+          {\interactionparameter\c!height}%
+          {\interactionparameter\c!depth}%
         \relax
         \setlocationattributes
         \global\lastsavedreferenceattribute\lastreferenceattribute
         \c_attr_reference\lastreferenceattribute
-        \dostarttagged\t!link\empty
+        \ifexporting\dostarttaggednodetail\t!link\fi
         #content%
-        \dostoptagged}%
+        \ifexporting\dostoptagged\fi}%
        {#content}%
    \else
      #content%
@@ -1650,9 +1781,9 @@
      \relax
      \setlocationattributes
      \global\lastsavedreferenceattribute\lastreferenceattribute
-     \dostarttagged\t!link\empty
+     \ifexporting\dostarttaggednodetail\t!link\fi
      \hbox attr \referenceattribute \lastreferenceattribute {#content}%
-     \dostoptagged
+     \ifexporting\dostoptagged\fi
    \else
      #content%
    \fi
@@ -1671,9 +1802,9 @@
      \relax
      \setlocationcolorspec{#resolver}% no consequence for strut
      \global\lastsavedreferenceattribute\lastreferenceattribute
-     \dostarttagged\t!link\empty
+     \ifexporting\dostarttaggednodetail\t!link\fi
      \hbox attr \referenceattribute \lastreferenceattribute {#content}%
-     \dostoptagged
+     \ifexporting\dostoptagged\fi
    \else
      #content%
    \fi
@@ -1691,9 +1822,9 @@
        {\extrareferencearguments}%
      \relax
      \global\lastsavedreferenceattribute\lastreferenceattribute
-     \dostarttagged\t!link\empty
+     \ifexporting\dostarttaggednodetail\t!link\fi
      \hbox attr \referenceattribute \lastreferenceattribute {#content}%
-     \dostoptagged
+     \ifexporting\dostoptagged\fi
    \else
      #content%
    \fi
@@ -1706,13 +1837,12 @@
    \c_attr_reference\attributeunsetvalue
    \iflocation
      \clf_doifelsereference{\referenceprefix}{#label}{\extrareferencearguments}%
-       {\expandtexincurrentreference
-        \clf_injectcurrentreference
+       {\clf_injectcurrentreference
         \setlocationattributes
         \global\lastsavedreferenceattribute\lastreferenceattribute
-        \dostarttagged\t!link\empty
+        \ifexporting\dostarttaggednodetail\t!link\fi
         \hbox attr \referenceattribute \lastreferenceattribute {#content}%
-        \dostoptagged}%
+        \ifexporting\dostoptagged\fi}%
        {#content}%
    \else
      #content%
@@ -2013,51 +2143,60 @@
    \c!style=\v!type,
    \c!color=]
 
-\definereference [\v!CloseDocument    ] [action(close)]
-\definereference [\v!ExitViewer       ] [action(exit)]
+% officially in the standard
+
 \definereference [\v!FirstPage        ] [action(first)]
-\definereference [\v!LastPage         ] [action(last)]
-\definereference [\v!NextJump         ] [action(forward)]
 \definereference [\v!NextPage         ] [action(next)]
-\definereference [\v!PauseMovie       ] [action(pausemovie)]
-\definereference [\v!PauseSound       ] [action(pausesound)]
-\definereference [\v!PauseRendering   ] [action(pauserendering)]
-\definereference [\v!PreviousJump     ] [action(backward)]
 \definereference [\v!PreviousPage     ] [action(previous)]
-\definereference [\v!PrintDocument    ] [action(print)]
-\definereference [\v!SaveForm         ] [action(exportform)]
-\definereference [\v!LoadForm         ] [action(importform)]
+\definereference [\v!LastPage         ] [action(last)]
+
+% will never make it into the standard
+
+\definereference [\v!PreviousJump     ] [action(backward)]
+\definereference [\v!NextJump         ] [action(forward)]
+
+% we can forget about it
+
 \definereference [\v!ResetForm        ] [action(resetform)]
-\definereference [\v!ResumeMovie      ] [action(resumemovie)]
-\definereference [\v!ResumeSound      ] [action(resumesound)]
-\definereference [\v!ResumeRendering  ] [action(resumerendering)]
+\definereference [\v!SubmitForm       ] [action(submitform)]
+
+% we can forget about these, now in lpdf-imp-acrobat
+
+\definereference [\v!LoadForm         ] [action(importform)]
+\definereference [\v!SaveForm         ] [action(exportform)]
+\definereference [\v!PrintDocument    ] [action(print)]
+\definereference [\v!ExitViewer       ] [action(exit)]
+\definereference [\v!CloseDocument    ] [action(close)]
 \definereference [\v!SaveDocument     ] [action(save)]
 \definereference [\v!SaveNamedDocument] [action(savenamed)]
 \definereference [\v!OpenNamedDocument] [action(opennamed)]
-\definereference [\v!SearchDocument   ] [action(search)]
-\definereference [\v!SearchAgain      ] [action(searchagain)]
-\definereference [\v!StartMovie       ] [action(startmovie)]
-\definereference [\v!StartSound       ] [action(startsound)]
-\definereference [\v!StartRendering   ] [action(startrendering)]
-\definereference [\v!StopMovie        ] [action(stopmovie)]
-\definereference [\v!StopSound        ] [action(stopsound)]
-\definereference [\v!StopRendering    ] [action(stoprendering)]
-\definereference [\v!SubmitForm       ] [action(submitform)]
 \definereference [\v!ToggleViewer     ] [action(toggle)]
 \definereference [\v!ViewerHelp       ] [action(help)]
-\definereference [\v!HideField        ] [action(hide)]
-\definereference [\v!ShowField        ] [action(show)]
+\definereference [\v!SearchDocument   ] [action(search)]
+\definereference [\v!SearchAgain      ] [action(searchagain)]
 \definereference [\v!GotoPage         ] [action(gotopage)]
 \definereference [\v!Query            ] [action(query)]
 \definereference [\v!QueryAgain       ] [action(queryagain)]
 \definereference [\v!FitWidth         ] [action(fitwidth)]
 \definereference [\v!FitHeight        ] [action(fitheight)]
-\definereference [\v!ShowThumbs       ] [action(thumbnails)]
-\definereference [\v!ShowBookmarks    ] [action(bookmarks)]
+
+% lpdf-wid
+
+\definereference [\v!ResumeRendering  ] [action(resumerendering)]
+\definereference [\v!StartRendering   ] [action(startrendering)]
+\definereference [\v!StopRendering    ] [action(stoprendering)]
+\definereference [\v!PauseRendering   ] [action(pauserendering)]
+
+\definereference [\v!HideField        ] [action(hide)]
+\definereference [\v!ShowField        ] [action(show)]
+
+% lpdf-ren
 
 \definereference [\v!HideLayer        ] [action(hidelayer)]
 \definereference [\v!VideLayer        ] [action(videlayer)]
 \definereference [\v!ToggleLayer      ] [action(togglelayer)]
+
+% generic
 
 \definereference [\v!firstpage]       [page(firstpage)]
 \definereference [\v!previouspage]    [page(previouspage)]
@@ -2128,7 +2267,7 @@
         segments      {\referencestructureprefixparameter{#kind}{#name}{#category}\c!numbersegments}%
   }}
 
-\permanent\tolerant\protected\def\setupreferencestructureprefix[#kind]#spacer[#category]#spacer[#settings]%
+\permanent\tolerant\protected\def\setupreferencestructureprefix[#kind]#spacer[#category]#spacer[#S#settings]%
   {\ifarguments\or\or
      \getparameters[\??referencingprefix:#kind][#category]%
    \else
@@ -2145,7 +2284,7 @@
    \fi}
 
 \permanent\def\currentreferencedefault % for some reason we need to explicitly expand
-  {\normalexpanded{\noexpand\clf_filterdefaultreference
+  {\expanded{\noexpand\clf_filterdefaultreference
      {\s!default}%
      \noexpand\getreferencestructureprefix\clf_getcurrentprefixspec{\s!default}% returns #kind#name#category
    \relax}}

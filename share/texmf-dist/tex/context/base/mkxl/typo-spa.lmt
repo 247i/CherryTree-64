@@ -15,12 +15,16 @@ local report_spacing = logs.reporter("typesetting","spacing")
 local nodes, fonts, node = nodes, fonts, node
 
 local fonthashes         = fonts.hashes
+local chardata           = fonthashes.characters
 local quaddata           = fonthashes.quads
 
 local texsetattribute    = tex.setattribute
-local unsetvalue         = attributes.unsetvalue
 
-local v_reset            = interfaces.variables.reset
+local unsetvalue         <const> = attributes.unsetvalue
+
+local xscaled            = font.xscaled
+
+local v_reset            <const> = interfaces.variables.reset
 
 local nuts               = nodes.nuts
 
@@ -28,23 +32,26 @@ local getnext            = nuts.getnext
 local getprev            = nuts.getprev
 local getattr            = nuts.getattr
 local isglyph            = nuts.isglyph
+local getlanguage        = nuts.getlanguage
+local setattrlist        = nuts.setattrlist
+local setoptions         = nuts.setoptions
 
-local insert_node_before = nuts.insert_before
-local insert_node_after  = nuts.insert_after
+local insertnodebefore   = nuts.insertbefore
+local insertnodeafter    = nuts.insertafter
 local remove_node        = nuts.remove
-local end_of_math        = nuts.end_of_math
-local unset_attributes   = nuts.unset_attributes
-local find_attribute     = nuts.find_attribute
+local endofmath          = nuts.endofmath
+local unsetattributes    = nuts.unsetattributes
+local findattribute      = nuts.findattribute
 
 local nodepool           = nuts.pool
 local new_penalty        = nodepool.penalty
 local new_glue           = nodepool.glue
 
-local nodecodes          = nodes.nodecodes
-local math_code          = nodecodes.math
+local math_code          <const> = nodes.nodecodes.math
+local noautobreak_code   <const> = tex.glueoptioncodes.noautobreak
 
-local somespace          = nodes.somespace
-local somepenalty        = nodes.somepenalty
+local somespace          = nuts.somespace
+local somepenalty        = nuts.somepenalty
 
 local enableaction       = nodes.tasks.enableaction
 
@@ -57,7 +64,7 @@ local spacings           = typesetters.spacings
 spacings.mapping         = spacings.mapping or { }
 spacings.numbers         = spacings.numbers or { }
 
-local a_spacings         = attributes.private("spacing")
+local a_spacings         <const> = attributes.private("spacing")
 
 storage.register("typesetters/spacings/mapping", spacings.mapping, "typesetters.spacings.mapping")
 
@@ -71,10 +78,12 @@ end
 
 -- todo cache lastattr
 
+-- traverseattr
+-- traverseattrmethod
+
 function spacings.handler(head)
-    local _, start = find_attribute(head, a_spacings)
+    local _, start = findattribute(head, a_spacings)
     if start then
-        local done = false
         -- head is always begin of par (whatsit), so we have at least two prev nodes
         -- penalty followed by glue
         while start do
@@ -86,93 +95,99 @@ function spacings.handler(head)
                     if data then
                         local map = data.characters[char]
                         if map then
-                            local font = id
-                            local left = map.left
-                            local right = map.right
-                            local alternative = map.alternative
-                            local quad = quaddata[font]
-                            local prev = getprev(start)
-                            if left and left ~= 0 and prev then
-                                local ok = false
-                                local prevprev = getprev(prev)
-                                if alternative == 1 then
-                                    local somespace = somespace(prev,true)
-                                    if somespace then
-                                        local somepenalty = somepenalty(prevprev,10000)
-                                        if somepenalty then
-                                            if trace_spacing then
-                                                report_spacing("removing penalty and space before %C (left)",char)
-                                            end
-                                            head = remove_node(head,prev,true)
-                                            head = remove_node(head,prevprev,true)
-                                        else
-                                            if trace_spacing then
-                                                report_spacing("removing space before %C (left)",char)
-                                            end
-                                            head = remove_node(head,prev,true)
-                                        end
-                                    end
-                                    ok = true
-                                else
-                                    ok = not (somespace(prev,true) and somepenalty(prevprev,true)) or somespace(prev,true)
+                            local language = data.language or 0
+--                             if language == 0 or languages.registered[language].number == getlanguage(start) then
+                            if language == 0 or languages.numbers[language] == getlanguage(start) then
+                                local font = id
+                                local left = map.left
+                                local right = map.right
+                                local alternative = map.alternative
+                                local quad = xscaled(quaddata[font])
+                                local prev = getprev(start)
+                                if not chardata[font][char] then
+                                    report_spacing("missing character %C in font %i",char,font)
                                 end
-                                if ok then
-                                    if trace_spacing then
-                                        report_spacing("inserting penalty and space before %C (left)",char)
-                                    end
-                                    insert_node_before(head,start,new_penalty(10000))
-                                    insert_node_before(head,start,new_glue(left*quad))
-                                end
-                            end
-                            local next = getnext(start)
-                            if right and right ~= 0 and next then
-                                local ok = false
-                                local nextnext = getnext(next)
-                                if alternative == 1 then
-                                    local somepenalty = somepenalty(next,10000)
-                                    if somepenalty then
-                                        local somespace = somespace(nextnext,true)
-                                        if somespace then
-                                            if trace_spacing then
-                                                report_spacing("removing penalty and space after %C right",char)
+                                if left and left ~= 0 and prev then
+                                    local ok = false
+                                    local prevprev = getprev(prev)
+                                    if alternative == 1 then
+                                        if somespace(prev,true) then
+                                            if somepenalty(prevprev,10000) then
+                                                if trace_spacing then
+                                                    report_spacing("removing penalty and space before %C (left)",char)
+                                                end
+                                                head = remove_node(head,prev,true)
+                                                head = remove_node(head,prevprev,true)
+                                            else
+                                                if trace_spacing then
+                                                    report_spacing("removing space before %C (left)",char)
+                                                end
+                                                head = remove_node(head,prev,true)
                                             end
-                                            head = remove_node(head,next,true)
-                                            head = remove_node(head,nextnext,true)
                                         end
+                                        ok = true
                                     else
-                                        local somespace = somespace(next,true)
-                                        if somespace then
+                                        ok = not (somespace(prev,true) and somepenalty(prevprev,true)) or somespace(prev,true)
+                                    end
+                                    if ok then
+                                        if trace_spacing then
+                                            report_spacing("inserting penalty and space before %C (left)",char)
+                                        end
+                                        local g = new_glue(left*quad)
+--                                         local p = new_penalty(10000)
+                                        setattrlist(g,start)
+--                                         setattrlist(p,start)
+--                                         insertnodebefore(head,start,p)
+                                        insertnodebefore(head,start,g)
+                                        setoptions(g,noautobreak_code)
+                                    end
+                                end
+                                local next = getnext(start)
+                                if right and right ~= 0 and next then
+                                    local ok = false
+                                    local nextnext = getnext(next)
+                                    if alternative == 1 then
+                                        if somepenalty(next,10000) then
+                                            if somespace(nextnext,true) then
+                                                if trace_spacing then
+                                                    report_spacing("removing penalty and space after %C right",char)
+                                                end
+                                                head = remove_node(head,next,true)
+                                                head = remove_node(head,nextnext,true)
+                                            end
+                                        elseif somespace(next,true) then
                                             if trace_spacing then
                                                 report_spacing("removing space after %C (right)", char)
                                             end
                                             head = remove_node(head,next,true)
                                         end
+                                        ok = true
+                                    else
+                                        ok = not (somepenalty(next,10000) and somespace(nextnext,true)) or somespace(next,true)
                                     end
-                                    ok = true
-                                else
-                                    ok = not (somepenalty(next,10000) and somespace(nextnext,true)) or somespace(next,true)
-                                end
-                                if ok then
-                                    if trace_spacing then
-                                        report_spacing("inserting penalty and space after %C (right)",char)
+                                    if ok then
+                                        if trace_spacing then
+                                            report_spacing("inserting penalty and space after %C (right)",char)
+                                        end
+                                        local g = new_glue(right*quad)
+--                                         local p = new_penalty(10000)
+                                        setattrlist(g,start)
+--                                         setattrlist(p,start)
+                                        insertnodeafter(head,start,g)
+--                                         insertnodeafter(head,start,p)
+                                        setoptions(g,noautobreak_code)
                                     end
-                                    insert_node_after(head,start,new_glue(right*quad))
-                                    insert_node_after(head,start,new_penalty(10000))
                                 end
                             end
                         end
                     end
-                    done = true
                 end
             elseif id == math_code then
-                start = end_of_math(start) -- weird, can return nil .. no math end?
+                start = endofmath(start) -- weird, can return nil .. no math end?
             end
             if start then
                 start = getnext(start)
             end
-        end
-        if done then
-    --         unset_attributes(a_spacings,head)
         end
     end
     return head
@@ -180,10 +195,10 @@ end
 
 local enabled = false
 
-function spacings.define(name)
+function spacings.define(name,parent)
     local data = numbers[name]
     if data then
-        -- error
+        -- error, already defined
     else
         local number = #mapping + 1
         local data = {
@@ -193,6 +208,10 @@ function spacings.define(name)
         }
         mapping[number] = data
         numbers[name]   = data
+        if parent and parent ~= "" then
+            -- could be dynamic i.e. metatable inheritance but maybe only as option
+            table.merge(data.characters,unpack(utilities.parsers.settings_to_array(parent)))
+        end
     end
 end
 
@@ -200,8 +219,12 @@ function spacings.setup(name,char,settings)
     local data = numbers[name]
     if not data then
         -- error
-    else
+    elseif char > 0 then
         data.characters[char] = settings
+    else
+        for k, v in next, settings do
+            data[k] = v
+        end
     end
 end
 
@@ -231,7 +254,7 @@ local implement = interfaces.implement
 implement {
     name      = "definecharacterspacing",
     actions   = spacings.define,
-    arguments = "string"
+    arguments = "2 strings"
 }
 
 implement {
@@ -244,6 +267,7 @@ implement {
             { "left",        "number" },
             { "right",       "number" },
             { "alternative", "integer" },
+            { "language",    "string" },
         }
     }
 }

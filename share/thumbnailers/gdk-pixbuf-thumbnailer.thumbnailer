@@ -1,4 +1,4 @@
 [Thumbnailer Entry]
-TryExec=/mingw64/bin/gdk-pixbuf-thumbnailer
-Exec=/mingw64/bin/gdk-pixbuf-thumbnailer -s %s %u %o
-MimeType=image/wmf;image/x-wmf;application/emf;application/x-emf;image/emf;image/x-emf;image/x-mgx-emf;image/png;image/bmp;image/x-bmp;image/x-MS-bmp;image/gif;image/x-icon;image/x-ico;image/x-win-bitmap;image/vnd.microsoft.icon;application/ico;image/ico;image/icon;text/ico;application/x-navi-animation;image/jpeg;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/tiff;image/x-xpixmap;image/x-xbitmap;image/x-tga;image/x-icns;image/x-quicktime;image/qtif;
+TryExec=/ucrt64/bin/gdk-pixbuf-thumbnailer
+Exec=/ucrt64/bin/gdk-pixbuf-thumbnailer -s %s %u %o
+MimeType=application/emf;application/ico;application/x-emf;application/x-navi-animation;image/bmp;image/emf;image/gif;image/ico;image/icon;image/jpeg;image/png;image/qtif;image/tiff;image/vnd.microsoft.icon;image/wmf;image/x-MS-bmp;image/x-bmp;image/x-emf;image/x-icns;image/x-ico;image/x-icon;image/x-mgx-emf;image/x-portable-anymap;image/x-portable-bitmap;image/x-portable-graymap;image/x-portable-pixmap;image/x-quicktime;image/x-tga;image/x-win-bitmap;image/x-wmf;image/x-xbitmap;image/x-xpixmap;text/ico;

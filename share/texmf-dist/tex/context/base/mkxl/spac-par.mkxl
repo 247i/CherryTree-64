@@ -19,68 +19,108 @@
 
 % TODO: \appendtoks \strut \wrapuppar{\strut}\to \everypar
 
-%D New experimental stuff:
-
 % this might move to syst-ini.mkxl
 
+\setnewconstant\frozenparagraphdefault\numexpr
+    \adjustfrozenparcode
+  + \brokenpenaltyfrozenparcode
+  + \clubpenaltyfrozenparcode
+  + \demeritsfrozenparcode
+  + \displaypenaltyfrozenparcode
+  + \emergencyfrozenparcode
+  + \fitnessclassesfrozenparcode
+  + \hangfrozenparcode
+  + \hsizefrozenparcode
+  + \hyphenationfrozenparcode
+  + \hyphenpenaltyfrozenparcode
+  + \indentfrozenparcode
+  + \lastlinefrozenparcode
+  + \linebreakchecksfrozenparcode
+  % \linefrozenparcode
+  + \linepenaltyfrozenparcode
+  + \loosenessfrozenparcode
+  % \mathpenaltyfrozenparcode
+  + \orphanpenaltyfrozenparcode
+  + \parfillfrozenparcode
+  + \parpassesfrozenparcode
+  + \protrudefrozenparcode
+  + \shapefrozenparcode
+  + \shapingpenaltyfrozenparcode
+  + \singlelinepenaltyfrozenparcode
+  + \skipfrozenparcode
+  + \stretchfrozenparcode
+  + \toddlerpenaltyfrozenparcode
+  + \tolerancefrozenparcode
+  + \twindemeritsfrozenparcode
+  + \widowpenaltyfrozenparcode
+  % \linesnappingfrozenparcode
+\relax
+
 \setnewconstant\paragraphupdatecodes\numexpr
-    \frozentolerancecode
-  + \frozenloosenesscode
-  + \frozenlinepenaltycode
-  + \frozenwidowpenaltycode
-  + \frozenclubpenaltycode
-  + \frozenbrokenpenaltycode
-  + \frozendemeritscode
+    \tolerancefrozenparcode
+  + \loosenessfrozenparcode
+  + \linepenaltyfrozenparcode
+  + \widowpenaltyfrozenparcode
+  + \clubpenaltyfrozenparcode
+  + \brokenpenaltyfrozenparcode
+  + \demeritsfrozenparcode
+  + \orphanpenaltyfrozenparcode
+  + \toddlerpenaltyfrozenparcode
+  + \shapingpenaltyfrozenparcode
+  + \singlelinepenaltyfrozenparcode
+  + \hyphenpenaltyfrozenparcode
+  + \linebreakchecksfrozenparcode
+  + \twindemeritsfrozenparcode
 \relax
 
 \setnewconstant\paragraphpenaltycodes\numexpr
-    \frozenlinepenaltycode
-  + \frozenwidowpenaltycode
-  + \frozenclubpenaltycode
-  + \frozenbrokenpenaltycode
+    \linepenaltyfrozenparcode
+  + \widowpenaltyfrozenparcode
+  + \clubpenaltyfrozenparcode
+  + \brokenpenaltyfrozenparcode
+  + \shapingpenaltyfrozenparcode
+  + \orphanpenaltyfrozenparcode
+  + \toddlerpenaltyfrozenparcode
+  + \singlelinepenaltyfrozenparcode
+  + \hyphenpenaltyfrozenparcode
+  + \linebreakchecksfrozenparcode
 \relax
 
 \setnewconstant\paragraphdemeritcodes\numexpr
-    \frozendemeritscode
+    \demeritsfrozenparcode
+  + \twindemeritsfrozenparcode
 \relax
 
 \setnewconstant\paragraphshapecodes\numexpr
-   \frozenhangcode
- + \frozenskipcode
- + \frozenparfillcode
- + \frozenshapecode
+    \hangfrozenparcode
+  + \skipfrozenparcode
+  + \parfillfrozenparcode
+  + \shapingpenaltyfrozenparcode
+  + \shapefrozenparcode
 \relax
 
 \setnewconstant\paragraphlinecodes\numexpr
-    \frozenlinecode
+    \linefrozenparcode
 \relax
 
 \setnewconstant\paragraphhyphenationcodes\numexpr
-    \frozenhyphenationcode
+    \hyphenationfrozenparcode
 \relax
 
-\setnewconstant\frozenparagraphdefault\numexpr
-   \frozenhsizecode          % \hsize
- + \frozenskipcode           % \leftskip \rightskip
- + \frozenhangcode           % \hangindent \hangafter
- + \frozenindentcode         % \parindent
- + \frozenparfillcode        % \parfillskip \parfillleftskip
- + \frozenadjustcode         % \adjustspacing
- + \frozenprotrudecode       % \protrudechars
- + \frozentolerancecode      % \tolerance \pretolerance
- + \frozenstretchcode        % \emergcystretch
- + \frozenloosenesscode      % \looseness
- + \frozenlastlinecode       % \lastlinefit
- + \frozenlinepenaltycode    % \linepenalty \interlinepenalty \interlinepenalties
- + \frozenclubpenaltycode    % \clubpenalty \clubpenalties
- + \frozenwidowpenaltycode   % \widowpenalty \widowpenalties
- + \frozendisplaypenaltycode % \displaypenalty \displaypenalties
- + \frozenbrokenpenaltycode  % \brokenpenalty
- + \frozendemeritscode       % \doublehyphendemerits \finalhyphendemerits \adjdemerits
- + \frozenshapecode          % \parshape
- % \frozenlinecode           % \baselineskip \lineskip \lineskiplimit
- + \frozenhyphenationcode    % \hyphenationmode
+\setnewconstant\paragraphpassescodes\numexpr
+    \parpassesfrozenparcode
 \relax
+
+\bitwiseflip\glyphoptions\checktoddlerglyphoptioncode
+\bitwiseflip\glyphoptions\checktwinglyphoptioncode
+
+% \linefrozenparcode % lineskip
+
+\appendtoks
+    \parpasses\zerocount
+  % \noexpansion
+  % \noprotrusion
+\to \everyforgetall
 
 \permanent\protected\def\freezeparagraphproperties {\snapshotpar\frozenparagraphdefault}
 \permanent\protected\def\defrostparagraphproperties{\snapshotpar\zerocount}
@@ -90,6 +130,7 @@
 \permanent\protected\def\updateparagraphdemerits  {\ifhmode\snapshotpar\paragraphdemeritcodes\fi}
 \permanent\protected\def\updateparagraphshapes    {\ifhmode\snapshotpar\paragraphshapecodes  \fi}
 \permanent\protected\def\updateparagraphlines     {\ifhmode\snapshotpar\paragraphlinecodes   \fi}
+\permanent\protected\def\updateparagraphpasses    {\ifhmode\snapshotpar\paragraphpassescodes \fi}
 
 % so far
 
@@ -104,9 +145,9 @@
 \installcorenamespace {parwrapafter}
 \installcorenamespace {parwrapcount}
 
-\let\spac_paragraph_wrap\relax
+\lettonothing\spac_paragraph_wrap
 
-\newcount\c_spac_paragraph_group_level
+\newinteger\c_spac_paragraph_group_level
 
 \protected\def\spac_paragraph_update
   {\c_spac_paragraph_group_level\currentgrouplevel\relax
@@ -125,7 +166,7 @@
    \expandafter\newtoks\csname\??eparwrap\the\currentgrouplevel\endcsname}
 
 \def\spac_paragraph_install_count#1%
-  {\expandafter\newcount\csname\??parwrapcount#1\endcsname}
+  {\expandafter\newinteger\csname\??parwrapcount#1\endcsname}
 
 \def\spac_paragraph_install_pair#1#2#3%
   {\expandafter\newtoks\csname\??parwrapbefore#3\endcsname
@@ -143,17 +184,17 @@
    \ifcsname\??parwrapbefore#3\endcsname \else
      \spac_paragraph_install_pair#1#2{#3}%
    \fi
-   #1\csname\??parwrapbefore#3\endcsname{\advance\csname\??parwrapcount#3\endcsname\plusone\relax
+   #1\csname\??parwrapbefore#3\endcsname{\global\advanceby\csname\??parwrapcount#3\endcsname\plusone\relax % global, see (!)
                                          \clf_setparwrapper{#3}#4}%
    #2\csname\??parwrapafter #3\endcsname{#5}%
    \clf_newparwrapper{#3}%
-   \enforced\let\spac_paragraph_wrap\spac_paragraph_update}
+   \let\spac_paragraph_wrap\spac_paragraph_update}
 
 \def\spac_register_par_wrapper_nop#1#2#3#4#5%
   {\ifcsname\??parwrapcount#3\endcsname \else
      \spac_paragraph_install_count{#3}%
    \fi
-   \csname\??parwrapcount#3\endcsname\plusone
+   \global\csname\??parwrapcount#3\endcsname\plusone % global, see (!)
    #4\wrapuppar{#5}}
 
 \protected\def\spac_register_par_wrapper
@@ -168,7 +209,7 @@
    \csname\??eparwrap\the\currentgrouplevel\endcsname\emptytoks}
 
 \permanent\protected\def\unregisterparwrapper#1%
-  {\csname\??parwrapcount#1\endcsname\zerocount
+  {\global\csname\??parwrapcount#1\endcsname\zerocount % global, see (!)
    \ifcsname\??parwrapbefore#1\endcsname
      \lastnamedcs\emptytoks
      \csname\??parwrapafter#1\endcsname\emptytoks
@@ -200,9 +241,19 @@
 %appendtoks\spac_paragraph_wrap   \to\everypar
 %appendtoks\spac_paragraph_freeze \to\everypar
 
+% (!) testcase for global setting of count
+%
+% \starttext
+%     \hsize3cm
+%     Aaa\wordright{Aaa}\par
+%     \sc{Bbb\wordright{Bbb}}\par
+%     {\sc Ccc\wordright{Ccc}}\par
+%     \sc{Ddd}\wordright{\sc{Ddd}}\par
+% \stoptext
+
 \setparagraphfreezing
 
-\appendtoks\enforced\let\spac_paragraph_wrap\relax\to\everyforgetall
+\appendtoks\lettonothing\spac_paragraph_wrap\to\everyforgetall
 
 %D In due time, the code below will be upgraded using the above mechanisms.
 
@@ -212,10 +263,10 @@
 %D indentation as set (by the output routine) inside the group are forgotten
 %D afterwards. (I must not forget its existence).
 
-\mutable\let\currentparagraphproperties\empty % visible for tracing
+\mutable\lettonothing\currentparagraphproperties % visible for tracing
 
 \permanent\def\carryoverpar#1% #1 can be \endgroup or \egroup or ... expandable !
-  {\normalexpanded
+  {\expanded
      {\noexpand#1%
       \hangindent\the\hangindent
       \hangafter \the\hangafter
@@ -240,8 +291,6 @@
 
 \installcorenamespace{paragraphintro}
 
-\let\spac_paragraphs_flush_intro\relax % hook into everypar
-
 \newtoks\t_spac_paragraphs_intro_first
 \newtoks\t_spac_paragraphs_intro_next
 \newtoks\t_spac_paragraphs_intro_each
@@ -250,8 +299,8 @@
 \newconditional\c_spac_paragraphs_intro_next
 \newconditional\c_spac_paragraphs_intro_each
 
-\let\spac_paragraphs_flush_intro\relax
-\let\spac_paragraphs_intro_step \relax
+\lettonothing\spac_paragraphs_flush_intro
+\lettonothing\spac_paragraphs_intro_step
 
 \permanent\protected\tolerant\def\setupparagraphintro[#1]#*[#2]%
   {\def\spac_paragraphs_intro_step##1%
@@ -261,26 +310,26 @@
 \letcsname\??paragraphintro\empty\endcsname\gobbleoneargument
 
 \defcsname\??paragraphintro\v!reset\endcsname#1%
-  {\global\setfalse\c_spac_paragraphs_intro_first
-   \global\setfalse\c_spac_paragraphs_intro_next
-   \global\setfalse\c_spac_paragraphs_intro_each
+  {\global\c_spac_paragraphs_intro_first\conditionalfalse
+   \global\c_spac_paragraphs_intro_next\conditionalfalse
+   \global\c_spac_paragraphs_intro_each\conditionalfalse
    \global\t_spac_paragraphs_intro_first\emptytoks
    \global\t_spac_paragraphs_intro_next \emptytoks
    \global\t_spac_paragraphs_intro_each \emptytoks
-   \glet\spac_paragraphs_flush_intro\relax}
+   \glettonothing\spac_paragraphs_flush_intro}
 
 \defcsname\??paragraphintro\v!first\endcsname#1%
-  {\global\settrue\c_spac_paragraphs_intro_first
+  {\global\c_spac_paragraphs_intro_first\conditionaltrue
    \gtoksapp\t_spac_paragraphs_intro_first{#1}%
    \glet\spac_paragraphs_flush_intro\spac_paragraphs_flush_intro_indeed}
 
 \defcsname\??paragraphintro\v!next\endcsname#1%
-  {\global\settrue\c_spac_paragraphs_intro_next
+  {\global\c_spac_paragraphs_intro_next\conditionaltrue
    \gtoksapp\t_spac_paragraphs_intro_next{#1}%
    \glet\spac_paragraphs_flush_intro\spac_paragraphs_flush_intro_indeed}
 
 \defcsname\??paragraphintro\v!each\endcsname#1%
-  {\global\settrue\c_spac_paragraphs_intro_each
+  {\global\c_spac_paragraphs_intro_each\conditionaltrue
    \gtoksapp\t_spac_paragraphs_intro_each{#1}%
    \glet\spac_paragraphs_flush_intro\spac_paragraphs_flush_intro_indeed}
 
@@ -325,11 +374,24 @@
    \gtoksapp\t_spac_paragraphs_intro_first{#1}%
    \glet\spac_paragraphs_flush_intro\spac_paragraphs_flush_intro_indeed}
 
+% see strc-reg.mkxl: when we have a nested note this can happen esp when we
+% bookmark tagged crap
+
+\appendtoks
+    \enforced\let\doflushatpar\gobbleoneargument
+\to \everypreroll
+
+%D We don't for instance to flush indices or trigger a side float:
+
+\prependtoks
+    \forgetall
+\to \everypreroll
+
 %D Here comes the flusher (we misuse the one level expansion of token registers to
 %D feed a nice stream into the paragraph.)
 
 \protected\def\spac_paragraphs_flush_intro_indeed % we make sure that the token lists expand directly
-  {\normalexpanded{%                              % after another so the first code is there twice
+  {\expanded{%                              % after another so the first code is there twice
      \ifconditional\c_spac_paragraphs_intro_each
        \ifconditional\c_spac_paragraphs_intro_next
          \glet\spac_paragraphs_flush_intro\spac_paragraphs_flush_intro_next
@@ -337,37 +399,37 @@
          \glet\spac_paragraphs_flush_intro\spac_paragraphs_flush_intro_each
        \fi
        \ifconditional\c_spac_paragraphs_intro_first
-         \global\setfalse\c_spac_paragraphs_intro_first
+         \global\c_spac_paragraphs_intro_first\conditionalfalse
          \global\t_spac_paragraphs_intro_first\emptytoks
-         \the\t_spac_paragraphs_intro_first
+         \expand\t_spac_paragraphs_intro_first
        \fi
-       \the\t_spac_paragraphs_intro_each
+       \expand\t_spac_paragraphs_intro_each
      \else
        \ifconditional\c_spac_paragraphs_intro_next
          \glet\spac_paragraphs_flush_intro\spac_paragraphs_flush_intro_next
        \fi
        \ifconditional\c_spac_paragraphs_intro_first
-         \global\setfalse\c_spac_paragraphs_intro_first
+         \global\c_spac_paragraphs_intro_first\conditionalfalse
          \global\t_spac_paragraphs_intro_first\emptytoks
-         \the\t_spac_paragraphs_intro_first
+         \expand\t_spac_paragraphs_intro_first
        \fi
      \fi}}
 
 \protected\def\spac_paragraphs_flush_intro_next
-  {\normalexpanded{%
-     \global\setfalse\c_spac_paragraphs_intro_next
+  {\expanded{%
+     \global\c_spac_paragraphs_intro_next\conditionalfalse
      \global\t_spac_paragraphs_intro_next\emptytoks
      \ifconditional\c_spac_paragraphs_intro_each
        \glet\spac_paragraphs_flush_intro\spac_paragraphs_flush_intro_each
-       \the\t_spac_paragraphs_intro_next
-       \the\t_spac_paragraphs_intro_each
+       \expand\t_spac_paragraphs_intro_next
+       \expand\t_spac_paragraphs_intro_each
      \else
-       \glet\spac_paragraphs_flush_intro\relax
-       \the\t_spac_paragraphs_intro_next
+       \glettonothing\spac_paragraphs_flush_intro
+       \expand\t_spac_paragraphs_intro_next
      \fi}}
 
 \protected\def\spac_paragraphs_flush_intro_each
-  {\the\t_spac_paragraphs_intro_each}
+  {\expand\t_spac_paragraphs_intro_each}
 
 %D \macros
 %D   {flushatnextpar}
@@ -375,22 +437,22 @@
 %D This macro collects data that will be flushed at the next paragraph. By using
 %D this macro you can avoid interfering nodes (writes, etc).
 
-\aliased\let\flushpostponednodedata\relax % hook into everypar
+\lettonothing\flushpostponednodedata % hook into everypar
 
-\newbox  \b_spac_postponed_data
-%newcount\c_spac_postponed_data
+\newbox    \b_spac_postponed_data
+%newinteger\c_spac_postponed_data
 
 % \installcorenamespace {postponednodesstack}
 %
 % \initializeboxstack\??postponednodesstack
 %
 % \protected\def\pushpostponednodedata
-%   {\global\advance\c_spac_postponed_data\plusone
+%   {\global\advanceby\c_spac_postponed_data\plusone
 %    \savebox\??postponednodesstack{\the\c_spac_postponed_data}{\box\b_spac_postponed_data}}
 %
 % \protected\def\poppostponednodedata
 %   {\global\setbox\b_spac_postponed_data\hbox{\foundbox\??postponednodesstack{\the\c_spac_postponed_data}}%
-%    \global\advance\c_spac_postponed_data\minusone
+%    \global\advanceby\c_spac_postponed_data\minusone
 %    \ifvoid\b_spac_postponed_data\else
 %      \enforced\glet\flushpostponednodedata\spac_postponed_data_flush
 %    \fi}
@@ -406,9 +468,9 @@
      \enforced\glet\flushpostponednodedata\spac_postponed_data_flush
    \fi}
 
-\permanent\protected\def\flushatnextpar
+\permanent\protected\def\flushatnextpar % maybe we need a blocker that keep the data for a next par
   {\begingroup
-   \the\everyflushatnextpar
+   \expand\everyflushatnextpar
    \enforced\glet\flushpostponednodedata\spac_postponed_data_flush
    \dowithnextboxcs\spac_postponed_data_finish\hpack}
 
@@ -435,7 +497,7 @@
      {\unhbox\b_spac_postponed_data
       \scratchdimen\wd\nextbox
       \unhbox\nextbox
-      \ifcase\scratchdimen\else\kern-\b_spac_postponed_data\fi}%
+      \ifcase\scratchdimen\else\kern-\scratchdimen\fi}%
    \endgroup}
 
 \def\spac_postponed_data_flush
@@ -443,7 +505,7 @@
      \ifvoid\b_spac_postponed_data\else
        \hpack{\smashedbox\b_spac_postponed_data}% \box\b_spac_postponed_data
      \fi
-     \enforced\glet\flushpostponednodedata\relax
+     \enforced\glettonothing\flushpostponednodedata
    }%\fi}
 
 \permanent\protected\def\doflushatpar % might be renamed
@@ -452,5 +514,56 @@
    \else
      \expandafter\firstofoneargument
    \fi}
+
+%D Experiment:
+%D
+%D \starttyping
+%D \startcombination[4*1]
+%D     {\vtop{           \hsize #1 \setupalign[tolerant]                             \samplefile{ward}}} {tolerant}
+%D     {\vtop{\darkblue  \hsize #1 \setupalign[tolerant,stretch]                     \samplefile{ward}}} {tolerant,stretch}
+%D     {\vtop{\darkgreen \hsize #1 \setupalign[tolerant]        \optimize[flushleft] \samplefile{ward}}} {tolerant,fuzzy}
+%D     {\vtop{\darkred   \hsize #1 \setupalign[tolerant]        \optimize[normal]    \samplefile{ward}}} {tolerant,lessfuzzy}
+%D \stopcombination
+%D \stoptyping
+
+\installcorenamespace {optimize}
+
+\installcommandhandler \??optimize {optimize} \??optimize
+
+\setupoptimize
+  [\c!lines=\zerocount,
+   \c!left=\zeropoint,
+   \c!right=\zeropoint,
+   \c!distance=\zeropoint]
+
+\permanent\protected\def\optimize[#S#1]%
+  {\begingroup
+   \ifhastok={#1}%
+     \setupcurrentoptimize[#1]%
+   \else
+     \cdef\currentoptimize{#1}%
+   \fi
+   \scratchdimenone  {\optimizeparameter\c!left }%
+   \scratchdimentwo  {\optimizeparameter\c!right}%
+   \scratchcounterone{\optimizeparameter\c!lines}%
+   \scratchdistance  {\optimizeparameter\c!distance}%
+   \expanded
+     {\endgroup
+      \looseness\the\scratchcounterone\relax
+      \emergencyextrastretch\the\scratchdistance\relax
+      \ifzerodim\scratchdimenone\else
+        \emergencyleftskip \zeropoint \s!plus \the\scratchdimenone\relax
+      \fi
+      \ifzerodim\scratchdimentwo\else
+        \emergencyrightskip\zeropoint \s!plus \the\scratchdimentwo\relax
+      \fi}%
+   \ignorespaces}
+
+\defineoptimize[+\v!line][\c!lines=\plusone]
+\defineoptimize[-\v!line][\c!lines=\minusone]
+
+\defineoptimize[\v!flushleft ][\c!right=2\bodyfontsize]
+\defineoptimize[\v!flushright][\c!left=2\bodyfontsize]
+\defineoptimize[\v!normal    ][\c!right=2\bodyfontsize,\c!distance=\bodyfontsize]
 
 \protect \endinput

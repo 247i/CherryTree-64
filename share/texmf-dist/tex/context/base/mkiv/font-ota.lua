@@ -40,7 +40,7 @@ local getsubtype          = nuts.getsubtype
 local getchar             = nuts.getchar
 local ischar              = nuts.ischar
 
-local end_of_math         = nuts.end_of_math
+local endofmath           = nuts.endofmath
 
 local nodecodes           = nodes.nodecodes
 ----- glyph_code          = nodecodes.glyph
@@ -54,10 +54,8 @@ local chardata            = characters and characters.data
 local otffeatures         = fonts.constructors.features.otf
 local registerotffeature  = otffeatures.register
 
---[[ldx--
-<p>Analyzers run per script and/or language and are needed in order to
-process features right.</p>
---ldx]]--
+-- Analyzers run per script and/or language and are needed in order to process
+-- features right.
 
 local setstate = nuts.setstate
 local getstate = nuts.getstate
@@ -173,7 +171,7 @@ function analyzers.setstate(head,font)
             end
             first, last, n = nil, nil, 0
             if id == math_code then
-                current = end_of_math(current)
+                current = endofmath(current)
             end
         elseif id == disc_code then
             -- always in the middle .. it doesn't make much sense to assign a property
@@ -189,7 +187,7 @@ function analyzers.setstate(head,font)
             end
             first, last, n = nil, nil, 0
             if id == math_code then
-                current = end_of_math(current)
+                current = endofmath(current)
             end
         end
         current = getnext(current)
@@ -435,7 +433,7 @@ function methods.arab(head,font,attr)
                 first = nil
             end
             if id == math_code then -- a bit duplicate as we test for glyphs twice
-                current = end_of_math(current)
+                current = endofmath(current)
             end
         end
         current = getnext(current)
@@ -562,7 +560,7 @@ do
                     wrapup()
                 end
                 if id == math_code then -- a bit duplicate as we test for glyphs twice
-                    current = end_of_math(current)
+                    current = endofmath(current)
                 end
             end
             current = getnext(current)

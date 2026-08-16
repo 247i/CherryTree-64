@@ -6,17 +6,11 @@ if not modules then modules = { } end modules ['file-mod'] = {
     license   = "see context related readme files"
 }
 
--- This module will be redone! For instance, the prefixes will move to data-*
--- as they arr sort of generic along with home:// etc/.
-
--- context is not defined yet! todo! (we need to load tupp-fil after cld)
--- todo: move startreadingfile to lua and push regime there
-
---[[ldx--
-<p>It's more convenient to manipulate filenames (paths) in
-<l n='lua'/> than in <l n='tex'/>. These methods have counterparts
-at the <l n='tex'/> side.</p>
---ldx]]--
+-- This module will be redone! For instance, the prefixes will move to data-* as
+-- they are sort of generic along with home:// etc/.
+--
+-- It is more convenient to manipulate filenames (paths) in Lua than in TeX. The
+-- methods below have counterparts at the TeX end.
 
 local format, find, concat, tonumber = string.format, string.find, table.concat, tonumber
 local sortedhash = table.sortedhash
@@ -27,9 +21,9 @@ local permit_unprefixed = false  directives.register("modules.permitunprefixed",
 
 local report            = logs.reporter("modules")
 
-local commands          = commands
 local context           = context
 local implement         = interfaces.implement
+local ctx_doifelse      = commands.doifelse
 
 local findbyscheme      = resolvers.finders.byscheme -- use different one
 local iterator          = utilities.parsers.iterator
@@ -47,8 +41,7 @@ local prefixes = {
 
 -- the order might change and how about cld
 
-local suffixes = CONTEXTLMTXMODE > 0 and
-{
+local suffixes = {
     "mklx", -- preprocessed mkiv lmtx files
     "mkxl", -- mkiv lmtx files
     "mkvi", -- preprocessed mkiv files
@@ -57,45 +50,65 @@ local suffixes = CONTEXTLMTXMODE > 0 and
     "cld",  -- context lua documents (often stand alone)
     "lua",  -- lua files
 }
-    or
-{
-    "mkvi",
-    "mkiv",
-    "tex",
-    "cld",
-    "lua",
-}
 
 -- This controls embedded overloads. Maybe at some point we will limit this to files in the
 -- tree but on the other hand we don't need to be that strict. It is just an extra level
 -- of protection.
 
-local setrunstate = tex.setrunstate
-local level       = 0
+-- todo: tex.getrunstatevalues
+--
+-- enforced : when state != production
+--
+-- 0 : initializing
+-- 1 : updating
+-- 2 : production
 
-local function pushrunstate()
-    level = level + 1
-    if level == 1 then
-        setrunstate(1)
+local pushrunstate, poprunstate  do
+
+    local runstatecodes = tex.runstatecodes
+    local runstate      = tex.getrunstate()
+    local setrunstate   = tex.setrunstate
+
+    local initializing <const> = runstatecodes.initializing
+    local updating     <const> = runstatecodes.updating
+    ----- production   <const> = runstatecodes.production
+
+    if runstate == initializing then
+
+        pushrunstate = function() end
+        poprunstate  = function() end
+
+    else
+
+        local level = 0
+
+        pushrunstate = function()
+            level = level + 1
+            if level == 1 then
+                setrunstate(updating)
+            end
+        end
+
+        poprunstate = function()
+            if level == 1 then
+                setrunstate(runstate)
+            end
+            if level > 0 then
+                level = level - 1
+            end
+        end
+
     end
+
+    luatex.pushrunstate = pushrunstate
+    luatex.poprunstate  = poprunstate
+
+    tex.setrunstate     = function() end
+
+    implement { name = "pushrunstate", public = true, protected = true, actions = pushrunstate }
+    implement { name = "poprunstate",  public = true, protected = true, actions = poprunstate  }
+
 end
-
-local function poprunstate()
-    if level == 1 then
-        setrunstate(3)
-    end
-    if level > 0 then
-        level = level - 1
-    end
-end
-
-luatex.pushrunstate = pushrunstate
-luatex.poprunstate  = poprunstate
-
-tex.setrunstate     = function() end
-
-implement { name = "pushrunstate", public = true, protected = true, actions = pushrunstate }
-implement { name = "poprunstate",  public = true, protected = true, actions = poprunstate  }
 
 -- Till here.
 
@@ -133,12 +146,16 @@ local function usemodule(name,hasscheme)
         if trace_modules then
             report("loading file %a",foundname)
         end
+-- token.expandmacro("pushrunstate")
+-- token.expandmacro("startreadingfile")
         context.pushrunstate()
         context.startreadingfile()
         resolvers.jobs.usefile(foundname,true) -- once, notext
      -- context.input(foundname)
         context.stopreadingfile()
         context.poprunstate()
+-- token.expandmacro("stopreadingfile")
+-- token.expandmacro("poprunstate")
         return true
     else
         return false
@@ -177,7 +194,11 @@ function environment.usemodules(prefix,askedname,truename)
                 for i=1,#prefixes do
                     -- todo: reconstruct name i.e. basename
                     local thename = prefixes[i] .. "-" .. truename
-                    if usemodule(thename) then
+                    if thename == tex.jobname then
+                        -- in case we process a module
+                        status = 1
+                        break
+                    elseif usemodule(thename) then
                         status = 1
                         break
                     end
@@ -236,7 +257,7 @@ end)
 logs.registerfinalactions(function()
     logs.startfilelogging(report,"used modules")
     for k, v in sortedhash(modstatus) do
-        report(v == 0 and "missing: %s" or "loaded : %s",basename(k))
+        report(v == 0 and "  missing: %s" or "  loaded : %s",basename(k))
     end
     logs.stopfilelogging()
     if missing and logs.loggingerrors() then
@@ -291,7 +312,7 @@ implement {
 
 implement {
     name      = "doifelseolderversion",
-    actions   = function(one,two) commands.doifelse(comparedversion(one,two) >= 0) end,
+    actions   = function(one,two) ctx_doifelse(comparedversion(one,two) >= 0) end,
     arguments = "2 strings"
 }
 

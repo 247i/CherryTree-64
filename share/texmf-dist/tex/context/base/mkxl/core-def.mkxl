@@ -52,22 +52,10 @@
     \spac_paragraph_freeze
 \to \everypar
 
-\appendtoks
-    \flushnotes
-\to \everydisplay
-
-% \appendtoks
-%     \adjustsidefloatdisplaylines
-% \to \everydisplay
-
-% \appendtoks
-%     \flushpostponednodedata
-% \to \neverypar
-
 % \appendtoks
 %     \flushsyncpositions
 % \to \everyheadstart
-
+%
 % \appendtoks
 %     \flushsyncresets
 % \to \everyendoftextbody
@@ -112,6 +100,7 @@
     \syst_files_load
     % for the moment here (before doc env)
     \setupoutput[pdf]%
+%     \setupoutput[lua]%
     %
     \clf_setdocumentcommandline
     \clf_setdocumentctxfile
@@ -135,11 +124,11 @@
 \to \everybeforeoutput
 
 \appendtoks
-    \the\everybackendshipout
+    \expand\everybackendshipout
 \to \everyshipout
 
 \prependtoks
-    \the\everylastbackendshipout
+    \expand\everylastbackendshipout
 \to \everylastshipout
 
 \prependtoks

@@ -13,29 +13,51 @@
 
 \writestatus{loading}{ConTeXt Spacing Macros / Horizontal}
 
+% document: \enabledirectives[backends.spaces]
+
 \unprotect
 
 \registerctxluafile{spac-hor}{autosuffix}
 
-\aliased\let\parfillrightskip\parfillskip
+\ifdefined\parfillrightskip\else \aliased\let\parfillrightskip\parfillskip \fi
 
-\bitwiseflip \normalizelinemode \parindentskipcode
-\bitwiseflip \normalizelinemode \normalizelinecode
-\bitwiseflip \normalizelinemode \clipwidthcode
+\bitwiseflip \normalizelinemode \normalizelinenormalizecode
+\bitwiseflip \normalizelinemode \parindentskipnormalizecode
+\bitwiseflip \normalizelinemode \clipwidthnormalizecode
+\bitwiseflip \normalizelinemode \flattendiscretionariesnormalizecode
+\bitwiseflip \normalizelinemode \flattenhleadersnormalizecode
+\bitwiseflip \normalizelinemode \balanceinlinemathnormalizecode
+%bitwiseflip \normalizelinemode \discardzerotabskipsnormalizecode
 
-\let\v_spac_indentation_current\empty % amount/keyword
+\bitwiseflip \normalizeparmode \normalizeparnormalizeparcode
+\bitwiseflip \normalizeparmode \flattenvleadersnormalizeparcode
+\bitwiseflip \normalizeparmode \removetrailingspacesnormalizeparcode
 
-\newdimen \d_spac_indentation_par
-\parindent\d_spac_indentation_par % for the show
+\lettonothing\v_spac_indentation_current % amount/keyword
 
-\newconditional\c_spac_indentation_indent_first \settrue\c_spac_indentation_indent_first
+\newdimension\d_spac_indentation_par
+\parindent   \d_spac_indentation_par % for the show
+
+\newconditional\c_spac_indentation_indent_first \c_spac_indentation_indent_first\conditionaltrue
 \newconstant   \c_spac_indentation_toggle_state
 
 %D After a blank or comparable situation (left side floats) we
 %D need to check if the next paragraph has to be indented.
 
+% \permanent\protected\def\presetindentation
+%   {\doifoutervmode{\ifconditional\c_spac_indentation_indent_first\else\spac_indentation_variant_no\fi}}
+
 \permanent\protected\def\presetindentation
-  {\doifoutervmode{\ifconditional\c_spac_indentation_indent_first\else\spac_indentation_variant_no\fi}}
+  {\unless\ifvmode
+     % do nothing
+   \orelse\ifinner
+     % do nothing
+   \orelse\ifconditional\c_spac_indentation_indent_first
+     % do nothing
+   \else
+     \spac_indentation_variant_no
+   \fi}
+
 
 \permanent\protected\def\setupindenting
   {\doifelsenextoptionalcs\spac_indentation_setup_options\spac_indentation_setup_size}
@@ -48,7 +70,7 @@
 
 \aliased\let\synchronizeindenting\spac_indentation_setup_size
 
-\let\m_spac_indentation_options\empty
+\lettonothing\m_spac_indentation_options
 
 \def\spac_indentation_setup_options[#1]%
   {\edef\m_spac_indentation_options{#1}% comma separated list
@@ -57,7 +79,7 @@
    \fi}
 
 \def\spac_indentation_setup_indeed
-  {% not here: \settrue\c_spac_indentation_indent_first
+  {% not here: \c_spac_indentation_indent_first\conditionaltrue
    % not here: \parindent\d_spac_indentation_par
    % not here: \c_spac_indentation_toggle_state\zerocount
    \processcommacommand[\m_spac_indentation_options]\spac_indentation_apply_step_one % catch small, medium, etc
@@ -91,7 +113,7 @@
 \installcorenamespace {indentingpreset}
 
 \permanent\tolerant\protected\def\defineindenting[#1]#*[#2]% todo: mixes
-  {\ifarguments\else\setevalue{\??indentingpreset#1}{#2}\fi}
+  {\ifarguments\else\edefcsname\??indentingpreset#1\endcsname{#2}\fi}
 
 \def\spac_indentation_apply_step_one_nested
   {\expandafter\processcommacommand\expandafter[\lastnamedcs]\spac_indentation_apply_step_one}
@@ -132,8 +154,8 @@
 \installindentingmethod \v!no    {\parindent\zeropoint}
 \installindentingmethod \v!not   {\parindent\zeropoint}
 
-\installindentingmethod \v!first {\settrue\c_spac_indentation_indent_first}
-\installindentingmethod \v!next  {\setfalse\c_spac_indentation_indent_first}
+\installindentingmethod \v!first {\c_spac_indentation_indent_first\conditionaltrue}
+\installindentingmethod \v!next  {\c_spac_indentation_indent_first\conditionalfalse}
 
 \installindentingmethod \v!yes   {\parindent\d_spac_indentation_par\relax} % not \indent !
 \installindentingmethod \v!always{\parindent\d_spac_indentation_par\relax} % not \indent !
@@ -149,7 +171,7 @@
                                     \spac_indentation_setup_size
                                   \fi}
 
-\installindentingmethod \v!reset {\settrue\c_spac_indentation_indent_first
+\installindentingmethod \v!reset {\c_spac_indentation_indent_first\conditionaltrue
                                   \parindent\zeropoint
                                   \c_spac_indentation_toggle_state\zerocount}
 
@@ -168,7 +190,7 @@
 
 \aliased\let\checkindentation\relax
 
-\installmacrostack\checkindentation
+\installmacrostack\checkindentation % used in typo-del
 
 %D Actually we can forget about indent and let everypar insert a kern or so,
 %D but on the other hand it's kind of consistent to keep it and make the
@@ -247,7 +269,7 @@
      % was : \hskip\parindent
      % can be: \indent
      % but we test:
-     \noindent\hskip\parindent % hm, we cannot undent this one
+     \noindent\hskip\parindent % hm, we cannot undent this one % TODO: indent skip
    \fi \fi}
 
 % public:
@@ -261,9 +283,15 @@
 
 \aliased\let\dorechecknextindentation\relax % public (in macros)
 
-\permanent\protected\protected\def\spac_indentation_check_next_indentation
+% \permanent\protected\def\spac_indentation_check_next_indentation
+%   {\global\enforced\let\dorechecknextindentation\relax
+%    \doifelsenextchar\par\donothing\spac_indentation_variant_no} % messy check as next is seldom \par
+
+\permanent\protected\def\spac_indentation_check_next_indentation
   {\global\enforced\let\dorechecknextindentation\relax
-   \doifelsenextchar\par\donothing\spac_indentation_variant_no} % messy check as next is seldom \par
+   \begingroup
+   \autoparagraphmode\zerocount
+   \doifelsenextchar\par\endgroup{\endgroup\spac_indentation_variant_no}} % messy check as next is seldom \par
 
 \def\spac_indentation_variant_auto
   {\global\enforced\let\dorechecknextindentation\spac_indentation_check_next_indentation}
@@ -327,7 +355,7 @@
 % maybe an everyforgetparindent
 
 \permanent\protected\def\forgetparindent
-  {\settrue\c_spac_indentation_indent_first % recently added
+  {\c_spac_indentation_indent_first\conditionaltrue % recently added
    \d_spac_indentation_par\zeropoint
    \parindent\zeropoint
    \let\v_spac_indentation_current\v!none}
@@ -359,25 +387,31 @@
 
 \installcorenamespace{spacecodemethod}
 
-\sfcode`\)=\zerocount
-\sfcode`\'=\zerocount
-\sfcode`\]=\zerocount
+\sfcode\rightparentasciicode \zerocount % hm
+\sfcode\rightbracketasciicode\zerocount % hm hm
+\sfcode\singlequoteasciicode \zerocount % hm hm hm
 
 \def\spac_spacecodes_set_fixed#1%
-  {\sfcode`\.#1\relax \sfcode`\,#1\relax
-   \sfcode`\?#1\relax \sfcode`\!#1\relax
-   \sfcode`\:#1\relax \sfcode`\;#1\relax}
+  {\sfcode\periodasciicode         #1%
+   \sfcode\commaasciicode          #1%
+   \sfcode\questionmarkasciicode   #1%
+   \sfcode\exclamationmarkasciicode#1%
+   \sfcode\colonasciicode          #1%
+   \sfcode\semicolonasciicode      #1}
 
 \def\spac_spacecodes_set_stretch
-  {\sfcode`\.3000 \sfcode`\,1250
-   \sfcode`\?3000 \sfcode`\!3000
-   \sfcode`\:2000 \sfcode`\;1500 }
+  {\sfcode\periodasciicode         \plusthreethousand
+   \sfcode\commaasciicode          \plustwelvehundredfifty
+   \sfcode\questionmarkasciicode   \plusthreethousand
+   \sfcode\exclamationmarkasciicode\plusthreethousand
+   \sfcode\colonasciicode          \plustwothousand
+   \sfcode\semicolonasciicode      \plusfifteenhundred }
 
 \permanent\protected\def\frenchspacing   {\spac_spacecodes_set_fixed\plusthousand}
-\permanent\protected\def\newfrenchspacing{\spac_spacecodes_set_fixed{1050}}
+\permanent\protected\def\newfrenchspacing{\spac_spacecodes_set_fixed\plusthousandfifty}
 \permanent\protected\def\nonfrenchspacing{\spac_spacecodes_set_stretch}
 
-\permanent\protected\def\installspacingmethod#1#2{\setvalue{\??spacecodemethod#1}{#2}}
+\permanent\protected\def\installspacingmethod#1#2{\defcsname\??spacecodemethod#1\endcsname{#2}}
 
 \installspacingmethod \empty    {}                  % keep values
 \installspacingmethod \v!fixed  {\frenchspacing   } % equal spaces everywhere
@@ -389,6 +423,52 @@
      \begincsname\??spacecodemethod#1\endcsname
    \fi
    \updateraggedskips}
+
+% test test\fsp. test % beats frenchspacing
+
+\permanent\protected\def\fsp#1% fixed space puncuation
+  {#1%
+   \ifchknum`#1\or
+    \spacefactor\plusthousand
+   \fi}
+
+%D Experimental (see periods-001.tex):
+%D
+%D \startbuffer
+%D Watch this            {S.           Bernhard} dog carry a can of drink.
+%D Watch this  \periodic {S.           Bernhard} dog carry a can of drink.
+%D Watch this  \Periodic {S.           Bernhard} dog carry a can of drink.
+%D Watch this            {St.          Bernhard} dog carry a can of drink.
+%D Watch this  \periodic {St.          Bernhard} dog carry a can of drink.
+%D Watch this  \Periodic {St.          Bernhard} dog carry a can of drink.
+%D Watch this            {Prof. Dr. S. Bernhard} dog carry a can of drink.
+%D Watch this  \periodic {Prof. Dr. S. Bernhard} dog carry a can of drink.
+%D Watch this  \Periodic {Prof. Dr. S. Bernhard} dog carry a can of drink.
+%D \stopbuffer
+%D
+%D \typebuffer
+%D
+%D \startlines
+%D \getbuffer
+%D \stoplines
+
+\permanent\protected\def\overloadspacefactor
+  {\bitwiseflip\glyphoptions\spacefactoroverloadglyphoptioncode}
+
+\newinteger\periodicshrink \periodicshrink 250
+
+\permanent\protected\def\Periodic
+  {\groupedcommand
+     {\overloadspacefactor
+      \spacefactoroverload\periodicshrink}%
+     \relax}
+
+\permanent\protected\def\periodic
+  {\groupedcommand
+     {\overloadspacefactor
+      \spacefactoroverload\periodicshrink
+      \sfcode\periodasciicode\periodicshrink}%
+     \relax}
 
 %D Here's a tweak .. if needed one can configure it in the configuration
 %D so that initialization happens more efficient.
@@ -492,18 +572,72 @@
     \permanent\protected\def\nospacing{\normalnospaces\plusone}
     \permanent\protected\def\dospacing{\normalnospaces\zerocount}
 \else
-    \permanent\protected\def\nospacing{\spaceskip\scaledpoint     \xspaceskip\zeropoint}
-    \permanent\protected\def\dospacing{\spaceskip\currentspaceskip\xspaceskip\zeropoint} % what
+    \permanent\protected\def\nospacing{\spaceskip\scaledpoint     \xspaceskip\zeroskip}
+    \permanent\protected\def\dospacing{\spaceskip\currentspaceskip\xspaceskip\zeroskip} % what
 \fi
 
 \ifdefined\softhyphen \else
     \let\softhyphen\explicitdiscretionary
 \fi
 
-% todo:
+%D We can do this:
+%D
+%D starttyping
+%D \nospaces\plusthree
+%D \spacechar\underscoreasciicode
+%D \hccode\underscoreasciicode\underscoreasciicode
+%D Where are the spaces?
+%D \stoptyping
+%D
+%D But that should not bleed into the page builder or nested constructs, so:
 
+\appendtoks
+    \nospaces \zerocount
+    \spacechar\asciispacechar % not needed as one sets it locally
+\to \everyforgetall
+
+%D This is a rubish approach vbecause it redefines \typ {\csname \endcsname} to
+%D \type {\space} so we need to fix that.
+
+\expandafter\let\expandafter\next\csname\endcsname
 \cldcontext{"\string\\protected\string\\def\string\\\string\n{\string\\space}"}
-%cldcontext{"\string\\let\string\\\string\n=\string\\space"}
+\expandafter\let\csname\endcsname\next
+
+%D Here is an example from \type {newlines-001.tex}:
+%D
+%D \starttyping
+%D \def\TestA#1%
+%D   {\writestatus{Test A}{#1}%
+%D    \ctxlua{str = [[#1]] print(str) context(str) io.savedata("temp.tmp",str)}}
+%D
+%D \def\TestB#1%
+%D   {\writestatus{Test B}{#1}%
+%D    \ctxlua{str = [[\detokenize{#1}]] print(str) context(str) io.savedata("temp.tmp",str)}}
+%D
+%D \def\TestC#1%
+%D   {\writestatus{Test C}{#1}%
+%D    \edef\temp{#1}%
+%D    \ctxlua{str = [[\detokenize\expandafter{\temp}]] print(str) context(str) io.savedata("temp.tmp",str)}%
+%D    \typefile{temp.tmp}}
+%D
+%D \TestA{Test\
+%D A}
+%D
+%D \TestB{Test\
+%D B}
+%D
+%D \TestC{Test\
+%D C}
+%D
+%D Test\
+%D D
+%D
+%D \section{Test\
+%D E}
+%D
+%D Test F\footnote{Note\
+%D F}
+%D \stoptyping
 
 % in tables we need:
 %
@@ -517,23 +651,49 @@
 
 \permanent\protected\def\fixedspaces
   {\letcatcodecommand \ctxcatcodes \tildeasciicode\fixedspace
-   \enforced\let~\fixedspace} % we need to renew it
+  %\enforced\let~\fixedspace} % we need to renew it
+   \enforced\letcharcode\tildeasciicode\fixedspace} % why this
 
 \appendtoks
-    \enforced\let~\space
+   %\enforced\let~\space
+    \enforced\letcharcode\tildeasciicode\space
     \enforced\let\ \space
 \to \everysimplifycommands
 
-\newsignal\d_spac_keep_unwanted_space_signal
+% \newsignal\d_spac_keep_unwanted_space_signal
+%
+% % \parindentmode\plusone
+%
+% \permanent\protected\def\keepunwantedspaces
+%   {\ifhmode
+%      \ifdim\lastskip=\d_spac_keep_unwanted_space_signal\else
+%         \hskip\d_spac_keep_unwanted_space_signal\relax
+%      \fi
+%    \fi}
+%
+% \permanent\protected\def\removeunwantedspaces
+%   {\ifhmode
+%      \expandafter \spac_helpers_remove_unwantedspace
+%    \fi}
+%
+% \def\spac_helpers_remove_unwantedspace
+%   {\ifnum\lastnodetype=\gluenodecode\relax
+%      \ifnum\lastnodesubtype=\indentskipsubtypecode\relax
+%        % keep parindent
+%      \orelse\ifdim\lastskip=\d_spac_keep_unwanted_space_signal\relax
+%         \unskip
+%      \else
+%         \unskip
+%         \doubleexpandafter\spac_helpers_remove_unwantedspace
+%      \fi
+%    \fi}
 
-% \parindentmode\plusone
+\newboundary\c_spac_keepspaces_boundary
 
 \permanent\protected\def\keepunwantedspaces
-  {\ifhmode
-     \ifdim\lastskip=\d_spac_keep_unwanted_space_signal\else
-        \hskip\d_spac_keep_unwanted_space_signal\relax
-     \fi
-   \fi}
+  {\ifhmode\ifnum\lastboundary=\c_spac_keepspaces_boundary\else
+     \boundary\c_spac_keepspaces_boundary
+   \fi\fi}
 
 \permanent\protected\def\removeunwantedspaces
   {\ifhmode
@@ -541,15 +701,15 @@
    \fi}
 
 \def\spac_helpers_remove_unwantedspace
-  {\ifnum\lastnodetype=\gluenodecode\relax
-     \ifnum\lastnodesubtype=\indentskipsubtypecode\relax
-       % keep parindent
-     \orelse\ifdim\lastskip=\d_spac_keep_unwanted_space_signal\relax
-        \unskip
-     \else
-        \unskip
-        \doubleexpandafter\spac_helpers_remove_unwantedspace
-     \fi
+  {\ifnum\lastboundary=\c_spac_keepspaces_boundary
+     \expandafter\unboundary
+   \orunless\ifnum\lastnodetype=\gluenodecode
+     % no skip
+   \orelse\ifnum\lastnodesubtype=\indentskipsubtypecode
+     % keep parindent
+   \else
+      \unskip
+      \expandafter\spac_helpers_remove_unwantedspace
    \fi}
 
 \permanent\protected\def\onlynonbreakablespace
@@ -584,6 +744,8 @@
 %D A couple of plain macros:
 
 \ifdefined\enspace \else \permanent\protected\def\enspace{\kern .5\emwidth}       \fi
+\ifdefined\emspace \else \permanent\protected\def\emspace{\kern   \emwidth}       \fi
+
 \ifdefined\quad    \else \permanent\protected\def\quad   {\hskip  \emwidth\relax} \fi
 \ifdefined\enskip  \else \permanent\protected\def\enskip {\hskip.5\emwidth\relax} \fi
 \ifdefined\qquad   \else \permanent\protected\def\qquad  {\hskip 2\emwidth\relax} \fi
@@ -591,7 +753,7 @@
 \permanent\protected\def\negenspace{\kern-.5\emwidth}
 \permanent\protected\def\negemspace{\kern-  \emwidth}
 
-\aliased\let\emspace\quad
+% \aliased\let\emspace\quad
 
 \permanent\protected\def\charspace{ } % the unexpandable \space (as space can also be delimiter for numbers)
 
@@ -599,7 +761,7 @@
   {\dontleavehmode
    \begingroup
   %\scratchcounter\ifparameter#1\or#1\else\plusthree\fi
-   \scratchcounter\ifchknum#1\or#1\else\plusthree\fi
+   \scratchcounter\ifchknumber#1\or\lastchknumber\else\plusthree\fi
    \zwj\dorecurse\scratchcounter{\hskip\emwidth\zwj}%
    \endgroup}
 
@@ -609,21 +771,23 @@
 
 % Bovendien definieren we enkele extra \fill's:
 
-\newskip\s_spac_fil        \s_spac_fil       = \zeropoint \s!plus 1\s!fil  \relax
-\newskip\s_spac_fill       \s_spac_fill      = \zeropoint \s!plus 1\s!fill \relax
-\newskip\s_spac_filll      \s_spac_filll     = \zeropoint \s!plus 1\s!filll\relax
+\newgluespec\s_spac_fi         \s_spac_fi        \zeropoint \s!plus 1\s!fi   \relax
+\newgluespec\s_spac_fil        \s_spac_fil       \zeropoint \s!plus 1\s!fil  \relax
+\newgluespec\s_spac_fill       \s_spac_fill      \zeropoint \s!plus 1\s!fill \relax
+\newgluespec\s_spac_filll      \s_spac_filll     \zeropoint \s!plus 1\s!filll\relax
 
-\newskip\s_spac_neg_fil    \s_spac_neg_fil   = \zeropoint \s!plus-1\s!fil  \relax
-\newskip\s_spac_neg_fill   \s_spac_neg_fill  = \zeropoint \s!plus-1\s!fill \relax
-\newskip\s_spac_neg_filll  \s_spac_neg_filll = \zeropoint \s!plus-1\s!filll\relax
+\newgluespec\s_spac_neg_fi     \s_spac_neg_fi    \zeropoint \s!plus-1\s!fi  \relax
+\newgluespec\s_spac_neg_fil    \s_spac_neg_fil   \zeropoint \s!plus-1\s!fil  \relax
+\newgluespec\s_spac_neg_fill   \s_spac_neg_fill  \zeropoint \s!plus-1\s!fill \relax
+\newgluespec\s_spac_neg_filll  \s_spac_neg_filll \zeropoint \s!plus-1\s!filll\relax
 
-\permanent\protected\def\hfilll   {\hskip\s_spac_filll\relax}
-\permanent\protected\def\vfilll   {\vskip\s_spac_filll\relax}
+\permanent\protected\untraced\def\hfilll   {\hskip\s_spac_filll\relax}
+\permanent\protected\untraced\def\vfilll   {\vskip\s_spac_filll\relax}
 
-\permanent\protected\def\hfillneg {\hskip\s_spac_neg_fill \relax}
-\permanent\protected\def\hfilllneg{\hskip\s_spac_neg_filll\relax}
-\permanent\protected\def\vfillneg {\vskip\s_spac_neg_fill \relax}
-\permanent\protected\def\vfilllneg{\vskip\s_spac_neg_filll\relax}
+\permanent\protected\untraced\def\hfillneg {\hskip\s_spac_neg_fill \relax}
+\permanent\protected\untraced\def\hfilllneg{\hskip\s_spac_neg_filll\relax}
+\permanent\protected\untraced\def\vfillneg {\vskip\s_spac_neg_fill \relax}
+\permanent\protected\untraced\def\vfilllneg{\vskip\s_spac_neg_filll\relax}
 
 \permanent\protected\def\tfskip    {\begingroup\tf\hskip\emwidth\endgroup}
 \permanent\protected\def\dotfskip#1{\begingroup\tf\hskip      #1\endgroup} % used elsewhere
@@ -633,9 +797,9 @@
 \installcorenamespace{narrower}
 \installcorenamespace{narrowermethod}
 
-\newskip\s_spac_narrower_left
-\newskip\s_spac_narrower_right
-\newskip\s_spac_narrower_middle
+\newgluespec\s_spac_narrower_left
+\newgluespec\s_spac_narrower_right
+\newgluespec\s_spac_narrower_middle
 
 \installcommandhandler \??narrower {narrower} \??narrower
 
@@ -648,8 +812,8 @@
    \c!default=\v!middle]
 
 \appendtoks
-   \frozen\instance\protected\edefcsname\e!start\currentnarrower\endcsname{\spac_narrower_start[\currentnarrower]}%
-   \frozen\instance\protected\edefcsname\e!stop \currentnarrower\endcsname{\spac_narrower_stop}%
+   \protected\frozen\instance\edefcsname\e!start\currentnarrower\endcsname{\spac_narrower_start[\currentnarrower]}%
+   \protected\frozen\instance\edefcsname\e!stop \currentnarrower\endcsname{\spac_narrower_stop}%
 \to \everydefinenarrower
 
 \permanent\protected\def\installnarrowermethod#1#2%
@@ -659,76 +823,78 @@
   {\ifcsname\??narrowermethod#1\endcsname
      \lastnamedcs
    \else
-     \global\advance\s_spac_narrower_middle#1\relax
+     \global\advanceby\s_spac_narrower_middle#1\relax
    \fi}
 
 \def\spac_narrower_initialize[#1]% hm, can be dorepeat directly
   {\dorepeatwithcommand[#1]\spac_narrower_method_analyze}
 
-\installnarrowermethod  \v!left   {\global\advance\s_spac_narrower_left   \narrowerparameter\c!left  \relax}
-\installnarrowermethod  \v!middle {\global\advance\s_spac_narrower_middle \narrowerparameter\c!middle\relax}
-\installnarrowermethod  \v!right  {\global\advance\s_spac_narrower_right  \narrowerparameter\c!right \relax}
-\installnarrowermethod{-\v!left  }{\global\advance\s_spac_narrower_left  -\narrowerparameter\c!left  \relax}
-\installnarrowermethod{-\v!middle}{\global\advance\s_spac_narrower_middle-\narrowerparameter\c!middle\relax}
-\installnarrowermethod{-\v!right }{\global\advance\s_spac_narrower_right -\narrowerparameter\c!right \relax}
-\installnarrowermethod  \v!reset  {\global        \s_spac_narrower_left   \zeropoint
-                                   \global        \s_spac_narrower_middle \zeropoint
-                                   \global        \s_spac_narrower_right  \zeropoint\relax}
+\installnarrowermethod  \v!left   {\global\advanceby\s_spac_narrower_left   \narrowerparameter\c!left  \relax}
+\installnarrowermethod  \v!middle {\global\advanceby\s_spac_narrower_middle \narrowerparameter\c!middle\relax}
+\installnarrowermethod  \v!right  {\global\advanceby\s_spac_narrower_right  \narrowerparameter\c!right \relax}
+\installnarrowermethod{-\v!left  }{\global\advanceby\s_spac_narrower_left  -\narrowerparameter\c!left  \relax}
+\installnarrowermethod{-\v!middle}{\global\advanceby\s_spac_narrower_middle-\narrowerparameter\c!middle\relax}
+\installnarrowermethod{-\v!right }{\global\advanceby\s_spac_narrower_right -\narrowerparameter\c!right \relax}
+\installnarrowermethod  \v!reset  {\global          \s_spac_narrower_left   \zeroskip
+                                   \global          \s_spac_narrower_middle \zeroskip
+                                   \global          \s_spac_narrower_right  \zeroskip\relax}
 \installnarrowermethod \v!none    {}
 \installnarrowermethod \v!reverse {} % never seen
 
 \permanent\overloaded\tolerant\protected\def\spac_narrower_start[#1]#*[#2]%
   {\begingroup
-   \edef\currentnarrower{#1}%
+   \cdef\currentnarrower{#1}%
    \ifparameter#2\or
      \spac_narrower_start_apply{#2}%
    \else
      \spac_narrower_start_apply{\narrowerparameter\v!default}%
    \fi}
 
-\newskip       \s_spac_narrower_left_last
-\newskip       \s_spac_narrower_right_last
+\newgluespec   \s_spac_narrower_left_last
+\newgluespec   \s_spac_narrower_right_last
 \newconditional\s_spac_narrower_last_swap
 
 \def\spac_narrower_start_apply#1%
   {\narrowerparameter\c!before
-   \global\s_spac_narrower_left  \zeropoint
-   \global\s_spac_narrower_right \zeropoint
-   \global\s_spac_narrower_middle\zeropoint
+   \global\s_spac_narrower_left  \zeroskip
+   \global\s_spac_narrower_right \zeroskip
+   \global\s_spac_narrower_middle\zeroskip
    \edef\scratchstringone{#1}%
    \ifx\scratchstringone\v!reverse
      \ifconditional\s_spac_narrower_last_swap
        \frozen\leftskip \s_spac_narrower_right_last
        \frozen\rightskip\s_spac_narrower_left_last
-       \setfalse\s_spac_narrower_last_swap
+       \s_spac_narrower_last_swap\conditionalfalse
      \else
        \frozen\leftskip \s_spac_narrower_left_last
        \frozen\rightskip\s_spac_narrower_right_last
-       \settrue\s_spac_narrower_last_swap
+       \s_spac_narrower_last_swap\conditionaltrue
      \fi
    \else
-     \normalexpanded{\processcommalistwithparameters[\scratchstringone]}\spac_narrower_initialize
-     \frozen\advance\leftskip \dimexpr\s_spac_narrower_left +\s_spac_narrower_middle\relax
-     \frozen\advance\rightskip\dimexpr\s_spac_narrower_right+\s_spac_narrower_middle\relax
+     \expanded{\processcommalistwithparameters[\scratchstringone]}\spac_narrower_initialize
+     \frozen\advanceby\leftskip {\s_spac_narrower_left +\s_spac_narrower_middle}%
+     \frozen\advanceby\rightskip{\s_spac_narrower_right+\s_spac_narrower_middle}%
    \fi
-   \seteffectivehsize}
+   \seteffectivehsize
+   \dostarttagged\t!narrower\currentnarrower}
 
 \permanent\protected\def\spac_narrower_stop
-  {\narrowerparameter\c!after
-   \normalexpanded{%
+  {\dostoptagged
+   \narrowerparameter\c!after
+   \expanded{%
       \endgroup
       \s_spac_narrower_left_last \the\leftskip \relax
       \s_spac_narrower_right_last\the\rightskip\relax
       \ifconditional\s_spac_narrower_last_swap
-        \setfalse\s_spac_narrower_last_swap
+        \s_spac_narrower_last_swap\conditionalfalse
       \else
-        \settrue\s_spac_narrower_last_swap
+        \s_spac_narrower_last_swap\conditionaltrue
       \fi
    }}
 
 \permanent\tolerant\protected\def\startnarrower[#1]%
   {\begingroup
-   \let\currentnarrower\empty
+   \lettonothing\currentnarrower
    \ifparameter#1\or
      \spac_narrower_start_apply{#1}%
    \else
@@ -737,7 +903,7 @@
 
 \aliased\let\stopnarrower\spac_narrower_stop
 
-\permanent\tolerant\protected\def\startnarrow[#1]#*[#2]% current how
+\permanent\tolerant\protected\def\startnarrow[#S#1]#*[#S#2]% current how
   {\begingroup
    \ifnum\lastarguments=\plustwo
       \expandafter\spac_narrower_start_named_two
@@ -745,41 +911,43 @@
       \expandafter\spac_narrower_start_named_one
    \fi[#1][#2]}
 
-\def\spac_narrower_start_named_one[#1]%
+% we can combine these:
+
+\def\spac_narrower_start_named_one[#S#1]%
   {\doifelseassignment{#1}\spac_narrower_start_named_one_yes\spac_narrower_start_named_one_nop[#1]}
 
-\def\spac_narrower_start_named_one_yes[#1][#2]% [settings] []
+\def\spac_narrower_start_named_one_yes[#S#1][#2]% [settings] []
   {\setupcurrentnarrower[#1]%
    \spac_narrower_start_apply{\narrowerparameter\v!default}}
 
 \def\spac_narrower_start_named_one_nop[#1][#2]% [tag] []
-  {\edef\currentnarrower{#1}%
+  {\cdef\currentnarrower{#1}%
    \spac_narrower_start_apply{\narrowerparameter\v!default}}
 
-\def\spac_narrower_start_named_two[#1]%
+\def\spac_narrower_start_named_two[#S#1]%
   {\doifelseassignment{#1}\spac_narrower_start_named_settings_how\spac_narrower_start_named_tag_unknown[#1]}
 
-\def\spac_narrower_start_named_settings_how[#1][#2]% [settings] [how]
+\def\spac_narrower_start_named_settings_how[#S#1][#2]% [settings] [how]
   {\setupcurrentnarrower[#1]%
    \spac_narrower_start_apply{#2}}
 
-\def\spac_narrower_start_named_tag_unknown[#1][#2]% [tag] [...]
+\def\spac_narrower_start_named_tag_unknown[#1][#S#2]% [tag] [...]
   {\doifelseassignment{#2}\spac_narrower_start_named_tag_settings\spac_narrower_start_named_tag_how[#1][#2]}
 
-\def\spac_narrower_start_named_tag_settings[#1][#2]% [tag] [settings]
-  {\edef\currentnarrower{#1}%
+\def\spac_narrower_start_named_tag_settings[#1][#S#2]% [tag] [settings]
+  {\cdef\currentnarrower{#1}%
    \setupcurrentnarrower[#2]%
    \spac_narrower_start_apply{\narrowerparameter\v!default}}
 
 \def\spac_narrower_start_named_tag_how[#1][#2]% [tag] [how]
-  {\edef\currentnarrower{#1}%
+  {\cdef\currentnarrower{#1}%
    \spac_narrower_start_apply{#2}}
 
 \aliased\let\stopnarrow\spac_narrower_stop
 
-\newdimen\d_spac_effective_hsize     \permanent\protected\def\effectivehsize    {\hsize}
-\newdimen\d_spac_effective_leftskip  \permanent\protected\def\effectiveleftskip {\dimexpr\leftskip \relax}
-\newdimen\d_spac_effective_rightskip \permanent\protected\def\effectiverightskip{\dimexpr\rightskip\relax}
+\newdimension\d_spac_effective_hsize     \permanent\protected\def\effectivehsize    {\hsize}
+\newdimension\d_spac_effective_leftskip  \permanent\protected\def\effectiveleftskip {\leftskip}
+\newdimension\d_spac_effective_rightskip \permanent\protected\def\effectiverightskip{\rightskip}
 
 \permanent\protected\def\seteffectivehsize
   {\setlocalhsize
@@ -793,55 +961,52 @@
 \installcorenamespace{skipadaptionleft}
 \installcorenamespace{skipadaptionright}
 
-\newskip\leftskipadaption
-\newskip\rightskipadaption
+\newgluespec\leftskipadaption
+\newgluespec\rightskipadaption
 
 \defcsname\??skipadaptionleft \v!yes\endcsname{\ifzeropt\d_spac_indentation_par\narrowerparameter\c!left\else\d_spac_indentation_par\fi}
-\letcsname\??skipadaptionleft \v!no \endcsname\zeropoint
-\letcsname\??skipadaptionleft \empty\endcsname\zeropoint
+\letcsname\??skipadaptionleft \v!no \endcsname\zeropoint % \zeroskip
+\letcsname\??skipadaptionleft \empty\endcsname\zeropoint % \zeroskip
 \defcsname\??skipadaptionright\v!yes\endcsname{\narrowerparameter\c!right}
-\letcsname\??skipadaptionright\v!no \endcsname\zeropoint
-\letcsname\??skipadaptionright\empty\endcsname\zeropoint
+\letcsname\??skipadaptionright\v!no \endcsname\zeropoint % \zeroskip
+\letcsname\??skipadaptionright\empty\endcsname\zeropoint % \zeroskip
 
 \letcsname\??skipadaptionleft \v!standard\expandafter\endcsname\csname\??skipadaptionleft \v!yes\endcsname
 \letcsname\??skipadaptionright\v!standard\expandafter\endcsname\csname\??skipadaptionright\v!yes\endcsname
 
-\permanent\protected\def\dosetleftskipadaption #1{\leftskipadaption \ifcsname\??skipadaptionleft #1\endcsname\lastnamedcs\else#1\fi\relax}
-\permanent\protected\def\dosetrightskipadaption#1{\rightskipadaption\ifcsname\??skipadaptionright#1\endcsname\lastnamedcs\else#1\fi\relax}
+\permanent\protected\def\dosetleftskipadaption #1{\leftskipadaption \glueexpr\ifcsname\??skipadaptionleft #1\endcsname\lastnamedcs\else#1\fi\relax}
+\permanent\protected\def\dosetrightskipadaption#1{\rightskipadaption\glueexpr\ifcsname\??skipadaptionright#1\endcsname\lastnamedcs\else#1\fi\relax}
 
-\permanent\protected\def\doadaptleftskip #1{\normalexpanded{\dosetleftskipadaption {#1}}\permanent\advance\leftskip \leftskipadaption }
-\permanent\protected\def\doadaptrightskip#1{\normalexpanded{\dosetrightskipadaption{#1}}\permanent\advance\rightskip\rightskipadaption}
+\permanent\protected\def\doadaptleftskip #1{\expanded{\dosetleftskipadaption {#1}}\frozen\advanceby\leftskip \leftskipadaption }
+\permanent\protected\def\doadaptrightskip#1{\expanded{\dosetrightskipadaption{#1}}\frozen\advanceby\rightskip\rightskipadaption}
 
 \permanent\protected\def\forgetbothskips
-  {\leftskip\zeropoint
-   \rightskip\zeropoint
+  {\leftskip \zeroskip
+   \rightskip\zeroskip
    \relax}
 
 \appendtoks
     \forgetbothskips
 \to \everyforgetall
 
-% in spac-ver.mkiv
-%
-% \protected\def\forgetparskip
-%   {\s_spac_whitespace_parskip\zeropoint
-%    \parskip\zeropoint
-%    \let\v_spac_whitespace_current\v!none}
-%
-% \appendtoks
-%     \forgetparskip
-% \to \everyforgetall
+%D In \type {spac-ver.mkiv} we define \type {\forgetparskip} and do this:
+%D
+%D \starttyping
+%D \appendtoks
+%D     \forgetparskip
+%D \to \everyforgetall
+%D \stoptyping
 
 %D Tolerance (can also be set with align):
 
 \installcorenamespace{tolerancemethods}
 
-\mutable\let\bottomtolerance\empty % why not zero (not used annyway, but for now we keep it)
+\mutable\lettonothing\bottomtolerance % why not zero (not used annyway, but for now we keep it)
 
 \permanent\protected\def\installtolerancemethod#1#2#3%
   {\defcsname\??tolerancemethods#1:#2\endcsname{#3}}
 
-\installtolerancemethod \v!vertical   \v!verystrict   {\let\bottomtolerance\empty} % why not zero
+\installtolerancemethod \v!vertical   \v!verystrict   {\lettonothing\bottomtolerance} % why not zero
 \installtolerancemethod \v!vertical   \v!strict       {\def\bottomtolerance{.050}}
 \installtolerancemethod \v!vertical   \v!tolerant     {\def\bottomtolerance{.075}}
 \installtolerancemethod \v!vertical   \v!verytolerant {\def\bottomtolerance{.100}}
@@ -863,9 +1028,11 @@
 
 \permanent\tolerant\protected\def\setuptolerance[#1]%
   {\ifarguments\or
-     \doifelseinset\v!vertical{#1}%
-       {\processcommacommand[#1]\spac_tolerances_step_vertical  }
-       {\processcommacommand[#1]\spac_tolerances_step_horizontal}%
+     \ifinset\v!vertical{#1}%
+       \processcommacommand[#1]\spac_tolerances_step_vertical
+     \else
+       \processcommacommand[#1]\spac_tolerances_step_horizontal
+     \fi
    \fi}
 
 % %D \macros
@@ -885,7 +1052,7 @@
 %      \setbox\b_spac_indentations_b\lastbox       % get \indent generated box
 %      \unskip
 %    \else
-%      \dontleavehmode % was \hskip\zeropoint      % switch to horizontal mode
+%      \dontleavehmode % was \hskip\zeroskip       % switch to horizontal mode
 %      \unskip
 %      \setbox\b_spac_indentations_a\lastbox       % get \indent generated box
 %      \setbox\b_spac_indentations_b\emptybox
@@ -896,6 +1063,8 @@
 %    \box\b_spac_indentations_a
 %    \endgroup}
 
+%D Struts are done differently now.
+%D
 %D The only complication lays in \type{\strut}. In \PLAIN\ \TEX\ a \type{\strut} is
 %D defined as:
 %D
@@ -913,7 +1082,7 @@
 %D To serve our purpose a bit better, the macro \type {\strut} can be redefined as:
 %D \starttyping
 %D \def\strut
-%D   {\relax\ifmmode\else\hskip0pt\fi\copy\strutbox}
+%D   {\relax\ifmmode\else\hskip\zeroskip\fi\copy\strutbox}
 %D \stoptyping
 %D
 %D Or more compatible:
@@ -998,10 +1167,10 @@
 \definehspace [\v!big]     [1\emspaceamount]
 \definehspace [\v!normal]  [1\spaceamount]
 \definehspace [\v!default] [\spaceamount]
-\definehspace [\v!none]    [\zeropoint]
+\definehspace [\v!none]    [\zeropoint] % \zeroskip
 
-%D Taken from Taco's math module (cq. \AMS\ macros), but
-%D adapted to \type {\hspace}:
+%D Taken from Taco's math module (cq. \AMS\ macros), but %D adapted to \type
+%D {\hspace}:
 
 \permanent\protected\def\textormathspace         #1#2#3{\ifmmode\mskip#1#2\else\kern #1\hspaceamount\empty{#3}\fi\relax}
 \permanent\protected\def\textormathspacecommand  #1#2#3{\ifmmode\mskip#1#2\else#3\fi\relax}
@@ -1015,29 +1184,31 @@
 \overloaded\permanent\protected \def\negthinspace {\textormathspace-\thinmuskip 1}
 \overloaded\permanent\protected \def\negmedspace  {\textormathspace-\medmuskip  2}
 \overloaded\permanent\protected \def\negthickspace{\textormathspace-\thickmuskip3}
-\overloaded\permanent\protected\edef\medspace     {\textormathspacecommand+\medmuskip{\Uchar"205F}}
+\overloaded\permanent\protected\edef\medspace     {\textormathspacecommand+\medmuskip{\tocharacter"205F}}
 
-% needed for unicode:
+% maybe
 
-% \protected\def\breakablethinspace      {\breakabletextormathspace+\thinmuskip1}
-% \protected\def\twoperemspace           {\hskip\dimexpr\emwidth/2\relax} % == \enspace
-% \protected\def\threeperemspace         {\hskip\dimexpr\emwidth/3\relax}
-% \protected\def\fourperemspace          {\hskip\dimexpr\emwidth/4\relax}
-% \protected\def\fiveperemspace          {\hskip\dimexpr\emwidth/5\relax} % goodie
-% \protected\def\sixperemspace           {\hskip\dimexpr\emwidth/6\relax}
-% \protected\def\figurespace             {\begingroup\setbox\scratchbox\hbox{0}\hskip\wd\scratchbox\endgroup} % there is a command for this
-% \protected\def\punctuationspace        {\begingroup\setbox\scratchbox\hbox{.}\hskip\wd\scratchbox\endgroup}
-% \protected\def\ideographicspace        {\hskip\dimexpr\emwidth/1\relax}
-% \protected\def\ideographichalffillspace{\hskip\dimexpr\emwidth/2\relax}
-% \protected\def\nobreakspace            {\penalty\plustenthousand\kern\interwordspace}
-% \protected\def\narrownobreakspace      {\penalty\plustenthousand\thinspace}
-% \protected\def\zerowidthnobreakspace   {\penalty\plustenthousand\kern\zeropoint}
-% \protected\def\zerowidthspace          {\hskip\zeropoint}
+% \protected\def\breakablethinskip      {\breakabletextormathspace+\thinmuskip1}
+% \protected\def\twoperemskip           {\hskip\dimexpr\emwidth/2\relax} % == \enspace
+% \protected\def\threeperemskip         {\hskip\dimexpr\emwidth/3\relax}
+% \protected\def\fourperemskip          {\hskip\dimexpr\emwidth/4\relax}
+% \protected\def\fiveperemskip          {\hskip\dimexpr\emwidth/5\relax} % goodie
+% \protected\def\sixperemskip           {\hskip\dimexpr\emwidth/6\relax}
+% \protected\def\figureskip             {\begingroup\setbox\scratchbox\hbox{0}\hskip\wd\scratchbox\endgroup} % there is a command for this
+% \protected\def\punctuationskip        {\begingroup\setbox\scratchbox\hbox{.}\hskip\wd\scratchbox\endgroup}
+% \protected\def\ideographicskip        {\hskip\dimexpr\emwidth/1\relax}
+% \protected\def\ideographichalffillskip{\hskip\dimexpr\emwidth/2\relax}
+% \protected\def\nobreakskip            {\penalty\plustenthousand\kern\interwordspace}
+% \protected\def\narrownobreakskip      {\penalty\plustenthousand\thinspace}
+% \protected\def\zerowidthnobreakskip   {\penalty\plustenthousand\kern\zeropoint}
+% \protected\def\zerowidthskip          {\hskip\zeroskip}
 
 \definehspace[.5][.1250\emwidth] % hair
 \definehspace[1] [.1667\emwidth] % thin
 \definehspace[2] [.2222\emwidth] % med
 \definehspace[3] [.2777\emwidth] % thick
+
+% These will be redefined anyway in math-ini:
 
 \suggestedalias \, \thinspace
 \suggestedalias \: \medspace
@@ -1173,33 +1344,40 @@
 %D    \oeps}
 %D \stoptyping
 
-\newsignal\d_spac_ignore_spaces_signal
-\newcount \c_spac_ignore_spaces
+% \newsignal \d_spac_ignore_spaces_signal
+% \newinteger\c_spac_ignore_spaces
+%
+% \permanent\protected\def\startignorespaces
+%   {\advanceby\c_spac_ignore_spaces\plusone
+%    \ifcase\c_spac_ignore_spaces\or \ifhmode
+%      \hskip\d_spac_ignore_spaces_signal
+%    \fi \fi
+%    \ignorespaces}
+%
+% \permanent\protected\def\stopignorespaces
+%   {\ifcase\c_spac_ignore_spaces \or
+%      \ifhmode
+%        \doloop\spac_ignore_spaces_body
+%      \fi
+%    \fi
+%    \advanceby\c_spac_ignore_spaces\minusone}
+%
+% \def\spac_ignore_spaces_body
+%   {\ifzeropt\lastskip
+%      \exitloop
+%    \orelse\ifdim\lastskip=\d_spac_ignore_spaces_signal
+%      \unskip
+%      \exitloop
+%    \else
+%      \unskip
+%    \fi}
 
 \permanent\protected\def\startignorespaces
-  {\advance\c_spac_ignore_spaces\plusone
-   \ifcase\c_spac_ignore_spaces\or \ifhmode
-     \hskip\d_spac_ignore_spaces_signal
-   \fi \fi
-   \ignorespaces}
+  {\pushmacro\nospaces
+   \nospaces\plusone}
 
 \permanent\protected\def\stopignorespaces
-  {\ifcase\c_spac_ignore_spaces \or
-     \ifhmode
-       \doloop\spac_ignore_spaces_body
-     \fi
-   \fi
-   \advance\c_spac_ignore_spaces\minusone}
-
-\def\spac_ignore_spaces_body
-  {\ifzeropt\lastskip
-     \exitloop
-   \orelse\ifdim\lastskip=\d_spac_ignore_spaces_signal
-     \unskip
-     \exitloop
-   \else
-     \unskip
-   \fi}
+  {\popmacro\nospaces}
 
 %D \macros
 %D   {obeyfollowingtoken}
@@ -1211,8 +1389,29 @@
 \permanent\protected\def\interwordspacebefore{\wordboundary\zwnj\hskip\interwordspace\relax}
 \permanent\protected\def\interwordspaceafter {\hskip\interwordspace\relax\zwnj\wordboundary}
 
-\permanent\protected\def\interwordspacesbefore#1{\dofastloopcs{#1}\interwordspacebefore}
-\permanent\protected\def\interwordspacesafter #1{\dofastloopcs{#1}\interwordspaceafter}
-\permanent\protected\def\interwordspaces      #1{\wordboundary\zwnj\dofastloopcs{\numexpr#1+\minusone}\interwordspaceafter}
+\permanent\protected\def\interwordspacesbefore#1{\dofastloopcs{#1}\interwordspacebefore} % todo: native loop
+\permanent\protected\def\interwordspacesafter #1{\dofastloopcs{#1}\interwordspaceafter} % todo: native loop
+\permanent\protected\def\interwordspaces      #1{\wordboundary\zwnj\dofastloopcs{#1+\minusone}\interwordspaceafter}  % todo: native loop
+
+%D For mp:
+
+\installcorenamespace{mplocation}
+
+\defcsname\??mplocation\v!left \endcsname{1}
+\defcsname\??mplocation\v!right\endcsname{2}
+\defcsname\??mplocation\v!inner\endcsname{3}
+\defcsname\??mplocation\v!outer\endcsname{4}
+
+\permanent\def\mplocation#1{\ifcsname\??mplocation#1\endcsname\lastnamedcs\else0\fi}
+%permanent\def\mplocation#1{\csname\??mplocation\ifcsname\??mplocation#1\endcsname#1\else\v!left\fi\endcsname}
+
+% new: \lateindent \lateundent
+
+% \parinitleftskip1cm \parindent 1cm \indent test \par
+% \parinitleftskip1cm \parindent 1cm \undent test \par
+% \parinitleftskip1cm \parindent 1cm \indent \undent test \par
+% \parinitleftskip1cm \parindent 1cm \indent \strut \undent test \par
+% \parinitleftskip1cm \parindent 1cm \strut \lateindent 2cm test \par
+% \parinitleftskip1cm \parindent 1cm \strut \lateindent 2cm test \lateundent \par
 
 \protect \endinput

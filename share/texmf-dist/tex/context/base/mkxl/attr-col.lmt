@@ -26,8 +26,8 @@ local context               = context
 local tex                   = tex
 
 local variables             = interfaces.variables
-local v_yes                 = variables.yes
-local v_no                  = variables.no
+local v_yes                 <const> = variables.yes
+local v_no                  <const> = variables.no
 
 local p_split_comma         = lpeg.tsplitat(",")
 local p_split_colon         = lpeg.splitat(":")
@@ -47,9 +47,10 @@ local report_transparencies = logs.reporter("transparencies","support")
 -- nb. too many "0 g"s
 
 local states          = attributes.states
-local nodeinjections  = backends.nodeinjections
 local registrations   = backends.registrations
-local unsetvalue      = attributes.unsetvalue
+local nodeinjections  = backends.nodeinjections
+
+local unsetvalue      <const> = attributes.unsetvalue
 
 local enableaction    = nodes.tasks.enableaction
 local setaction       = nodes.tasks.setaction
@@ -95,8 +96,8 @@ local texgetattribute = tex.getattribute
 attributes.colors = attributes.colors or { }
 local colors      = attributes.colors
 
-local a_color     = attributes.private('color')
-local a_selector  = attributes.private('colormodel')
+local a_color     <const> = attributes.private('color')
+local a_selector  <const> = attributes.private('colormodel')
 
 colors.data       = allocate()
 colors.values     = colors.values or { }
@@ -132,7 +133,7 @@ local f_colors = {
 }
 
 local models = {
-    [interfaces.variables.none] = unsetvalue,
+    [variables.none] = unsetvalue,
     black = unsetvalue,
     bw    = unsetvalue,
     all   = 1,
@@ -143,7 +144,7 @@ local models = {
 
 local function rgbtocmyk(r,g,b) -- we could reduce
     if not r then
-        return 0, 0, 0
+        return 0, 0, 0, 1
     else
         return 1-r, 1-g, 1-b, 0
     end
@@ -151,7 +152,7 @@ end
 
 local function cmyktorgb(c,m,y,k)
     if not c then
-        return 0, 0, 0, 1
+        return 0, 0, 0
     elseif cmykrgbmode == 1 then
         local d = 1.0 - k
         return 1.0 - min(1.0,c*d+k), 1.0 - min(1.0,m*d+k), 1.0 - min(1.0,y*d+k)
@@ -348,10 +349,18 @@ function colors.spot(parent,f,d,p)
     return { 5, .5, .5, .5, .5, 0, 0, 0, .5, parent, f, d, p }
 end
 
-local function graycolor(...) graycolor = nodeinjections.graycolor return graycolor(...) end
-local function rgbcolor (...) rgbcolor  = nodeinjections.rgbcolor  return rgbcolor (...) end
-local function cmykcolor(...) cmykcolor = nodeinjections.cmykcolor return cmykcolor(...) end
-local function spotcolor(...) spotcolor = nodeinjections.spotcolor return spotcolor(...) end
+local graycolor = nodeinjections.graycolor
+local rgbcolor  = nodeinjections.rgbcolor
+local cmykcolor = nodeinjections.cmykcolor
+local spotcolor = nodeinjections.spotcolor
+
+updaters.register("backends.injections.latebindings",function()
+    local nodeinjections = backends.nodeinjections
+    graycolor = nodeinjections.graycolor
+    rgbcolor  = nodeinjections.rgbcolor
+    cmykcolor = nodeinjections.cmykcolor
+    spotcolor = nodeinjections.spotcolor
+end)
 
 local function extender(colors,key)
     if colors.supported and key == "none" then
@@ -494,7 +503,7 @@ end
 
 -- transparencies
 
-local a_transparency      = attributes.private('transparency')
+local a_transparency      <const> = attributes.private('transparency')
 
 attributes.transparencies = attributes.transparencies or { }
 local transparencies      = attributes.transparencies
@@ -513,15 +522,13 @@ local f_transparency      = formatters["%s:%s"]
 registerstorage("attributes/transparencies/registered", registered, "attributes.transparencies.registered")
 registerstorage("attributes/transparencies/values",     values,     "attributes.transparencies.values")
 
-local function inject_transparency(...)
-    inject_transparency = nodeinjections.transparency
-    return inject_transparency(...)
-end
+local register_transparency = registrations.transparency
+local inject_transparency   = nodeinjections.transparency
 
-local function register_transparency(...)
-    register_transparency = registrations.transparency
-    return register_transparency(...)
-end
+updaters.register("backends.injections.latebindings",function()
+    register_transparency = backends.registrations.transparency
+    inject_transparency   = backends.nodeinjections.transparency
+end)
 
 function transparencies.register(name,a,t,force) -- name is irrelevant here (can even be nil)
     -- Force needed here for metapost converter. We could always force
@@ -607,6 +614,7 @@ end
 attributes.colorintents = attributes.colorintents or  { }
 local colorintents      = attributes.colorintents
 colorintents.data       = allocate() -- colorintents.data or { }
+
 colorintents.attribute  = attributes.private('colorintent')
 
 colorintents.registered = allocate {
@@ -614,7 +622,17 @@ colorintents.registered = allocate {
     knockout  = 2,
 }
 
-local data, registered = colorintents.data, colorintents.registered
+local inject_overprint = nodeinjections.injectoverprint
+local inject_knockout  = nodeinjections.injectknockout
+
+updaters.register("backends.injections.latebindings",function()
+    local nodeinjections = backends.nodeinjections
+    inject_overprint = nodeinjections.injectoverprint
+    inject_knockout  = nodeinjections.injectknockout
+end)
+
+local data       = colorintents.data
+local registered = colorintents.registered
 
 local function extender(colorintents,key)
     if key == "none" then
@@ -626,11 +644,11 @@ end
 
 local function reviver(data,n)
     if n == 1 then
-        local d = nodeinjections.overprint() -- called once
+        local d = inject_overprint() -- called once
         data[1] = d
         return d
     elseif n == 2 then
-        local d = nodeinjections.knockout() -- called once
+        local d = inject_knockout() -- called once
         data[2] = d
         return d
     end

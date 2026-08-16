@@ -56,10 +56,10 @@
    \c!n=10] % * will use the real space
 
 \appendtoks
-    \frozen\instance\setuevalue{\currenttextnote}{\educ_textnote[\currenttextnote]}%
+    \protected\frozen\instance\edefcsname\currenttextnote\endcsname{\educ_textnote[\currenttextnote]}%
 \to \everydefinetextnote
 
-\tolerant\protected\def\educ_textnote[#1]#*[#2]#:#3%
+\tolerant\protected\def\educ_textnote[#1]#*[#S#2]#:#3%
   {\dontleavehmode
    \begingroup
    \def\currenttextnote{#1}%
@@ -93,7 +93,7 @@
      \egroup
    \else
      \inlinebar[\currentbar]\bgroup
-       \scratchcounter\numexpr\p_n/\plustwo\relax
+       \scratchcounter{\p_n/\plustwo}%
        \ifx\p_empty\v!yes
          \interwordspacesbefore\scratchcounter
          \setnotetext[\currentnote]{#3}%

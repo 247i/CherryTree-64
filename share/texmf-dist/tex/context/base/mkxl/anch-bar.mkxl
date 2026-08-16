@@ -15,10 +15,8 @@
 
 \unprotect
 
-%D This can be done better now ...
-
-%D We will implement a sidebar mechanism using the functionality from
-%D \type {core-pos}.
+%D We will implement a sidebar mechanism using the functionality from \type
+%D {core-pos}.
 %D
 %D \starttyping
 %D \definesidebar[whow][rulecolor=green,distance=0pt]
@@ -54,15 +52,17 @@
 %D   \input tufte
 %D \stopsidebar
 %D \stoptyping
+%D
+%D This can be done better now ... maybe also by using the syncpos features.
 
 \installcorenamespace{sidebar}
 
 \installcommandhandler \??sidebar {sidebar} \??sidebar
 
-\newcount\c_anch_sidebars_n
-\newcount\c_anch_sidebars_current % local
-\newdimen\d_anch_sidebars_distance
-\newcount\c_anch_sidebars_level
+\newinteger  \c_anch_sidebars_n
+\newinteger  \c_anch_sidebars_current % local
+\newdimension\d_anch_sidebars_distance
+\newinteger  \c_anch_sidebars_level
 
 % \setupMPvariables
 %   [mpos:sidebar]
@@ -71,67 +71,68 @@
 %    distance=5pt]
 
 \setupsidebar
-  [\c!rulethickness=\dimexpr\bodyfontsize/6\relax, % 2pt default
+  [\c!rulethickness=\bodyfontsize/6, % 2pt default
    \c!rulecolor=\s!black,
    \c!alternative=0,
    \c!topoffset=\zeropoint,
    \c!bottomoffset=\zeropoint,
    \c!distance=.5\bodyfontsize,
    \c!level=,
+   \c!location=\v!left,
    \c!leftmargindistance=\zeropoint]
 
 \aliased\let\setupsidebars\setupsidebar
 
-\permanent\tolerant\protected\def\startsidebar[#1]#*[#2]%
+\permanent\tolerant\protected\def\startsidebar[#S#1]#*[#S#2]%
   {\bgroup
    \dontleavehmode
-   \advance\c_anch_sidebars_level\plusone
-   \global\advance\c_anch_sidebars_n\plusone
+   \advanceby\c_anch_sidebars_level\plusone
+   \global\advanceby\c_anch_sidebars_n\plusone
    \c_anch_sidebars_current\c_anch_sidebars_n\relax % relax needed
    \ifhastok={#1}%
-     \edef\currentsidebar{\the\c_anch_sidebars_level}%
+     \cdef\currentsidebar{\the\c_anch_sidebars_level}%
      \checksidebarparent
      \setupcurrentsidebar[#1]%
    \else
-     \def\currentsidebar{#1}%
+     \cdef\currentsidebar{#1}%
      \setupcurrentsidebar[#2]%
    \fi
-   \scratchdistance\sidebarparameter\c!distance\relax
-   \scratchdimen\sidebarparameter\c!leftmargindistance\relax
-   \edef\m_level{\sidebarparameter\c!level}%
-   \ifempty\m_level
+   \scratchdistance{\sidebarparameter\c!distance}%
+   \scratchdimen{\sidebarparameter\c!leftmargindistance}%
+   \edef\p_level{\sidebarparameter\c!level}%
+   \ifempty\p_level
      \ifnum\c_anch_sidebars_level=\plusone
        \ifzeropt\scratchdimen
-         \advance\d_anch_sidebars_distance\scratchdistance\relax
+         \advanceby\d_anch_sidebars_distance\scratchdistance\relax
        \else
          \d_anch_sidebars_distance\scratchdimen
        \fi
      \else
-       \advance\d_anch_sidebars_distance\scratchdistance\relax
+       \advanceby\d_anch_sidebars_distance\scratchdistance\relax
+     \fi
+   \orelse\ifnum\p_level=\plusone
+     \ifzeropt\scratchdimen
+       \advanceby\d_anch_sidebars_distance\scratchdistance\relax
+     \else
+       \d_anch_sidebars_distance\scratchdimen
      \fi
    \else
-     \ifnum\m_level=\plusone
-       \ifzeropt\scratchdimen
-         \advance\d_anch_sidebars_distance\scratchdistance\relax
-       \else
-         \d_anch_sidebars_distance\scratchdimen
-       \fi
-     \else
-       \d_anch_sidebars_distance\dimexpr\scratchdimen+\numexpr\m_level-\plusone\relax\dimexpr\scratchdistance\relax\relax
-     \fi
+     % test: {\scratchdimen+(\p_level-\plusone)*\scratchdistance}
+     \d_anch_sidebars_distance{\scratchdimen+\numexpr\p_level-\plusone\relax\dimexpr\scratchdistance\relax}%
    \fi
    \startpositionoverlay{\v!text-1}%
-     \normalexpanded{\setMPpositiongraphicrange % maybe expand in definition
-       {b:sidebar:\the\c_anch_sidebars_n}%
-       {e:sidebar:\the\c_anch_sidebars_n}%
+     \expanded{\setMPpositiongraphicrange % maybe expand in definition
+       {b:sidebar:\tointeger\c_anch_sidebars_n}%
+       {e:sidebar:\tointeger\c_anch_sidebars_n}%
        {mpos:sidebar}%
-       {self=sidebar:\the\c_anch_sidebars_n,
-        linewidth=\sidebarparameter\c!rulethickness,
+       {self=sidebar:\tointeger\c_anch_sidebars_n,
+        location=\mplocation{\sidebarparameter\c!location},
+        linewidth=\todimension{\sidebarparameter\c!rulethickness},
         linecolor=\sidebarparameter\c!rulecolor,
         alternative=\sidebarparameter\c!alternative,
-        topoffset=\the\dimexpr\sidebarparameter\c!topoffset,
-        bottomoffset=\the\dimexpr\sidebarparameter\c!bottomoffset,
-        distance=\the\d_anch_sidebars_distance}%
+        topoffset=\todimension{\sidebarparameter\c!topoffset},
+        bottomoffset=\todimension{\sidebarparameter\c!bottomoffset},
+        distance=\todimension\d_anch_sidebars_distance}%
      }%
    \stoppositionoverlay
    \bpos{sidebar:\the\c_anch_sidebars_current}%
@@ -146,19 +147,13 @@
 %D one lua call).
 
 \startMPpositionmethod{mpos:sidebar}
-    \startMPpositiongraphic{mpos:sidebar}{linecolor,linewidth,distance,alternative}%
-        anch_sidebars_draw (
-            \MPp\MPbself,\MPp\MPeself,\MPy\MPbself,\MPy\MPeself,\MPh\MPbself,\MPd\MPeself,
-            \MPx{\textanchor},\MPy{\textanchor},\MPw{\textanchor},\MPh{\textanchor},
-            \MPvar{alternative},\MPvar{distance},\MPvar{linewidth},\MPvar{linecolor},
-            \MPvar{topoffset}, \MPvar{bottomoffset}
-        ) ;
+    \startMPpositiongraphic{mpos:sidebar}{linecolor,linewidth,distance,alternative}
+        anch_sidebars_draw("\MPbself", "\MPeself", "\textanchor") ;
     \stopMPpositiongraphic
     \MPpositiongraphic{mpos:sidebar}{}%
 \stopMPpositionmethod
 
-%D We now reimplement the \MKII\ margin rules handler in a more
-%D modern way.
+%D We now reimplement the \MKII\ margin rules handler in a more modern way.
 %D
 %D \setupmarginrules
 %D   [rulecolor=darkred,
@@ -189,10 +184,11 @@
 \definesidebar
   [\v!margin]
   [\c!leftmargindistance=\dimexpr\leftmargindistance+\sidebarparameter\c!rulethickness/2\relax]
+ %[\c!leftmargindistance=\leftmargindistance+\sidebarparameter\c!rulethickness/2]
 
 \dorecurse{5}{\definesidebar[\v!margin:#1][\v!margin]} % let's be nice and predefine 5 levels
 
-\permanent\tolerant\protected\def\setupmarginrule[#1]#*[#2]%
+\permanent\tolerant\protected\def\setupmarginrule[#S#1]#*[#S#2]%
   {\ifarguments\or
      \setupsidebar[\v!margin][#1]%
    \or
@@ -201,11 +197,13 @@
 
 \aliased\let\setupmarginrules\setupmarginrule
 
-\permanent\tolerant\protected\def\startmarginrule[#1]% pretty inefficient checking
-  {\edef\m_anch_marginrules_kind{#1}%
-   \ifempty\m_anch_marginrules_kind
+\permanent\tolerant\protected\def\startmarginrule[#S#1]% pretty inefficient checking
+ %{\edef\m_anch_marginrules_kind{#1}%
+ % \ifempty\m_anch_marginrules_kind
+ % {\unless\ifparameter#1\or
+  {\ifempty{#1}%
      \startsidebar[\v!margin][]%
-   \orelse\ifhastok={\m_anch_marginrules_kind}%
+   \orelse\ifhastok={#1}%
      \startsidebar[\v!margin][#1]%
    \else
      \anch_marginrules_check{#1}%

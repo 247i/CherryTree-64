@@ -70,23 +70,23 @@
 \newconditional \c_tabl_lines_preroll
 \newconditional \c_tabl_lines_in_table
 
-\newdimen       \d_tabl_lines_width
-\newdimen       \d_tabl_lines_height
-%newdimen       \d_tabl_lines_depth
+\newdimension   \d_tabl_lines_width
+\newdimension   \d_tabl_lines_height
+%newdimension   \d_tabl_lines_depth
 
 \newbox         \b_tabl_lines_cell
 
-\newcount       \c_tabl_lines_n_of_columns
-\newcount       \c_tabl_lines_n_of_rows
-\newcount       \c_tabl_lines_n_of_lines
-\newcount       \c_tabl_lines_n_of_parts
-\newcount       \c_tabl_lines_part           \c_tabl_lines_part\plusone
-\newcount       \c_tabl_lines_step           \c_tabl_lines_step\plusone
-\newcount       \c_tabl_lines_line
-\newcount       \c_tabl_lines_row
-\newcount       \c_tabl_lines_rows
-\newcount       \c_tabl_lines_column
-\newcount       \c_tabl_lines_subcol
+\newinteger     \c_tabl_lines_n_of_columns
+\newinteger     \c_tabl_lines_n_of_rows
+\newinteger     \c_tabl_lines_n_of_lines
+\newinteger     \c_tabl_lines_n_of_parts
+\newinteger     \c_tabl_lines_part           \c_tabl_lines_part\plusone
+\newinteger     \c_tabl_lines_step           \c_tabl_lines_step\plusone
+\newinteger     \c_tabl_lines_line
+\newinteger     \c_tabl_lines_row
+\newinteger     \c_tabl_lines_rows
+\newinteger     \c_tabl_lines_column
+\newinteger     \c_tabl_lines_subcol
 
 \newconstant    \c_tabl_lines_hmode
 \newconstant    \c_tabl_lines_page
@@ -97,13 +97,13 @@
 
 \newtoks        \t_tabl_lines_head
 
-\newconditional \linetableautoheight  \settrue\linetableautoheight
+\newconditional \linetableautoheight  \linetableautoheight\conditionaltrue
 
 \tabl_lines_initialize_box\zerocount % holds repeater
 
 \pushoverloadmode
 
-\permanent\tolerant\protected\def\setuplinetable[#1]#*[#2]#*[#3]%
+\permanent\tolerant\protected\def\setuplinetable[#S#1]#*[#S#2]#*[#S#3]%
   {\ifarguments\or
      \getparameters[\??linetable][#1]%
    \or
@@ -116,7 +116,7 @@
   {\begincsname\??linetable#1\endcsname}
 
 \permanent\protected\def\doifelselinetablecparameter#1%
-  {\ifcsname\??linetable c:\number\c_tabl_lines_column#1\endcsname
+  {\ifcsname\??linetable c:\the\c_tabl_lines_column#1\endcsname
      \expandafter\firstoftwoarguments
    \orelse\ifcsname\??linetable c:#1\endcsname
      \expandafter\firstoftwoarguments
@@ -129,8 +129,8 @@
 \permanent\def\linetablecparameter#1%
   {\begincsname
      \??linetable
-     \ifcsname\??linetable c:\number\c_tabl_lines_column#1\endcsname
-       c:\number\c_tabl_lines_column
+     \ifcsname\??linetable c:\the\c_tabl_lines_column#1\endcsname
+       c:\the\c_tabl_lines_column
      \orelse\ifcsname\??linetable c:#1\endcsname
        c:%
      \fi
@@ -140,15 +140,16 @@
 \permanent\def\linetablerparameter#1% faster, leaner and meaner
   {\begincsname
      \??linetable
-     \ifnum\c_tabl_lines_row=\zerocount % geen ifcase
+   % \ifnum\c_tabl_lines_row=\zerocount % geen ifcase
+     \ifzero\c_tabl_lines_row
        \ifcsname\??linetable r:\v!header#1\endcsname
          r:\v!header
        \orelse\ifcsname\??linetable r:0#1\endcsname
          r:0%
        \fi
      \else
-       \ifcsname\??linetable r:\number\c_tabl_lines_row#1\endcsname
-         r:\number\c_tabl_lines_row
+       \ifcsname\??linetable r:\the\c_tabl_lines_row#1\endcsname
+         r:\the\c_tabl_lines_row
        \orelse\ifcsname\??linetable r:\v!oddeven\c_tabl_lines_row#1\endcsname
          r:\v!oddeven\c_tabl_lines_row
        \fi
@@ -169,7 +170,7 @@
   %\triggerpagebuilder
    \scratchdimen
      \ifdim\pagegoal<\maxdimen
-       \dimexpr\pagegoal-\pagetotal\relax
+       {\pagegoal-\pagetotal}%
      \else
        \textheight
      \fi
@@ -181,22 +182,22 @@
    \fi}
 
 \def\tabl_lines_step_cell
-  {\advance\scratchdimen\linetablecparameter\c!width
-   \global\advance      \c_tabl_lines_column\plusone
-   \advance\scratchskip \linetablecparameter\c!distance}
+  {\advanceby\scratchdimen{\linetablecparameter\c!width}%
+   \global\advanceby\c_tabl_lines_column\plusone
+   \advanceby\scratchskip{\linetablecparameter\c!distance}}
 
-\permanent\tolerant\protected\def\startlinetablecell[#1]%
+\permanent\tolerant\protected\def\startlinetablecell[#S#1]%
   {\global\setbox\b_tabl_lines_cell\hbox\bgroup
    \ifparameter#1\or
-     \getparameters[\??linetable c:\number\c_tabl_lines_column][#1]%
+     \getparameters[\??linetable c:\the\c_tabl_lines_column][#1]%
    \fi
-   \global\c_tabl_lines_step\linetablecparameter\c!nx\relax
+   \global\c_tabl_lines_step{\linetablecparameter\c!nx}%
    \ifcase\c_tabl_lines_step\or
-     \scratchdimen\linetablecparameter\c!width
-     \scratchskip \linetablecparameter\c!distance
+     \scratchdimen{\linetablecparameter\c!width}%
+     \scratchskip{\linetablecparameter\c!distance}%
    \else
      \scratchdimen  \zeropoint
-     \scratchskip   \zeropoint
+     \scratchskip   \zeroskip
      \scratchcounter\c_tabl_lines_column
      \dorecurse\c_tabl_lines_step\tabl_lines_step_cell
      \global\c_tabl_lines_column\scratchcounter
@@ -221,13 +222,12 @@
    \setbox\scratchbox\hbox
      \bgroup
      \dontcomplain
-     \hskip\linetablecparameter\c!leftoffset\relax
+     \hskip{\linetablecparameter\c!leftoffset}%
      % 0 = width, unknown height
      % 1 = width, fixed height
      % 2 = no width, auto hsize
      \ifnum\c_tabl_lines_mode<\plustwo
-       \advance\scratchdimen-\linetablecparameter\c!leftoffset
-       \advance\scratchdimen-\linetablecparameter\c!rightoffset
+       \advanceby\scratchdimen{-\linetablecparameter\c!leftoffset-\linetablecparameter\c!rightoffset}%
      \fi
      \ifcase\c_tabl_lines_mode
        \dosetraggedcommand{\linetablecparameter\c!align}%
@@ -251,7 +251,7 @@
      \ifcase\alignmentswitch\else\hss\fi
    \fi
    \egroup
-   \hskip\linetablecparameter\c!rightoffset
+   \hskip{\linetablecparameter\c!rightoffset}\relax
    \egroup
    \ifconditional\c_tabl_lines_preroll
      \box\scratchbox
@@ -261,8 +261,7 @@
    \egroup}
 
 \def\tabl_lines_wrap_up
-  {\edef\p_background{\linetablecparameter\c!background}%
-   \ifx\p_background\v!color
+  {\ifcstok{\linetablecparameter\c!background}\v!color
      \ifconditional\linetableautoheight
        \tabl_lines_wrap_up_auto
      \else
@@ -298,10 +297,10 @@
            \c!type=\linetablecparameter\c!type,
              \c!mp=\linetablecparameter\c!mp,
   \c!rulethickness=\linetablecparameter\c!rulethickness,
-         \c!height=\ifempty\p_height\ht\scratchbox\else\p_height\fi,
-          \c!depth=\ifempty\p_depth \dp\scratchbox\else\p_depth \fi,
+         \c!height=\ifchkdimension\p_height\or\lastchkdimension\else\ht\scratchbox\fi,
+          \c!depth=\ifchkdimension\p_depth \or\lastchkdimension\else\dp\scratchbox\fi,
           \c!width=\wd\scratchbox]%
-      \hskip-\wd\scratchbox\box\scratchbox}}
+      \hkern-\wd\scratchbox\box\scratchbox}}
 
 \def\tabl_lines_wrap_up_auto_r
   {\hpack
@@ -313,7 +312,7 @@
          \c!height=\ht\scratchbox,
           \c!depth=\dp\scratchbox,
           \c!width=\wd\scratchbox]%
-      \hskip-\wd\scratchbox\box\scratchbox}}
+      \hkern-\wd\scratchbox\box\scratchbox}}
 
 \def\tabl_lines_wrap_up_line
   {\backgroundline[\linetablecparameter\c!backgroundcolor]{\box\scratchbox}}
@@ -325,23 +324,19 @@
    \else
      \vbox
        {\ifvoid\b_tabl_lines_current\c_tabl_lines_part\else\unvbox\b_tabl_lines_current\c_tabl_lines_part\fi
-        \edef\p_background{\linetablerparameter\c!background}%
-        \ifx\p_background\v!color
+        \ifcstok{\linetablerparameter\c!background}\v!color
           \backgroundline[\linetablerparameter\c!backgroundcolor]{\box\scratchbox}%
+        \orelse\ifempty{\linetablerparameter\c!type}%
+          \box\scratchbox
         \else
-          \edef\p_type{\linetablerparameter\c!type}%
-          \ifempty\p_type
-            \box\scratchbox
-          \else
-            \tabl_lines_wrap_up_auto_r
-          \fi
+          \tabl_lines_wrap_up_auto_r
         \fi
         \endgraf
         \linetablerparameter\c!after}%
    \fi}
 
 \def\tabl_lines_flush_parts
-  {\global\advance\c_tabl_lines_line\plusone
+  {\global\advanceby\c_tabl_lines_line\plusone
    \ifnum\c_tabl_lines_line<\c_tabl_lines_n_of_lines
      % keep collecting
    \else
@@ -353,7 +348,7 @@
           \dp\b_tabl_lines_current\c_tabl_lines_part\strutdepth
           % noindent en endgraf needed else whitespace mess-up!
           \whitespace % here not after verticalstrut
-          \ifdim\topskipgap=\zeropoint\else
+          \ifzeropt\topskipgap\else
             \verticalstrut
             \nobreak
             \kern-\struttotal
@@ -391,49 +386,53 @@
    \dousecolorparameter{\linetablerparameter\c!color}%
    \ignorespaces}
 
+\def\d_tabl_lines_stretch
+  {\ifcstok{\linetableparameter\c!stretch}\v!no
+     \maxdimen  % no stretch
+   \orelse\iflastnamedcs\v!yes
+     \zeropoint % max stretch
+   \else
+     \lastnamedcs
+   \fi}
+
 \def\tabl_lines_stop_part
   {\ifnum\c_tabl_lines_part>\zerocount
      \unskip \unskip % remove last intercolumn skip (distance+fill)
    \fi
    \egroup
-   \ifconditional\c_tabl_lines_preroll \else
-     \ifcase\c_tabl_lines_part
-       % we're collecting the repeater
-     \else
-       \ifdim\dimexpr\hsize-\wd\scratchbox\relax>\linetableparameter\c!stretch\else
-         \setbox\scratchbox\hpack to \hsize{\unhbox\scratchbox}%
-       \fi
-     \fi
+   \ifconditional\c_tabl_lines_preroll
+   \orelse\ifcase\c_tabl_lines_part
+     % we're collecting the repeater
+   \orelse\ifdim{\hsize-\wd\scratchbox}>{\d_tabl_lines_stretch}%
+   \else
+     \setbox\scratchbox\hpack to \hsize{\unhbox\scratchbox}%
    \fi}
 
 \def\tabl_lines_check_part
-  {\global\advance\d_tabl_lines_width\wd\b_tabl_lines_cell
-   \global\advance\c_tabl_lines_column\c_tabl_lines_step
-   \global\advance\c_tabl_lines_subcol\c_tabl_lines_step
+  {\global\advanceby\d_tabl_lines_width\wd\b_tabl_lines_cell
+   \global\advanceby\c_tabl_lines_column\c_tabl_lines_step
+   \global\advanceby\c_tabl_lines_subcol\c_tabl_lines_step
    \relax
    %\message{\the\c_tabl_lines_column,\the\c_tabl_lines_subcol}\wait
    % from now on the column counter is already incremented
    \ifcase\c_tabl_lines_split_state
-     \ifconditional\c_tabl_lines_preroll \else
+     \ifconditional\c_tabl_lines_preroll
+     \else
        \box\b_tabl_lines_cell
        % the columncounter is one ahead !
        \hskip\scratchskip
      \fi
      %%%
      \donefalse
-     \ifcase\c_tabl_lines_repeat\else
-       % calculate ahead
-       \ifnum\c_tabl_lines_repeat=\numexpr\c_tabl_lines_column-\plustwo\relax
-         \donetrue % collecting repeater
-       \fi
+     \ifcase\c_tabl_lines_repeat
+     \orelse\ifnum\c_tabl_lines_repeat={r\c_tabl_lines_column-\plustwo}% calculate ahead
+       \donetrue % collecting repeater
      \fi
      %%%%
      \ifdone
        % collecting repeater
-     \else
-       \ifnum\c_tabl_lines_column>\csname\??linetablepart\number\c_tabl_lines_part\endcsname\relax
-         \donetrue
-       \fi
+     \orelse\ifnum\c_tabl_lines_column>\csname\??linetablepart\the\c_tabl_lines_part\endcsname\relax
+       \donetrue
      \fi
      \ifdone
        \tabl_lines_stop_part
@@ -445,7 +444,7 @@
        \else
          \global\c_tabl_lines_page \plusone
        \fi
-       \global\advance\c_tabl_lines_part\plusone
+       \global\advanceby\c_tabl_lines_part\plusone
        \global\d_tabl_lines_width\wd\b_tabl_lines_current\zerocount
        \tabl_lines_start_part
      \fi
@@ -454,17 +453,21 @@
      \scratchconditiononefalse
      \ifcase\c_tabl_lines_repeat\else
        % calculate ahead
-       \ifnum\c_tabl_lines_repeat=\numexpr\c_tabl_lines_column-\plustwo\relax
+       \ifnum\c_tabl_lines_repeat={\c_tabl_lines_column-\plustwo}%
          \donetrue % collecting repeater
        \fi
      \fi
-     \ifdone
+     \ifnum\c_tabl_lines_head_state=\plusone
+       \ifdim\d_tabl_lines_width>\hsize
+         \llap{{\infofont[overflow]}\quad}%
+       \fi
+     \orelse\ifdone
        \scratchconditiononetrue
        % collecting repeater
      \orelse\ifdim\d_tabl_lines_width>\hsize
        \donetrue
      \else
-       \global\advance\d_tabl_lines_width\scratchskip
+       \global\advanceby\d_tabl_lines_width\scratchskip
        \ifdim\d_tabl_lines_width>\hsize % ?
          \donetrue
        \fi
@@ -477,7 +480,7 @@
        \else
          \global\c_tabl_lines_page \plusone
        \fi
-       \global\advance\c_tabl_lines_part\plusone
+       \global\advanceby\c_tabl_lines_part\plusone
        \ifnum\c_tabl_lines_part>\c_tabl_lines_n_of_parts
          \global\c_tabl_lines_n_of_parts\c_tabl_lines_part
          \tabl_lines_initialize_box\c_tabl_lines_part
@@ -486,9 +489,10 @@
        \tabl_lines_start_part
        \ifscratchconditionone \orelse \ifcase\c_tabl_lines_repeat \else
          % check for left/right page
-         \ifcase\c_tabl_lines_page\donetrue\or\donetrue\or\donefalse\fi\ifdone
+         \ifcase\c_tabl_lines_page\donetrue\or\donetrue\or\donefalse\fi
+         \ifdone
            % insert repeater
-           \global\advance\d_tabl_lines_width\wd\b_tabl_lines_current\zerocount
+           \global\advanceby\d_tabl_lines_width\wd\b_tabl_lines_current\zerocount
            \ifconditional\c_tabl_lines_preroll\kern\wd\else\unhcopy\fi\b_tabl_lines_current\zerocount
          \fi
        \fi
@@ -505,17 +509,15 @@
 \permanent\protected\def\startlinetablerun % to do: quit when nested
   {\bgroup
    \dontcomplain
-   \settrue\c_tabl_lines_in_table
+   \c_tabl_lines_in_table\conditionaltrue
    % autowidth
-   \doif{\linetableparameter\c!maxwidth}\v!fit
-     {\setuplinetable[\c!maxwidth=\zeropoint]}%
-   \processaction
-     [\linetableparameter\c!stretch]
-     [ \v!no=>{\setuplinetable[\c!stretch=\maxdimen]},% no stretch
-      \v!yes=>{\setuplinetable[\c!stretch=\zeropoint]}]% max stretch
-   \c_tabl_lines_repeat\linetableparameter\c!nleft
+   \ifcstok{\linetableparameter\c!maxwidth}\v!fit
+     \setuplinetable[\c!maxwidth=\zeropoint]%
+   \fi
+%    \c_tabl_lines_set_stretch
+   \c_tabl_lines_repeat{\linetableparameter\c!nleft}%
    \c_tabl_lines_split_state % =
-     \ifdim\linetableparameter\c!maxwidth>\zeropoint
+     \ifdim{\linetableparameter\c!maxwidth}>\zeropoint
        \zerocount \else \plusone
      \fi
    % optional prevdepth correction
@@ -529,9 +531,9 @@
    \global\c_tabl_lines_n_of_parts\zerocount
    \scratchcounter\zerocount
    \def\docommand##1%
-     {\global\advance\c_tabl_lines_n_of_parts\plusone
-      \advance\scratchcounter##1%
-      \xdefcsname\??linetablepart\number\c_tabl_lines_n_of_parts\endcsname{\the\scratchcounter}}%
+     {\global\advanceby\c_tabl_lines_n_of_parts\plusone
+      \advanceby\scratchcounter##1%
+      \xdefcsname\??linetablepart\the\c_tabl_lines_n_of_parts\endcsname{\the\scratchcounter}}%
    \processcommacommand[\linetableparameter\c!n]\docommand
    \tabl_lines_initialize_boxes\c_tabl_lines_n_of_parts
    \global\c_tabl_lines_part\ifcase\c_tabl_lines_repeat\plusone\else\zerocount\fi % repeater
@@ -568,7 +570,7 @@
    \egroup}
 
 \permanent\def\checklinecolumndimension#1#2#3%
-  {\global\edef#1\number#3\endcsname
+  {\global\edefcsname#1\number#3\endcsname
      {\expandafter\ifrelax\csname#1\number#3\endcsname
         \the#2\b_tabl_lines_cell
       \orelse\ifdim\csname#1\number#3\endcsname<#2\b_tabl_lines_cell
@@ -583,8 +585,8 @@
 
 \permanent\tolerant\protected\def\tabl_lines_BR[#1]% #1 not yet implemented
   {\ifnum\c_tabl_lines_head_state=1\else
-     \global\advance\c_tabl_lines_row\plusone
-     \global\advance\c_tabl_lines_rows\plusone
+     \global\advanceby\c_tabl_lines_row\plusone
+     \global\advanceby\c_tabl_lines_rows\plusone
    \fi
    \global\c_tabl_lines_column\plusone
    \global\c_tabl_lines_subcol\plusone
@@ -597,7 +599,7 @@
    \orelse\ifx\p_height\v!line
      \c_tabl_lines_hmode \plustwo
    \else
-     \d_tabl_lines_height\dimexpr\p_height-\strutdepth\relax
+     \d_tabl_lines_height{\p_height-\strutdepth}%
    \fi
    \tabl_lines_start_part}
 
@@ -618,7 +620,7 @@
    % no \box\b_tabl_lines_cell, i.e. dummy columnn, last \NC \NR
    \tabl_lines_stop_part
    \tabl_lines_save_part
-   \advance\c_tabl_lines_column \minusone
+   \advanceby\c_tabl_lines_column \minusone
    \ifnum\c_tabl_lines_column>\c_tabl_lines_n_of_columns
      \global\c_tabl_lines_n_of_columns\c_tabl_lines_column
    \fi
@@ -636,8 +638,9 @@
 \def\tabl_lines_check_page
   {\global\c_tabl_lines_page\zerocount
    \ifcase\c_tabl_lines_repeat\orelse\ifcase\c_tabl_lines_page
-     \doif{\linetableparameter\c!repeat}\v!no
-       {\global\c_tabl_lines_page\doifelseoddpage\plusone\plustwo}%
+     \ifcstok{\linetableparameter\c!repeat}\v!no
+       \global\c_tabl_lines_page\doifelseoddpage\plusone\plustwo
+     \fi
    \fi}
 
 \def\tabl_lines_flush_head
@@ -650,7 +653,7 @@
    \or
      % 3 trigger flush
      \c_tabl_lines_head_state\plusone
-     \the\t_tabl_lines_head\relax
+     \expand\t_tabl_lines_head\relax
      \c_tabl_lines_head_state\plustwo
    \fi}
 
@@ -675,7 +678,7 @@
 
 \permanent\protected\def\startlinetableanalysis
   {\bgroup
-   \settrue\c_tabl_lines_preroll
+   \c_tabl_lines_preroll\conditionaltrue
    \settrialtypesetting
    \startlinetablerun}
 
@@ -687,14 +690,14 @@
      {\edefcsname\??linetable r:##1x\c!height\endcsname{\csname\??linetableheight##1\endcsname}%
       \edefcsname\??linetable r:##1x\c!depth \endcsname{\csname\??linetabledepth ##1\endcsname}%
       \gletcsname\??linetableheight##1\endcsname\zeropoint
-      \gletcsname\??linetabledepth ##1\endcsname\zeropoint}
+      \gletcsname\??linetabledepth ##1\endcsname\zeropoint}%
    \dorecurse\c_tabl_lines_n_of_columns % global, from last run {\linetableparameter\c!n}
      {\edefcsname\??linetable c:##1\c!width\endcsname{\csname\??linetablewidth##1\endcsname}%
       \gletcsname\??linetablewidth##1\endcsname\zeropoint}} % init next table
 
 % todo: store in box instead of macro
 
-\aliased\let\stoplinetablehead\relax
+\permanent\protected\lettonothing\stoplinetablehead
 
 \permanent\protected\def\startlinetablehead#1\stoplinetablehead
   {\ifconditional\c_tabl_lines_in_table
@@ -714,13 +717,13 @@
    \fi
    \push_macro_BC
    \push_macro_EC
-   \enforced\permanent\protected\def\BC##1\EC{\appendtoks##1\to\t_tabl_lines_head}%
+   \enforced\permanent\protected\def\BC##1\EC{\toksapp\t_tabl_lines_head{##1}}%
    \enforced\permanent          \let\EC\relax} % signal
 
 \permanent\protected\def\tabl_lines_EH
   {\pop_macro_EC
    \pop_macro_BC
-   \expandafter\startlinetablehead\the\t_tabl_lines_head\stoplinetablehead}
+   \expandafter\startlinetablehead\expand\t_tabl_lines_head\stoplinetablehead}
 
 \permanent\let\startlinetablebody\relax
 \permanent\let\stoplinetablebody \relax

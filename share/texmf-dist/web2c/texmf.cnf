@@ -59,7 +59,7 @@
 % SELFAUTOPARENT (its grandparent = /usr/local/texlive/YYYY), and
 % SELFAUTOGRANDPARENT (its great-grandparent = /usr/local/texlive).
 % Sorry for the off-by-one-generation names.
-TEXMFROOT = C:/msys64/mingw64/share
+TEXMFROOT = D:/a/_temp/msys64/ucrt64/share
 
 % The main tree of distributed packages and programs:
 TEXMFDIST = $TEXMFROOT/texmf-dist
@@ -69,13 +69,13 @@ TEXMFDIST = $TEXMFROOT/texmf-dist
 TEXMFMAIN = $TEXMFDIST
 
 % Local additions to the distribution trees.
-TEXMFLOCAL = C:/msys64/mingw64/local/share/texmf;C:/msys64/mingw64/share/texmf
+TEXMFLOCAL = D:/a/_temp/msys64/ucrt64/local/share/texmf;D:/a/_temp/msys64/ucrt64/share/texmf
 
 % TEXMFSYSVAR, where *-sys store cached runtime data.
-TEXMFSYSVAR = C:/msys64/mingw64/var/lib/texmf
+TEXMFSYSVAR = D:/a/_temp/msys64/ucrt64/var/lib/texmf
 
 % TEXMFSYSCONFIG, where *-sys store configuration data.
-TEXMFSYSCONFIG = C:/msys64/mingw64/etc/texmf
+TEXMFSYSCONFIG = D:/a/_temp/msys64/ucrt64/etc/texmf
 
 % Per-user texmf tree(s) -- organized per the TDS, as usual.  To define
 % more than one per-user tree, set this to a list of directories in
@@ -383,7 +383,7 @@ TEXPSHEADERS.gsftopk = $TEXMFDOTDIR;$TEXMF/{dvips,fonts/{enc,type1,type42,type3,
 % fonts installed on the system (outside of TeX).  An empty default
 % value would add "//" to the search paths, so we give it a dummy value.
 % OSFONTDIR = /usr/share/fonts
-OSFONTDIR = C:/msys64/mingw64/share/fonts
+OSFONTDIR = D:/a/_temp/msys64/ucrt64/share/fonts
 
 
 % PostScript Type 1 outline fonts.
@@ -433,14 +433,14 @@ FONTCIDMAPS=$TEXMFDOTDIR;$TEXMF/fonts/cid//
 PDFTEXCONFIG = $TEXMFDOTDIR;$TEXMF/pdftex/{$progname,}//
 
 % Used by DMP (ditroff-to-mpx), called by makempx -troff.
-TRFONTS = C:/msys64/mingw64/share/groff/{current/font,site-font}/devps
+TRFONTS = D:/a/_temp/msys64/ucrt64/share/groff/{current/font,site-font}/devps
 MPSUPPORT = $TEXMFDOTDIR;$TEXMF/metapost/support
 
 % For xdvi to find mime.types and .mailcap, if they do not exist in
 % ~.  These are single directories, not paths.
 % (But the default mime.types, at least, may well suffice.)
-MIMELIBDIR = C:/msys64/mingw64/etc
-MAILCAPLIBDIR = C:/msys64/mingw64/etc
+MIMELIBDIR = D:/a/_temp/msys64/ucrt64/etc
+MAILCAPLIBDIR = D:/a/_temp/msys64/ucrt64/etc
 
 % Default settings for the fontconfig library as used by the Windows
 % versions of xetex/xdvipdfmx.  Not used by xetex on Unixish systems.
@@ -513,7 +513,7 @@ LUAINPUTS.harflatex-dev = $TEXMFDOTDIR;$TEXMF/scripts/{$progname,$engine,}/{lua,
 LUAINPUTS = $TEXMFDOTDIR;$TEXMF/scripts/{$progname,$engine,}/{lua,}//;$TEXMF/tex/{luatex,plain,generic,latex,}//
 
 % Lua needs to look for binary lua libraries distributed with packages.
-CLUAINPUTS = $TEXMFDOTDIR;C:/msys64/mingw64/lib/{$progname,$engine,}/lua//
+CLUAINPUTS = $TEXMFDOTDIR;D:/a/_temp/msys64/ucrt64/lib/{$progname,$engine,}/lua//
 
 % Architecture independent executables.
 TEXMFSCRIPTS = $TEXMF/scripts/{$progname,$engine,}//
@@ -761,6 +761,11 @@ texmf_casefold_search = 1
 % standard Perl modules.
 %
 TEXLIVE_WINDOWS_TRY_EXTERNAL_PERL = 1
+
+% This variable is specific to Windows. This sets the default value for
+% the gs that will be used by the Windows script wrappers.
+%
+TEXLIVE_WINDOWS_EXTERNAL_GS = D:/a/_temp/msys64/ucrt64/bin/gswin32c.exe
 
 
 %  Part 3: Array and other sizes for TeX, Metafont, etc.

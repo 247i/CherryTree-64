@@ -7,10 +7,6 @@ if not modules then modules = { } end modules ['pack-rul'] = {
     license   = "see context related readme files"
 }
 
---[[ldx--
-<p>An explanation is given in the history document <t>mk</t>.</p>
---ldx]]--
-
 -- we need to be careful with display math as it uses shifts
 
 -- \framed[align={lohi,middle}]{$x$}
@@ -26,15 +22,17 @@ local context           = context
 local nodecodes         = nodes.nodecodes
 local listcodes         = nodes.listcodes
 
-local hlist_code        = nodecodes.hlist
-local vlist_code        = nodecodes.vlist
+local hlist_code        <const> = nodecodes.hlist
+local vlist_code        <const> = nodecodes.vlist
 
-local boxlist_code      = listcodes.box
-local linelist_code     = listcodes.line
-local equationlist_code = listcodes.equation
+local boxlist_code      <const> = listcodes.box
+local linelist_code     <const> = listcodes.line
+local equationlist_code <const> = listcodes.equation
 
 local texsetdimen       = tex.setdimen
 local texsetcount       = tex.setcount
+local texisdimen        = tex.isdimen
+local texiscount        = tex.iscount
 
 local implement         = interfaces.implement
 
@@ -46,19 +44,19 @@ local getlist           = nuts.getlist
 local setlist           = nuts.setlist
 local getwhd            = nuts.getwhd
 local getid             = nuts.getid
-local getsubtype        = nuts.getsubtype
+----- getsubtype        = nuts.getsubtype
 local getbox            = nuts.getbox
 local getdirection      = nuts.getdirection
 local setshift          = nuts.setshift
 local setwidth          = nuts.setwidth
 local getwidth          = nuts.getwidth
-local setboxglue        = nuts.setboxglue
-local getboxglue        = nuts.getboxglue
+local setboxglue        = nuts.setglue
+local getboxglue        = nuts.getglue
 
 local hpack             = nuts.hpack
 local getdimensions     = nuts.dimensions
 local naturalhsize      = nuts.naturalhsize
-local flush_node        = nuts.flush
+local flushnode         = nuts.flush
 
 local traversers        = nuts.traversers
 local nexthlist         = traversers.hlist
@@ -71,8 +69,18 @@ directives.register("framed.checkmath",function(v) checkformath = v end) -- expe
 
 -- beware: dir nodes and pseudostruts can end up on lines of their own
 
-local function doreshapeframedbox(n)
-    local box            = getbox(n)
+local c_framednoflines     <const> = texiscount("framednoflines")
+local d_framedfirstheight  <const> = texisdimen("framedfirstheight")
+local d_framedlastdepth    <const> = texisdimen("framedlastdepth")
+local d_framedminwidth     <const> = texisdimen("framedminwidth")
+local d_framedmaxwidth     <const> = texisdimen("framedmaxwidth")
+local d_framedaveragewidth <const> = texisdimen("framedaveragewidth")
+
+local function doreshapeframedbox(n,resync)
+    if resync then
+        resync = drivers.converters.resyncbox
+    end
+    local box            = resync and resync(n) or getbox(n)
     local noflines       = 0
     local nofnonzero     = 0
     local firstheight    = nil
@@ -135,15 +143,15 @@ local function doreshapeframedbox(n)
                         if list and id == hlist_code then
                             -- called a lot so maybe a simple case is needed
                             if subtype == boxlist_code or subtype == linelist_code then
-                                -- getdirection is irrelevant here so it will go
-                                -- somehow a parfillskip also can get influenced
-                                local p = hpack(list,maxwidth,'exactly',getdirection(h)) -- multiple return value
+                             -- -- getdirection is irrelevant here so it will go
+                             -- local p = hpack(list,maxwidth,'exactly',getdirection(h)) -- multiple return value
+                                local p = hpack(list,maxwidth,'exactly') -- multiple return value
                                 local set, order, sign = getboxglue(p)
                                 setboxglue(h,set,order,sign)
                                 setlist(p)
-                                flush_node(p)
+                                flushnode(p)
                             elseif checkformath and subtype == equationlist_code then
-                             -- display formulas use a shift
+                             -- display formulas use a shift .. actually we never have display mode
                                 if nofnonzero == 1 then
                                     setshift(h,0)
                                 end
@@ -167,15 +175,15 @@ local function doreshapeframedbox(n)
             end
         end
     end
-    texsetcount("global","framednoflines",noflines)
-    texsetdimen("global","framedfirstheight",firstheight or 0) -- also signal
-    texsetdimen("global","framedlastdepth",lastdepth or 0)
-    texsetdimen("global","framedminwidth",minwidth)
-    texsetdimen("global","framedmaxwidth",maxwidth)
-    texsetdimen("global","framedaveragewidth",averagewidth)
+    texsetcount("global",c_framednoflines,noflines)
+    texsetdimen("global",d_framedfirstheight,firstheight or 0) -- also signal
+    texsetdimen("global",d_framedlastdepth,lastdepth or 0)
+    texsetdimen("global",d_framedminwidth,minwidth)
+    texsetdimen("global",d_framedmaxwidth,maxwidth)
+    texsetdimen("global",d_framedaveragewidth,averagewidth)
 end
 
-local function doanalyzeframedbox(n) -- traverse_list
+local function doanalyzeframedbox(n)
     local box         = getbox(n)
     local noflines    = 0
     local firstheight = nil
@@ -183,7 +191,7 @@ local function doanalyzeframedbox(n) -- traverse_list
     if getwidth(box) ~= 0 then
         local list = getlist(box)
         if list then
-            for n in nexthlist, list do
+            for n in nextlist, list do
                 local width, height, depth = getwhd(n)
                 if not firstheight then
                     firstheight = height
@@ -191,22 +199,31 @@ local function doanalyzeframedbox(n) -- traverse_list
                 lastdepth = depth
                 noflines  = noflines + 1
             end
-            for n in nextvlist, list do
-                local width, height, depth = getwhd(n)
-                if not firstheight then
-                    firstheight = height
-                end
-                lastdepth = depth
-                noflines  = noflines + 1
-            end
+         -- for n in nexthlist, list do
+         --     local width, height, depth = getwhd(n)
+         --     if not firstheight then
+         --         firstheight = height
+         --     end
+         --     lastdepth = depth
+         --     noflines  = noflines + 1
+         -- end
+         -- for n in nextvlist, list do
+         --     local width, height, depth = getwhd(n)
+         --     if not firstheight then
+         --         firstheight = height
+         --     end
+         --     lastdepth = depth
+         --     noflines  = noflines + 1
+         -- end
         end
     end
-    texsetcount("global","framednoflines",noflines)
-    texsetdimen("global","framedfirstheight",firstheight or 0)
-    texsetdimen("global","framedlastdepth",lastdepth or 0)
+    texsetcount("global",c_framednoflines,noflines)
+    texsetdimen("global",d_framedfirstheight,firstheight or 0)
+    texsetdimen("global",d_framedlastdepth,lastdepth or 0)
 end
 
 implement { name = "doreshapeframedbox", actions = doreshapeframedbox, arguments = "integer" }
+implement { name = "doresyncframedbox",  actions = doreshapeframedbox, arguments = { "integer", true } }
 implement { name = "doanalyzeframedbox", actions = doanalyzeframedbox, arguments = "integer" }
 
 local function maxboxwidth(box)

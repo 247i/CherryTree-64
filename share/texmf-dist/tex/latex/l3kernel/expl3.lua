@@ -4,13 +4,15 @@
 --
 -- The original source files were:
 --
--- l3luatex.dtx  (with options: `package,lua')
--- l3names.dtx  (with options: `package,lua')
--- l3sys.dtx  (with options: `package,lua')
--- l3token.dtx  (with options: `package,lua')
--- l3intarray.dtx  (with options: `package,lua')
+-- l3luatex.dtx  (with options: `lua')
+-- l3names.dtx  (with options: `lua')
+-- l3basics.dtx  (with options: `lua')
+-- l3sys.dtx  (with options: `lua')
+-- l3token.dtx  (with options: `lua')
+-- l3intarray.dtx  (with options: `lua')
+-- l3pdf.dtx  (with options: `lua')
 -- 
--- Copyright (C) 1990-2022 The LaTeX Project
+-- Copyright (C) 1990-2026 The LaTeX Project
 -- 
 -- It may be distributed and/or modified under the conditions of
 -- the LaTeX Project Public License (LPPL), either version 1.3c of
@@ -36,6 +38,7 @@ local string   = string
 local tex      = tex
 local texio    = texio
 local tonumber = tonumber
+local token    = token
 local abs        = math.abs
 local byte       = string.byte
 local floor      = math.floor
@@ -50,17 +53,31 @@ local cprint     = tex.cprint
 local write      = tex.write
 local write_nl   = texio.write_nl
 local utf8_char  = utf8.char
+local package_loaded    = package.loaded
+local package_searchers = package.searchers
+local table_concat      = table.concat
 
-local scan_int     = token.scan_int or token.scan_integer
-local scan_string  = token.scan_string
-local scan_keyword = token.scan_keyword
-local put_next     = token.put_next
-local token_create = token.create
-local token_new    = token.new
+local scan_csname   = token.scancsname or token.scan_csname
+local scan_int      = token.scan_int or token.scan_integer
+local scan_string   = token.scanstring or token.scan_string
+local scan_keyword  = token.scankeyword or token.scan_keyword
+local scan_argument = token.scanargument or token.scan_argument
+local get_next      = token.scannext or token.get_next
+local put_next      = token.putnext or token.put_next
+local token_create  = token.create
+local get_macro     = token.getmacro or token.get_macro
+local get_protected = token.getprotected or token.get_protected
+local get_csname    = token.getcsname or token.get_csname
+local token_new     = token.new
+local set_macro     = token.setmacro or token.set_macro
+
+local active_prefix = status.luatex_engine == 'luametatex' and status.getconstants().active_character_namespace or utf8.char(0xFFFF)
+
+local lbrace, rbrace = token_create(byte'{'), token_create(byte'}')
 local token_create_safe
 do
   local is_defined = token.is_defined
-  local set_char   = token.set_char
+  local set_char   = token.set_char or tex.chardef
   local runtoks    = tex.runtoks
   local let_token  = token_create'let'
 
@@ -186,7 +203,7 @@ local function filesize(name)
 end
 ltxutils.filesize = filesize
 local luacmd do
-  local set_lua = token.set_lua
+  local set_lua = token.setlua or token.set_lua
   local undefined_cs = command_id'undefined_cs'
 
   if not context and not luatexbase then require'ltluatex' end
@@ -210,13 +227,46 @@ local luacmd do
     function luacmd(name, func, ...)
       local tok = token_create(name)
       if tok.command == undefined_cs then
-        token.set_lua(name, register(func), ...)
+        set_lua(name, register(func), ...)
       else
         functions[tok.index or tok.mode] = func
       end
     end
   end
 end
+local function try_require(name)
+  if package_loaded[name] then
+    return true, package_loaded[name]
+  end
+
+  local failure_details = {}
+  for _, searcher in ipairs(package_searchers) do
+    local loader, data = searcher(name)
+    if type(loader) == 'function' then
+      package_loaded[name] = loader(name, data) or true
+      return true, package_loaded[name]
+    elseif type(loader) == 'string' then
+      failure_details[#failure_details + 1] = loader
+    end
+  end
+
+  return false, table_concat(failure_details, '\n')
+end
+local char_given   = command_id'char_given'
+local c_true_bool  = token_create(1, char_given)
+local c_false_bool = token_create(0, char_given)
+local c_str_cctab  = token_create('c_str_cctab').mode
+
+luacmd('__lua_load_module_p:n', function()
+  local success, result = try_require(scan_string())
+  if success then
+    set_macro(c_str_cctab, 'l__lua_err_msg_str', '')
+    put_next(c_true_bool)
+  else
+    set_macro(c_str_cctab, 'l__lua_err_msg_str', result)
+    put_next(c_false_bool)
+  end
+end)
 local register_luadata, get_luadata
 
 if luatexbase then
@@ -241,12 +291,11 @@ if luatexbase then
         lua.bytecode[register] = assert(load(str .. "}"))
       end
     end, "ltx.luadata")
-  else
-    local luadata = lua.bytecode[register]
-    if luadata then
-      lua.bytecode[register] = nil
-      luadata = luadata()
-    end
+  end
+  local luadata = lua.bytecode[register]
+  if luadata then
+    lua.bytecode[register] = nil
+    luadata = luadata()
     function get_luadata(name)
       if not luadata then return end
       local data = luadata[name]
@@ -254,6 +303,42 @@ if luatexbase then
       return data
     end
   end
+end
+do
+  if get_luadata then
+    local saved_unidata = get_luadata'lua-uni-data'
+    if saved_unidata then saved_unidata() end
+  end
+  if register_luadata then
+    register_luadata('lua-uni-data', function()
+      return string.format("load(%q, nil, 'b')", string.dump(require'lua-uni-data-preload'.generate_bytecode(), true))
+    end)
+  end
+
+  local uni_data = require'lua-uni-data'
+  local tables, decomposition_mapping = uni_data.tables, uni_data.misc.decomposition_mapping
+
+  luacmd('__kernel_codepoint_data:wn', function()
+    local cp = scan_int()
+    local table = scan_argument()
+    return sprint(-2, tostring(tables[table][cp]))
+  end)
+
+  luacmd('__codepoint_nfd:w', function()
+    local cp = scan_int()
+    local decomposed = decomposition_mapping[cp]
+    if decomposed then
+      for i=1,2 do
+        if decomposed[i] then
+          sprint(-2, lbrace, tostring(decomposed[i]), rbrace)
+        else
+          sprint(-2, lbrace, rbrace)
+        end
+      end
+    else
+      return sprint(-2, lbrace, tostring(cp), rbrace, lbrace, rbrace)
+    end
+  end)
 end
 -- File: l3names.dtx
 local minus_tok = token_new(string.byte'-', 12)
@@ -303,6 +388,29 @@ luacmd('tex_filedump:D', function()
   local data = filedump(scan_string(), offset, length)
   if data then write(data) end
 end, 'global')
+-- File: l3basics.dtx
+if status.luatex_engine == 'luametatex' then
+  local function scan_full_csname()
+    local t = get_next()
+    local csname = get_csname(t)
+    return t.active and active_prefix .. csname or csname, t
+  end
+  luacmd('__cs_macro_prefix_spec:N', function()
+    local token = get_next()
+    if get_protected(token) then
+      sprint(-2, "\\protected ")
+    end
+  end, 'global')
+  luacmd('__cs_macro_parameter_spec:N', function()
+    local csname, token = scan_full_csname(true)
+    if token.parameters == 0 then return end
+    sprint(-2, get_macro(csname, false, true))
+  end, 'global')
+  luacmd('__cs_macro_replacement_spec:N', function()
+    local csname = scan_full_csname(true)
+    sprint(-2, get_macro(csname, false, false))
+  end, 'global')
+end
 -- File: l3sys.dtx
 do
   local os_exec = os.execute
@@ -310,11 +418,11 @@ do
   local function shellescape(cmd)
     local status,msg = os_exec(cmd)
     if status == nil then
-      write_nl("log","runsystem(" .. cmd .. ")...(" .. msg .. ")\n")
+      write_nl("log","runsystem(" .. cmd .. ")...(" .. msg .. ").\n")
     elseif status == 0 then
-      write_nl("log","runsystem(" .. cmd .. ")...executed\n")
+      write_nl("log","runsystem(" .. cmd .. ")...executed.\n")
     else
-      write_nl("log","runsystem(" .. cmd .. ")...failed " .. (msg or "") .. "\n")
+      write_nl("log","runsystem(" .. cmd .. ")...failed. " .. (msg or "") .. "\n")
     end
   end
   luacmd("__sys_shell_now:e", function()
@@ -347,7 +455,6 @@ end
   end, 'global')
 -- File: l3token.dtx
 do
-  local get_next = token.get_next
   local get_command = token.get_command
   local get_index = token.get_index
   local get_mode = token.get_mode or token.get_index
@@ -381,11 +488,11 @@ do
     [cmd'outer_call' or cmd'tolerant_call'] = true,
     [cmd'long_outer_call' or cmd'tolerant_protected_call'] = true,
     [cmd'assign_glue' or cmd'register_glue'] = index_not_nil,
-    [cmd'assign_mu_glue' or cmd'register_mu_glue'] = index_not_nil,
+    [cmd'assign_mu_glue' or cmd'register_mu_glue' or cmd'register_muglue'] = index_not_nil,
     [cmd'assign_toks' or cmd'register_toks'] = index_not_nil,
-    [cmd'assign_int' or cmd'register_int'] = index_not_nil,
+    [cmd'assign_int' or cmd'register_int' or cmd'register_integer'] = index_not_nil,
     [cmd'assign_attr' or cmd'register_attribute'] = true,
-    [cmd'assign_dimen' or cmd'register_dimen'] = index_not_nil,
+    [cmd'assign_dimen' or cmd'register_dimen' or cmd'register_dimension'] = index_not_nil,
   }
 
   luacmd("__token_if_primitive_lua:N", function()
@@ -532,3 +639,49 @@ luacmd('__intarray_gset_range:w', function()
     from = from + 1
   end
   end, 'global', 'protected')
+-- File: l3pdf.dtx
+
+local scan_int = token.scan_int
+local scan_string = token.scan_string
+local cprint = tex.cprint
+
+local __pdf_objects_named = {}
+local __pdf_objects_indexed = {}
+
+luacmd('__pdf_object_record:nN', function()
+  local name = scan_string()
+  local n = scan_int()
+  __pdf_objects_named[name] = n
+end,'protected','global')
+
+local function object_id(name,index)
+  if index then
+    return __pdf_objects_indexed[name][index] or 0
+  else
+    return __pdf_objects_named[name] or 0
+  end
+end
+
+luacmd('__pdf_object_retrieve:n', function()
+  local name = scan_string()
+  return cprint(12,tostring(object_id(name)))
+end,'global')
+
+ltx.pdf = ltx.pdf or {}
+ltx.pdf.object_id = object_id
+
+
+luacmd('__pdf_object_record:nnN', function()
+  local name = scan_string()
+  local index = tonumber(scan_string())
+  local n = scan_int()
+  __pdf_objects_indexed[name] = __pdf_objects_indexed[name] or {}
+  __pdf_objects_indexed[name][index] = n
+end,'protected','global')
+
+luacmd('__pdf_object_retrieve:nn', function()
+  local name = scan_string()
+  local index = tonumber(scan_string())
+  return cprint(12,tostring(object_id(name,index)))
+end,'global')
+

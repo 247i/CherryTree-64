@@ -13,43 +13,13 @@
 
 \writestatus{loading}{ConTeXt Math Macros / Radicals}
 
+\registerctxluafile{math-rad}{autosuffix}
+
 \unprotect
 
 %D \starttyping
 %D $\sqrt[3]{10}$
 %D \stoptyping
-%D
-%D This root command will be overloaded later:
-
-%D Old stuff:
-
-% \def\rootradical{\Uroot    \defaultmathfamily "221A } % can be done in char-def
-% \def\surdradical{\Uradical \defaultmathfamily "221A } % can be done in char-def
-
-\permanent\protected\def\root#1\of{\rootradical{#1}} % #2
-
-\protected\def\sqrt{\doifelsenextoptionalcs\rootwithdegree\rootwithoutdegree} % will be redefined
-
-\permanent\protected\def\styledrootradical#1#2% so that \text works ok ... \rootradical behaves somewhat weird
-  {\normalexpanded{\rootradical
-     {\normalunexpanded{#1}}%
-     {\noexpand\triggermathstyle{\number\normalmathstyle}%
-      \normalunexpanded{#2}}}}
-
-% experimental new keyword: (maybe keywords should come after the symbol)
-%
-% \permanent\protected\def\styledrootradical#1#2% so that \text works ok ... \rootradical behaves somewhat weird
-%   {\Uroot style \normalmathstyle "0 "221A {#1}{#2}}
-
-\permanent\protected\def\rootwithdegree[#1]{\rootradical{#1}}
-\permanent\protected\def\rootwithoutdegree {\rootradical  {}}
-
-%D Even older stuff:
-
-% % is now a ordinary character
-%
-% \let\normalsurd\surd % \Uradical "0 "221A
-% \permanent\protected\def\surd{\normalsurd{}}
 
 %D The real thing. If needed one can control matters with one of the many
 %D \type {\Umath...} parameters.
@@ -81,6 +51,20 @@
 %D $ \sqrt[3]{5}  \RR\sqrt[3]{5}  \sqrt[3]{5} $\par
 %D $ \sqrt[3]{5} {\RR\sqrt[3]{5}} \sqrt[3]{5} $\par
 %D \stoptyping
+%D
+%D And:
+%D
+%D \starttyping
+%D \definemathradical[lsqrt][strut=yes]
+%D \definemathradical[msqrt][strut=math]
+%D \definemathradical[xsqrt][height=3ex,depth=2ex]
+%D
+%D $\sqrt[strut=no][3]{y}$
+%D $\sqrt[strut=no,n=5]{y}$
+%D $\sqrt[strut=no,n=5][6]{y}$
+%D $\sqrt[strut=math]{y}$
+%D $\sqrt[3]{y}$
+%D \stoptyping
 
 \installcorenamespace{mathradical}
 \installcorenamespace{mathradicalalternative}
@@ -89,103 +73,175 @@
 
 \setupmathradical
   [\c!alternative=\v!normal,
-   \c!mpoffset=.25\exheight]
+   \c!mpoffset=.25\exheight,
+   \c!height=\zeropoint,
+   \c!depth=\zeropoint,
+   \c!strut=\v!height,
+ % \c!mindepth=\zeropoint,
+   \c!mindepth=.20\exheight, % a reasonable default for: \im { \sqrt{1+x} + \sqrt{1-x} }
+   \c!source=\zerocount,
+   \c!left="221A,
+   \c!symbolcolor=\mathradicalparameter\c!color,
+   \c!textcolor=\mathradicalparameter\c!color,
+   \c!numbercolor=\mathradicalparameter\c!color,
+   \c!mathstyle=\v!normal,
+   \c!right=\zerocount,
+   \c!leftmargin=\zeropoint,
+   \c!rightmargin=\zeropoint]
 
 \appendtoks
-    \frozen\protected\instance\edefcsname\currentmathradical\endcsname{\math_radical_handle{\currentmathradical}}
+    \protected\frozen\instance\edefcsname\currentmathradical\endcsname{\math_radical_handle{\currentmathradical}}
 \to \everydefinemathradical
 
-\mutable\let\currentmathradical      \empty
-\mutable\let\currentmathradicaldegree\empty
+\mutable\lettonothing\currentmathradical
+\mutable\lettonothing\currentmathradicaldegree
 
-\tolerant\protected\def\math_radical_handle#tag#*[#degree]#:#body%
+\setmathignore\Umathradicaldegreebefore\plusone
+
+\installcorenamespace{mathwhateverstrut}
+
+\defcsname\??mathwhateverstrut\v!height\endcsname{\mathheightstrut}
+\defcsname\??mathwhateverstrut\v!depth \endcsname{\mathdepthstrut}
+\defcsname\??mathwhateverstrut\v!math  \endcsname{\mathstrut}
+\defcsname\??mathwhateverstrut\v!yes   \endcsname{\strut}
+%letcsname\??mathwhateverstrut\v!no    \endcsname\relax
+
+\tolerant\protected\def\math_radical_handle#tag#*[#S#settings]#*[#degree]#:#body%
   {\begingroup
-   \edef\currentmathradical{#tag}%
-   \edef\currentmathradicaldegree{#degree}%
-   \ifempty\currentmathradicaldegree
-     \let\currentmathradicaldegree\m_math_no_degree
+   \cdef\currentmathradical{#tag}%
+   \ifhastok={#settings}%
+     \lettonothing\currentmathradicaldegree
+     \setupcurrentmathradical[#settings]%
+     \ifparameter#degree\or
+        \edef\currentmathradicaldegree{#degree}%
+     \else
+        \edef\currentmathradicaldegree{\mathradicalparameter\c!n}%
+     \fi
+   \else
+     \edef\currentmathradicaldegree{#settings}%
    \fi
-   \math_radical_alternative{#body}%
+ % \ifempty\currentmathradicaldegree
+ %   \let\currentmathradicaldegree\m_math_no_degree
+ % \fi
+   \ifcase\mathradicalparameter\c!right\else
+   % \let\currentmathradicaldegree\m_math_no_degree
+     \lettonothing\currentmathradicaldegree
+   \fi
+   \edef\p_mp{\mathradicalparameter\c!mp}%
+   \ifcstok{\mathradicalparameter\c!plugin}\v!mp
+     \ifempty\p_mp\else
+       \clf_set_extensible_data
+          mp    {\p_mp}
+          left  {\mathradicalparameter\c!left}%
+          right {\mathradicalparameter\c!left}%
+       \relax
+     \fi
+     \scratchcounter\zerocount
+   \orelse\ifcstok{\mathradicalparameter\c!rule}\v!symbol
+     \lettonothing\p_mp
+     \scratchcounter\mathradicalparameter\c!top\relax
+   \else
+     \lettonothing\p_mp
+     \scratchcounter\zerocount
+   \fi
+   \ifcstok{\mathradicalparameter\c!mathstyle}\s!identity
+     \frozen\Umathradicalvariant\allmathstyles\mathstylevariantidentity
+    %\frozen\Umathdegreevariant \allmathstyles\mathstylevariantidentity
+     \resetmathradicalparameter\c!mathstyle
+   \fi
+   \Urooted
+     \s!height{\ifcstok{\mathradicalparameter\c!height}\v!none\scaledpoint\else\mathradicalparameter\c!height\fi}
+     \s!depth {\ifcstok{\mathradicalparameter\c!depth }\v!none\scaledpoint\else\mathradicalparameter\c!depth \fi}
+     \s!source{\namedboxanchor{\mathradicalparameter\c!source}}%
+     \s!style \normalmathstyle % not needed
+     \ifzeronum\scratchcounter\else
+       \s!top\relaxedspace
+     \fi
+     \usedsymbolcolorparameterattributes{\mathradicalparameter\c!symbolcolor}%
+     \ifempty\p_mp\else
+       \s!usecallback\relaxedspace
+     \fi
+     \ifcstok{\mathradicalparameter\c!rule}\v!no
+       \s!norule\relaxedspace
+     \orelse\ifcstok{\lastnamedcs}\v!bottom
+       \s!reflected\relaxedspace
+     \fi
+     \zerocount \mathradicalparameter\c!left
+     \zerocount \mathradicalparameter\c!right
+     \ifzeronum\scratchcounter\else
+        \zerocount\scratchcounter
+     \fi
+     \relax
+   {\usemathradicalcolorparameter\c!numbercolor
+    \mathstrut\currentmathradicaldegree}%
+   {\usemathradicalcolorparameter\c!textcolor
+    % we need to also adapt the strut
+    \usemathstyleparameter\mathradicalparameter\c!mathstyle
+    \begincsname\??mathwhateverstrut\mathradicalparameter\c!strut\endcsname
+    \scratchdimen{\mathradicalparameter\c!leftmargin}%
+    \ifzeropt\scratchdimen\else
+      \kern\scratchdimen
+    \fi
+    \scratchdepth{\mathradicalparameter\c!mindepth}
+    \ifzerodim\scratchdepth\else
+      \srule
+        \s!depth \scratchdepth
+        \s!height\zeropoint
+        \s!width \zeropoint
+      \relax % in addition to strut
+    \fi
+    #body%
+    \scratchdimen{\mathradicalparameter\c!rightmargin}%
+    \ifzeropt\scratchdimen\else
+      \kern\scratchdimen
+    \fi}%
    \endgroup}
 
-\def\m_math_no_degree{{}}
+% \def\m_math_no_degree{{}}
 
-\def\math_radical_alternative{\csname\??mathradicalalternative\mathradicalparameter\c!alternative\endcsname}
+% for every font
+%
+% \appendtoks
+%    \Umathradicaldegreebefore\allmathstyles\zeropoint
+% \to \everymathematics
+%
+% We use a strut in the degree because not all fonts have the right gaps set up but
+% as struts are sort of predictable we can now fix all fonts in the lfg file.
+%
+% style width [options: left middle right]
 
-\setvalue{\??mathradicalalternative\v!default}%  #body%
-  {\rootradical{\currentmathradicaldegree}}   % {#body}}
-
-\setvalue{\??mathradicalalternative\v!normal}#body%
-  {\edef\p_color{\mathradicalparameter\c!color}%
-   \ifempty\p_color
-     \styledrootradical{\currentmathradicaldegree}{#body}% {} really needed as \rootradical expands first
-   \orelse\ifempty\currentmathradicaldegree
-     \pushcolor[\p_color]%
-     \styledrootradical{\currentmathradicaldegree}%
-     {\popcolor#body}%
-   \else
-     \pushcolor[\p_color]%
-     \styledrootradical{\popcolor\currentmathradicaldegree\pushcolor[\p_color]}%
-     {\popcolor#body}%
-   \fi}
-
-\startMPextensions
-    vardef math_radical_simple(expr w,h,d,o) =
-        (-h/2-o,h/2-o) --
-        (-h/4-o,-d-o)  --
-        (-o,h+o)       --
-        (w+o,h+o)      --
-        (w+o,h-h/10+o)
-    enddef ;
-\stopMPextensions
-
-\startuniqueMPgraphic{minifun::math:radical:default}%{...}
-    draw
-        math_radical_simple(OverlayWidth,OverlayHeight,OverlayDepth,OverlayOffset)
-      % withpen pencircle xscaled (2OverlayLineWidth) yscaled (3OverlayLineWidth/4) rotated 30
-        withpen pencircle scaled OverlayLineWidth
-      % dashed evenly
-        withcolor OverlayLineColor ;
-\stopuniqueMPgraphic
+%D \starttyping
+%D \definemathradical[esqrt][sqrt][height=\maxdimen,depth=\maxdimen]
+%D \definemathradical[fsqrt][sqrt][height=3ex,depth=2ex]
+%D \definemathradical[ssqrt][sqrt][height=-.5pt,depth=-.5pt]
+%D
+%D \def\TestSqrt#1%
+%D   {test $      #1{x}           + #1{\sin(x)}                         $ test\par
+%D    test $      #1{x}           + #1{\sin(x)} + #1{\frac{1}{x}}       $ test\par
+%D    test $      #1{x} + #1{x^2}                                       $ test\par
+%D    test $\left(#1{x} + #1{x^2}                                \right)$ test\par}
+%D
+%D \TestSqrt\sqrt \blank % dynamic
+%D \TestSqrt\esqrt\blank % equal
+%D \TestSqrt\fsqrt\blank % fixed
+%D \TestSqrt\ssqrt\blank % squeezed
+%D \stoptyping
 
 % todo: spacing .. this is just an experiment (article driven)
 
-\setvalue{\??mathradicalalternative\v!mp}#body% we could use dowithnextbox
-  {\begingroup
-   \scratchoffset\mathradicalparameter\c!mpoffset
-   \setbox\nextbox\mathstylehbox{#body}%
-   % we use the \overlay variables as these are passes anyway and
-   % it's more efficient than using parameters
-   \d_overlay_width    \wd\nextbox
-   \d_overlay_height   \ht\nextbox
-   \d_overlay_depth    \dp\nextbox
-   \d_overlay_offset   \scratchoffset
-   \d_overlay_linewidth\the\dimexpr\triggeredmathstyleparameter\Umathfractionrule
-   %
-   \edef\overlaylinecolor{\mathradicalparameter\c!color}%
-   %
-   \edef\p_mp{\mathradicalparameter\c!mp}%
-   %
-   \setbox\scratchbox\hpack\bgroup % todo: tag this box as sqrt
-     \uniqueMPgraphic
-       {\p_mp}%
-      %{...}%
-   \egroup
-   \scratchdimen       \wd\scratchbox
-   \scratchtopoffset   \dimexpr\scratchoffset+\dp\nextbox\relax
-   \scratchbottomoffset\dimexpr\scratchoffset+\ht\nextbox/2\relax
-   \hpack to \scratchdimen{\hss\box\nextbox\hskip\scratchoffset}%
-   \hskip-\scratchdimen
-   \lower\dimexpr\scratchtopoffset\box\scratchbox%
-   \ifx\currentmathradicaldegree\empty \else
-     \setbox\scratchbox\mathstylehbox{\scriptscriptstyle\currentmathradicaldegree\hss}%
-     \wd\scratchbox\scratchdimen
-     \hskip-\scratchdimen
-     \raise\dimexpr\scratchbottomoffset\box\scratchbox
-   \fi
-   \endgroup}
+% We used to look back, but a look ahead avoids picking up arguments.
+%
+%    \clf_set_radical_properties
+%        color {\p_color}
+%        mp    {\mathradicalparameter\c!mp}
+%   \relax}
 
-\definemathradical[sqrt][mp=minifun::math:radical:default]
+\pushoverloadmode
+
+\definemathradical[root]
+\definemathradical[sqrt][root]
+
+\popoverloadmode
 
 % \setupmathradical[sqrt][alternative=normal,color=darkblue]
 % \setupmathradical[sqrt][alternative=mp,color=darkgreen]
@@ -204,18 +260,19 @@
    \c!mpoffset=.25\exheight]
 
 \appendtoks
-    \frozen\instance\setuevalue{\currentmathornament}{\math_ornament_handle{\currentmathornament}}%
+    \protected\frozen\instance\edefcsname\currentmathornament\endcsname
+      {\math_ornament_handle{\currentmathornament}}%
 \to \everydefinemathornament
 
 \protected\def\math_ornament_handle#tag#body%
   {\begingroup
-   \edef\currentmathornament{#tag}%
+   \cdef\currentmathornament{#tag}%
    \csname\??mathornamentalternative\mathornamentparameter\c!alternative\endcsname{#body}%
    \endgroup}
 
-\setvalue{\??mathornamentalternative\v!mp}#body% we could use dowithnextbox
+\defcsname\??mathornamentalternative\v!mp\endcsname#body% we could use dowithnextbox
   {\begingroup
-   \scratchoffset\mathornamentparameter\c!mpoffset
+   \scratchoffset{\mathornamentparameter\c!mpoffset}%
    \setbox\nextbox\mathstylehbox{#body}%
    \d_overlay_width    \wd\nextbox
    \d_overlay_height   \ht\nextbox
@@ -227,7 +284,7 @@
    % the width of the graphic determines the width of the final result
    \setbox\scratchbox\hpack{\uniqueMPgraphic{\p_mp}}% todo: add code key + tag
    \hpack to \wd\scratchbox{\hss\box\nextbox\hss}%
-   \hskip-\wd\scratchbox
+   \kern-\wd\scratchbox
    \box\scratchbox
    \endgroup}
 
@@ -267,5 +324,85 @@
 % \definemathornament [mathhat] [mp=math:ornament:hat]
 %
 % \dorecurse{8}{$\mathhat{\blackrule[width=#1ex,color=gray]}$ }
+
+% \annuity {(x+1)} \tocharacter"20E7
+
+\integerdef\radicalbarextenderuc\privatecharactercode{radical bar extender}
+
+\integerdef\delimitedleftannuitylonguc  \privatecharactercode{delimited left annuity long}
+\integerdef\delimitedleftannuityshortuc \privatecharactercode{delimited left annuity short}
+\integerdef\delimitedrightannuitylonguc \privatecharactercode{delimited right annuity long}
+\integerdef\delimitedrightannuityshortuc\privatecharactercode{delimited right annuity short}
+
+\integerdef\delimitedbottomleftannuitylonguc  \privatecharactercode{delimited bottom left annuity long}
+\integerdef\delimitedbottomleftannuityshortuc \privatecharactercode{delimited bottom left annuity short}
+\integerdef\delimitedbottomrightannuitylonguc \privatecharactercode{delimited bottom right annuity long}
+\integerdef\delimitedbottomrightannuityshortuc\privatecharactercode{delimited bottom right annuity short}
+
+%D We now default to nice bars:
+
+\setupmathradical
+  [\c!rule=\v!symbol,
+   \c!top=\radicalbarextenderuc]
+
+\definemathradical
+  [rannuity]
+  [\c!rule=\v!yes,
+   \c!left=\zerocount,
+   \c!right=\delimitedrightannuitylonguc,
+   \c!rightmargin=.05\emwidth]
+
+\definemathradical
+  [lannuity]
+  [\c!rule=\v!yes,
+   \c!left=\delimitedleftannuitylonguc,
+   \c!right=\zerocount,
+   \c!leftmargin=.05\emwidth]
+
+\definemathradical
+  [lrannuity]
+  [\c!rule=\v!yes,
+   \c!left=\delimitedleftannuityshortuc,
+   \c!right=\delimitedrightannuitylonguc,
+   \c!leftmargin=.05\emwidth,
+   \c!rightmargin=.05\emwidth]
+
+\definemathradical
+  [rlannuity]
+  [\c!rule=\v!yes,
+   \c!left=\delimitedleftannuitylonguc,
+   \c!right=\delimitedrightannuityshortuc,
+   \c!leftmargin=.05\emwidth,
+   \c!rightmargin=.05\emwidth]
+
+\definemathradical
+  [annuity]
+  [rannuity]
+
+\definemathradical
+  [lbannuity]
+  [lannuity]
+  [\c!rule=\v!bottom,
+   \c!left=\delimitedbottomleftannuitylonguc]
+
+\definemathradical
+  [rbannuity]
+  [rannuity]
+  [\c!rule=\v!bottom,
+   \c!right=\delimitedbottomrightannuitylonguc]
+
+\definemathradical
+  [rlbannuity]
+  [rlannuity]
+  [\c!rule=\v!bottom,
+   \c!left=\delimitedbottomleftannuityshortuc,
+   \c!right=\delimitedbottomrightannuitylonguc]
+
+\definemathradical
+  [lrbannuity]
+  [lrannuity]
+  [\c!rule=\v!bottom,
+   \c!left=\delimitedbottomleftannuitylonguc,
+   \c!right=\delimitedbottomrightannuityshortuc]
 
 \protect \endinput

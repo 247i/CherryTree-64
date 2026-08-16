@@ -27,17 +27,22 @@
     <cd:interfacefile filename="i-common-definitions.xml"/>
 
     <cd:interfacefile filename="i-accent.xml"/>
+    <cd:interfacefile filename="i-adaptive.xml"/>
     <cd:interfacefile filename="i-align.xml"/>
+    <cd:interfacefile filename="i-alternate.xml"/>
     <cd:interfacefile filename="i-anchor.xml"/>
     <cd:interfacefile filename="i-attachment.xml"/>
     <cd:interfacefile filename="i-attribute.xml"/>
     <cd:interfacefile filename="i-backend.xml"/>
     <cd:interfacefile filename="i-background.xml"/>
+    <cd:interfacefile filename="i-balancing.xml"/>
     <cd:interfacefile filename="i-bar.xml"/>
     <cd:interfacefile filename="i-blackrule.xml"/>
     <cd:interfacefile filename="i-bleed.xml"/>
     <cd:interfacefile filename="i-block.xml"/>
     <cd:interfacefile filename="i-bookmark.xml"/>
+    <cd:interfacefile filename="i-boundary.xml"/>
+    <cd:interfacefile filename="i-boxanchor.xml"/>
     <cd:interfacefile filename="i-boxes.xml"/>
     <cd:interfacefile filename="i-buffer.xml"/>
     <cd:interfacefile filename="i-button.xml"/>
@@ -49,14 +54,16 @@
     <cd:interfacefile filename="i-characterstripping.xml"/>
     <cd:interfacefile filename="i-charwidth.xml"/>
     <cd:interfacefile filename="i-chemical.xml"/>
+    <cd:interfacefile filename="i-chemistry.xml"/>
     <cd:interfacefile filename="i-cleaning.xml"/>
     <cd:interfacefile filename="i-clipping.xml"/>
     <cd:interfacefile filename="i-collector.xml"/>
     <cd:interfacefile filename="i-color.xml"/>
-    <cd:interfacefile filename="i-columns.xml"/>
+    <cd:interfacefile filename="i-columnset.xml"/>
     <cd:interfacefile filename="i-combination.xml"/>
     <cd:interfacefile filename="i-commandhandler.xml"/>
     <cd:interfacefile filename="i-comment.xml"/>
+    <cd:interfacefile filename="i-comparingtext.xml"/>
     <!--
         <cd:interfacefile filename="i-contextname.xml"/>
     -->
@@ -93,6 +100,7 @@
     <cd:interfacefile filename="i-graphics.xml"/>
     <cd:interfacefile filename="i-grid.xml"/>
     <cd:interfacefile filename="i-help.xml"/>
+    <cd:interfacefile filename="i-hiding.xml"/>
     <cd:interfacefile filename="i-highlight.xml"/>
     <cd:interfacefile filename="i-hspace.xml"/>
     <cd:interfacefile filename="i-hyphenation.xml"/>
@@ -124,6 +132,7 @@
     <cd:interfacefile filename="i-linetable.xml"/>
     <cd:interfacefile filename="i-linewidth.xml"/>
     <cd:interfacefile filename="i-list.xml"/>
+    <cd:interfacefile filename="i-localboxes.xml"/>
     <cd:interfacefile filename="i-logo.xml"/>
     <cd:interfacefile filename="i-lohi.xml"/>
     <cd:interfacefile filename="i-lua.xml"/>
@@ -134,42 +143,56 @@
     <cd:interfacefile filename="i-marker.xml"/>
     <cd:interfacefile filename="i-marking.xml"/>
     <cd:interfacefile filename="i-math.xml"/>
+    <cd:interfacefile filename="i-mathaccent.xml"/>
     <cd:interfacefile filename="i-mathalignment.xml"/>
     <cd:interfacefile filename="i-mathcases.xml"/>
+    <cd:interfacefile filename="i-mathdelimited.xml"/>
+    <cd:interfacefile filename="i-mathdelimiter.xml"/>
     <cd:interfacefile filename="i-mathfence.xml"/>
+    <cd:interfacefile filename="i-mathframed.xml"/>
+    <cd:interfacefile filename="i-mathfunction.xml"/>
     <cd:interfacefile filename="i-mathmatrix.xml"/>
     <!--
         <cd:interfacefile filename="i-mathname.xml"/>
     -->
+    <cd:interfacefile filename="i-mathnesting.xml"/>
+    <cd:interfacefile filename="i-mathoperator.xml"/>
     <cd:interfacefile filename="i-mathornament.xml"/>
     <cd:interfacefile filename="i-mathradical.xml"/>
     <cd:interfacefile filename="i-mathstackers.xml"/>
+    <cd:interfacefile filename="i-metadata.xml"/>
     <cd:interfacefile filename="i-metapost.xml"/>
     <cd:interfacefile filename="i-mixedcolumns.xml"/>
     <cd:interfacefile filename="i-modes.xml"/>
     <cd:interfacefile filename="i-modules.xml"/>
+    <cd:interfacefile filename="i-multicolumns.xml"/>
     <cd:interfacefile filename="i-narrow.xml"/>
     <cd:interfacefile filename="i-naturaltable.xml"/>
     <cd:interfacefile filename="i-note.xml"/>
     <cd:interfacefile filename="i-object.xml"/>
     <cd:interfacefile filename="i-offset.xml"/>
     <cd:interfacefile filename="i-opposite.xml"/>
+    <cd:interfacefile filename="i-optimize.xml"/>
     <cd:interfacefile filename="i-orientation.xml"/>
     <cd:interfacefile filename="i-ornament.xml"/>
     <cd:interfacefile filename="i-output.xml"/>
     <cd:interfacefile filename="i-overlay.xml"/>
+    <cd:interfacefile filename="i-overloads.xml"/>
+    <cd:interfacefile filename="i-pageblock.xml"/>
     <cd:interfacefile filename="i-pagebreak.xml"/>
     <cd:interfacefile filename="i-pagecolumns.xml"/>
     <cd:interfacefile filename="i-pagecomment.xml"/>
     <cd:interfacefile filename="i-pagefigure.xml"/>
-    <cd:interfacefile filename="i-pagegrid.xml"/>
+    <!--
+        <cd:interfacefile filename="i-pagegrid.xml"/>
+    -->
     <cd:interfacefile filename="i-pageinjection.xml"/>
     <cd:interfacefile filename="i-pagelayout.xml"/>
+    <cd:interfacefile filename="i-pagemarks.xml"/>
     <cd:interfacefile filename="i-pagenumber.xml"/>
     <cd:interfacefile filename="i-pageselection.xml"/>
     <cd:interfacefile filename="i-pageshift.xml"/>
     <cd:interfacefile filename="i-pagestate.xml"/>
-    <cd:interfacefile filename="i-pagemarks.xml"/>
     <cd:interfacefile filename="i-pairedbox.xml"/>
     <cd:interfacefile filename="i-papersize.xml"/>
     <cd:interfacefile filename="i-paragraph.xml"/>
@@ -177,7 +200,10 @@
     <cd:interfacefile filename="i-paragraphs.xml"/>
     <cd:interfacefile filename="i-parallel.xml"/>
     <cd:interfacefile filename="i-parbuilder.xml"/>
+    <cd:interfacefile filename="i-parinsert.xml"/>
+    <cd:interfacefile filename="i-parshape.xml"/>
     <cd:interfacefile filename="i-parwrapper.xml"/>
+    <cd:interfacefile filename="i-pattern.xml"/>
     <cd:interfacefile filename="i-pdf.xml"/>
     <cd:interfacefile filename="i-penalty.xml"/>
     <cd:interfacefile filename="i-periods.xml"/>
@@ -197,7 +223,9 @@
     <cd:interfacefile filename="i-register.xml"/>
     <cd:interfacefile filename="i-renderingwindow.xml"/>
     <cd:interfacefile filename="i-replacement.xml"/>
+    <cd:interfacefile filename="i-rivers.xml"/>
     <cd:interfacefile filename="i-rotation.xml"/>
+    <cd:interfacefile filename="i-rows.xml"/>
     <cd:interfacefile filename="i-ruby.xml"/>
     <cd:interfacefile filename="i-scale.xml"/>
     <cd:interfacefile filename="i-script.xml"/>
@@ -205,18 +233,23 @@
     <cd:interfacefile filename="i-sectionblock.xml"/>
     <cd:interfacefile filename="i-selector.xml"/>
     <cd:interfacefile filename="i-setups.xml"/>
+    <cd:interfacefile filename="i-shadow.xml"/>
     <cd:interfacefile filename="i-shift.xml"/>
     <cd:interfacefile filename="i-sidebar.xml"/>
     <cd:interfacefile filename="i-simplecolumns.xml"/>
     <cd:interfacefile filename="i-smash.xml"/>
     <cd:interfacefile filename="i-sort.xml"/>
-    <cd:interfacefile filename="i-soundtrack.xml"/>
+    <!--
+        <cd:interfacefile filename="i-soundtrack.xml"/>
+    -->
     <cd:interfacefile filename="i-spellchecking.xml"/>
+    <cd:interfacefile filename="i-stacking.xml"/>
     <cd:interfacefile filename="i-startstop.xml"/>
     <cd:interfacefile filename="i-stream.xml"/>
     <cd:interfacefile filename="i-string.xml"/>
     <cd:interfacefile filename="i-strut.xml"/>
     <cd:interfacefile filename="i-symbol.xml"/>
+    <cd:interfacefile filename="i-synchronize.xml"/>
     <cd:interfacefile filename="i-synctex.xml"/>
     <cd:interfacefile filename="i-synonym.xml"/>
     <cd:interfacefile filename="i-system.xml"/>
@@ -228,6 +261,7 @@
         <cd:interfacefile filename="i-tex.xml"/>
     -->
     <cd:interfacefile filename="i-textbackground.xml"/>
+    <cd:interfacefile filename="i-textdisplay.xml"/>
     <cd:interfacefile filename="i-textflow.xml"/>
     <cd:interfacefile filename="i-textrule.xml"/>
     <cd:interfacefile filename="i-texts.xml"/>
@@ -237,7 +271,7 @@
     <cd:interfacefile filename="i-tooltip.xml"/>
     <cd:interfacefile filename="i-tracker.xml"/>
     <cd:interfacefile filename="i-translation.xml"/>
-    <cd:interfacefile filename="i-twopassdata.xml"/>
+    <cd:interfacefile filename="i-transliteration.xml"/>
     <cd:interfacefile filename="i-typography.xml"/>
     <cd:interfacefile filename="i-unit.xml"/>
     <cd:interfacefile filename="i-userdata.xml"/>

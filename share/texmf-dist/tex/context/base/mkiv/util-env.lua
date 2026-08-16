@@ -11,16 +11,19 @@ local allocate, mark = utilities.storage.allocate, utilities.storage.mark
 local format, sub, match, gsub, find = string.format, string.sub, string.match, string.gsub, string.find
 local unquoted, quoted, optionalquoted = string.unquoted, string.quoted, string.optionalquoted
 local concat, insert, remove = table.concat, table.insert, table.remove
+local globfiles = dir.glob
 
 environment         = environment or { }
 local environment   = environment
 
--- locales are a useless feature in and even dangerous for luatex
+-- -- These locales are a useless feature in and even dangerous for luatex, so
+-- -- we just ignore them. We used to warn but I assume no one needs it anyway
+-- -- so let's save some bytes.
 
-local setlocale = os.setlocale
-
-setlocale(nil,nil) -- setlocale("all","C")
-
+-- local setlocale = os.setlocale
+--
+-- setlocale(nil,nil) -- setlocale("all","C")
+--
 -- function os.resetlocale()
 --     setlocale(nil,nil)
 -- end
@@ -53,21 +56,25 @@ setlocale(nil,nil) -- setlocale("all","C")
 --     end
 -- end
 
-local report = logs.reporter("system")
+-- local report = logs.reporter("system")
+--
+-- function os.setlocale(a,b)
+--     if a or b then
+--         if report then
+--             report()
+--             report("You're messing with os.setlocale in a supposedly locale neutral enviroment. From")
+--             report("now on are on your own and without support. Crashes or unexpected side effects")
+--             report("can happen but don't bother the luatex and context developer team with it.")
+--             report()
+--             report = nil
+--         end
+--         setlocale(a,b)
+--     end
+-- end
 
-function os.setlocale(a,b)
-    if a or b then
-        if report then
-            report()
-            report("You're messing with os.locale in a supposedly locale neutral enviroment. From")
-            report("now on are on your own and without support. Crashes or unexpected side effects")
-            report("can happen but don't bother the luatex and context developer team with it.")
-            report()
-            report = nil
-        end
-        setlocale(a,b)
-    end
-end
+-- It's time to get rid of it:
+
+os.setlocale(nil,nil) function os.setlocale() end
 
 -- dirty tricks (we will replace the texlua call by luatex --luaonly)
 
@@ -191,7 +198,8 @@ end
 -- a registration of arguments so from now on we have 'partial'
 
 function environment.getargument(name,partial)
-    local arguments, sortedflags = environment.arguments, environment.sortedflags
+    local arguments   = environment.arguments
+    local sortedflags = environment.sortedflags
     if arguments[name] then
         return arguments[name]
     elseif partial then
@@ -316,4 +324,27 @@ if arg then
 
     arg = { } -- prevent duplicate handling
 
+end
+
+function environment.globfiles(files)
+    if not files then
+        files = environment.files
+    end
+    if files then
+        local globbed = { }
+        for i=1,#files do
+            local f = files[i]
+            if find(f,"%*") then
+                local g = globfiles(f)
+                if g then
+                    for i=1,#g do
+                        globbed[#globbed+1] = g[i]
+                    end
+                end
+            else
+                globbed[#globbed+1] = f
+            end
+        end
+        return globbed
+    end
 end

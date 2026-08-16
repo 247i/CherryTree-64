@@ -56,28 +56,27 @@ if not modules then modules = { } end modules ['lpdf-fld'] = {
 local tostring, tonumber, next = tostring, tonumber, next
 local gmatch, lower, format, formatters = string.gmatch, string.lower, string.format, string.formatters
 local lpegmatch = lpeg.match
-local bpfactor, todimen = number.dimenfactors.bp, string.todimen
+local todimen = string.todimen
 local sortedhash = table.sortedhash
-local trace_fields = false  trackers.register("backends.fields", function(v) trace_fields = v end)
+local trace_fields = false  trackers.register("backend.fields", function(v) trace_fields = v end)
 
 local report_fields = logs.reporter("backend","fields")
 
-local backends, lpdf = backends, lpdf
-
-local variables               = interfaces.variables
 local context                 = context
+
+local bpfactor                <const> = number.dimenfactors.bp
 
 local references              = structures.references
 local settings_to_array       = utilities.parsers.settings_to_array
 
-local pdfbackend              = backends.pdf
-
+local pdfbackend              = backends.registered.pdf
 local nodeinjections          = pdfbackend.nodeinjections
 local codeinjections          = pdfbackend.codeinjections
 local registrations           = pdfbackend.registrations
 
 local registeredsymbol        = codeinjections.registeredsymbol
 
+local lpdf                    = lpdf
 local pdfstream               = lpdf.stream
 local pdfdictionary           = lpdf.dictionary
 local pdfarray                = lpdf.array
@@ -86,28 +85,17 @@ local pdfunicode              = lpdf.unicode
 local pdfstring               = lpdf.string
 local pdfconstant             = lpdf.constant
 local pdfaction               = lpdf.action
-
-local pdfflushobject
-local pdfshareobjectreference
-local pdfshareobject
-local pdfreserveobject
-local pdfpagereference
-local pdfmajorversion
-
-updaters.register("backend.update.lpdf",function()
-    pdfflushobject          = lpdf.flushobject
-    pdfshareobjectreference = lpdf.shareobjectreference
-    pdfshareobject          = lpdf.shareobject
-    pdfreserveobject        = lpdf.reserveobject
-    pdfpagereference        = lpdf.pagereference
-    pdfmajorversion         = lpdf.majorversion
-end)
-
+local pdfflushobject          = lpdf.flushobject
+local pdfshareobjectreference = lpdf.shareobjectreference
+local pdfshareobject          = lpdf.shareobject
+local pdfreserveobject        = lpdf.reserveobject
+local pdfpagereference        = lpdf.pagereference
+local pdfmajorversion         = lpdf.majorversion
 local pdfcolor                = lpdf.color
 local pdfcolorvalues          = lpdf.colorvalues
 local pdflayerreference       = lpdf.layerreference
 
-local hpack_node              = node.hpack
+local hpack_node              = nodes.hpack
 
 local submitoutputformat      = 0 --  0=unknown 1=HTML 2=FDF 3=XML   => not yet used, needs to be checked
 
@@ -122,6 +110,9 @@ local pdf_p                   = pdfconstant("P") -- None Invert Outline Push
 local pdf_n                   = pdfconstant("N") -- None Invert Outline Push
 --
 local pdf_no_rect             = pdfarray { 0, 0, 0, 0 }
+
+local signature               = nil
+local signature_field         = nil
 
 local splitter = lpeg.splitat("=>")
 
@@ -193,7 +184,8 @@ local function fieldflag(specification) -- /Ff
     local o, n = specification.option, 0
     if o and o ~= "" then
         for f in gmatch(o,"[^, ]+") do
-            n = n + (flag[f] or 0)
+         -- n = n + (flag[f] or 0)
+            n = n | (flag[f] or 0)
         end
     end
     return n
@@ -203,10 +195,10 @@ local function fieldplus(specification) -- /F
     local o, n = specification.option, 0
     if o and o ~= "" then
         for p in gmatch(o,"[^, ]+") do
-            n = n + (plus[p] or 0)
+         -- n = n + (plus[p] or 0)
+            n = n | (plus[p] or 0)
         end
     end
--- n = n + 4
     return n
 end
 
@@ -344,6 +336,7 @@ local function fieldsurrounding(specification)
     local fontsize        = specification.fontsize or "12pt"
     local fontstyle       = specification.fontstyle or "rm"
     local fontalternative = specification.fontalternative or "tf"
+    local fontraise       = 0
     local colorvalue      = tonumber(specification.colorvalue)
     local s = fontnames[fontstyle]
     if not s then
@@ -685,7 +678,7 @@ end
 
 local fields, radios, clones, fieldsets, calculationset = { }, { }, { }, { }, nil
 
-local xfdftemplate = [[
+local xfdftemplate <const> = [[
 <?xml version='1.0' encoding='UTF-8'?>
 
 <xfdf xmlns='http://ns.adobe.com/xfdf/'>
@@ -942,6 +935,11 @@ local function finishfields()
         if not sometext and (type == "text" or type == "line") then
             sometext = true
         end
+        if type == "signed" then
+            signature = true
+        elseif type == "signature" then
+            signature_field = true
+        end
     end
     for name, field in sortedhash(radios) do
         local kids = field.kids
@@ -955,10 +953,16 @@ local function finishfields()
     end
     if #collected > 0 then
         local acroform = pdfdictionary {
-            NeedAppearances = pdfmajorversion() == 1 or nil,
             Fields          = pdfreference(pdfflushobject(collected)),
             CO              = fieldsetlist(calculationset),
         }
+        if signature then
+            acroform.SigFlags = 3
+        elseif pdfmajorversion() == 1 and not signature_field then
+            acroform.NeedAppearances = true
+        else
+            -- deprecated
+        end
         if sometext or somefont then
             checkpdfdocencoding()
             if sometext then
@@ -1119,21 +1123,23 @@ end
 -- copy of line ... probably also needs a /Lock
 
 local function makesignatureparent(field,specification)
-    local text   = pdfunicode(field.default)
-    local length = tonumber(specification.length or 0) or 0
+ -- local text   = pdfunicode(field.default) -- not really needed here
+ -- local length = tonumber(specification.length or 0) or 0 -- not really needed here
+ -- local value  = lpdf.registersignature(field.values) -- not really needed here
     local d      = pdfdictionary {
-        Subtype  = pdf_widget,
+     -- Subtype  = pdf_widget,-- belongs to widget, not to field
         T        = pdfunicode(specification.title),
-        F        = fieldplus(specification),
-        Ff       = fieldflag(specification),
+     -- F        = fieldplus(specification), -- belongs to widget, not to field
+        Ff       = fieldflag(specification), -- not required for default value
         OC       = fieldlayer(specification),
         DA       = fieldsurrounding(specification),
         AA       = fieldactions(specification),
         FT       = pdf_sig,
         Q        = fieldalignment(specification),
-        MaxLen   = length == 0 and 1000 or length,
-        DV       = text,
-        V        = text,
+     -- MaxLen   = length == 0 and 1000 or length, -- only for text fields
+        MK      = fieldrendering(specification),
+     -- DV       = not value and text or nil, -- no default signature value
+     -- V        = value or text, -- signature value, when actually signed
     }
     save_parent(field,specification,d)
 end
@@ -1169,10 +1175,13 @@ local function makesignaturechild(name,specification)
         Parent  = pdfreference(parent.pobj),
         F       = fieldplus(specification),
         OC      = fieldlayer(specification),
-        DA      = fieldsurrounding(specification),
+     -- DA      = fieldsurrounding(specification), -- belongs to field, not widget
         AA      = fieldactions(specification),
         MK      = fieldrendering(specification),
-        Q       = fieldalignment(specification),
+     -- Q       = fieldalignment(specification), -- belongs to field, not widget
+-- AP = pdfdictionary {
+--     N = pdfreference(lpdf.flushstreamobject("q 0 0 100 100 re f Q"))
+-- }
     }
     return save_kid(parent,specification,d)
 end
@@ -1180,6 +1189,44 @@ end
 function methods.signature(name,specification)
     return makesignaturechild(name,specification)
 end
+
+--
+
+function methods.signed(name,specification)
+    local field = fields[name]
+    if field then
+        specification.option = "hidden" -- for now
+        local value = lpdf.registersignature(field.values)
+        if not value or value == "" then
+            value = "pkcs7"
+        end
+        local d = pdfdictionary {
+            Subtype  = pdf_widget,
+            T        = pdfunicode(specification.title),
+            F        = fieldplus(specification),
+            Ff       = fieldflag(specification),
+            OC       = fieldlayer(specification),
+         -- DA       = fieldsurrounding(specification),
+         -- AA       = fieldactions(specification),
+            FT       = pdf_sig,
+         -- Q        = fieldalignment(specification),
+            V        = lpdf.registersignature(value),
+        }
+        --
+        local kn = pdfreserveobject()
+        local width  = specification.width  or 0
+        local height = specification.height or 0
+        local depth  = specification.depth  or 0
+        local box = hpack_node(nodeinjections.annotation(width,height,depth,d(),kn))
+        -- redundant
+        box.width  = width
+        box.height = height
+        box.depth  = depth
+        collected[#collected+1] = pdfreference(kn)
+        return box
+    end
+end
+
 --
 
 local function makechoiceparent(field,specification)

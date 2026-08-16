@@ -39,11 +39,10 @@ local processor_tostring = typesetters and typesetters.processors.tostring
 local settings_to_array = utilities.parsers.settings_to_array
 local settings_to_array_with_repeat = utilities.parsers.settings_to_array_with_repeat
 
-local lpegmatch = lpeg.match
+local lpegmatch, lpegpatterns = lpeg.match, lpeg.patterns
 local P, R, S, C, Cs, Ct, Cc, Cmt = lpeg.P, lpeg.R, lpeg.S, lpeg.C, lpeg.Cs, lpeg.Ct, lpeg.Cc, lpeg.Cmt
 
 local variables    = interfaces and interfaces.variables
-local commands     = commands
 local context      = context
 local implement    = interfaces.implement
 
@@ -69,6 +68,7 @@ local chemistry = chemistry
 chemistry.instance   = "chemistry"
 chemistry.format     = "metafun"
 chemistry.method     = "double"
+-- chemistry.method     = "scaled"
 
 local nofstructures  = 0
 
@@ -164,7 +164,7 @@ local one_keys = {
 local ring_keys = {
     db    = "line",
     hb    = "line",
-    br    = "line",
+ -- br    = "line",
     lr    = "line",
     rr    = "line",
     lsr   = "line",
@@ -210,26 +210,29 @@ one_keys   = table.merged(one_keys,common_keys)
 ring_keys  = table.merged(ring_keys,common_keys)
 
 local syntax = {
-    carbon         = { max = 4, keys = one_keys, },
-    alkyl          = { max = 4, keys = one_keys, },
-    newmanstagger  = { max = 6, keys = one_keys, },
-    newmaneclipsed = { max = 6, keys = one_keys, },
-    one            = { max = 8, keys = one_keys, },
-    three          = { max = 3, keys = ring_keys, },
-    four           = { max = 4, keys = ring_keys, },
-    five           = { max = 5, keys = ring_keys, },
-    six            = { max = 6, keys = ring_keys, },
-    seven          = { max = 7, keys = ring_keys, },
-    eight          = { max = 8, keys = ring_keys, },
-    nine           = { max = 9, keys = ring_keys, },
-    fivefront      = { max = 5, keys = front_keys, },
-    sixfront       = { max = 6, keys = front_keys, },
-    chair          = { max = 6, keys = front_keys, },
-    boat           = { max = 6, keys = front_keys, },
+    --
+    carbon         = { max = 4, keys = one_keys,   keyword = "CARBON",          category = "one" },
+    alkyl          = { max = 4, keys = one_keys,   keyword = "ALKYL",           category = "one" },
+    newmanstagger  = { max = 6, keys = one_keys,   keyword = "NEWMAN",          category = "one" },
+    newmaneclipsed = { max = 6, keys = one_keys,   keyword = "NEWMAN,ECLIPSED", category = "one" },
+    one            = { max = 8, keys = one_keys,   keyword = "ONE",             category = "one" },
+    three          = { max = 3, keys = ring_keys,  keyword = "THREE",           category = "ring" },
+    four           = { max = 4, keys = ring_keys,  keyword = "FOUR",            category = "ring" },
+    five           = { max = 5, keys = ring_keys,  keyword = "FIVE",            category = "ring" },
+    six            = { max = 6, keys = ring_keys,  keyword = "SIX",             category = "ring" },
+    seven          = { max = 7, keys = ring_keys,  keyword = "SEVEN",           category = "ring" },
+    eight          = { max = 8, keys = ring_keys,  keyword = "EIGHT",           category = "ring" },
+    nine           = { max = 9, keys = ring_keys,  keyword = "NINE",            category = "ring" },
+    fivefront      = { max = 5, keys = front_keys, keyword = "FIVEFRONT",       category = "front" },
+    sixfront       = { max = 6, keys = front_keys, keyword = "SIXFRONT",        category = "front" },
+    chair          = { max = 6, keys = front_keys, keyword = "CHAIR",           category = "front" },
+    boat           = { max = 6, keys = front_keys, keyword = "BOAT",            category = "front" },
+    --
     pb             = { direct = 'chem_pb;' },
     pe             = { direct = 'chem_pe;' },
     save           = { direct = 'chem_save;' },
     restore        = { direct = 'chem_restore;' },
+    --
     chem           = { direct = formatters['chem_symbol("\\chemicaltext{%s}");'], arguments = 1 },
     space          = { direct = 'chem_symbol("\\chemicalsymbol[space]");' },
     plus           = { direct = 'chem_symbol("\\chemicalsymbol[plus]");' },
@@ -240,9 +243,13 @@ local syntax = {
     mesomeric      = { direct = formatters['chem_symbol("\\chemicalsymbol[mesomeric]{%s}{%s}");'], arguments = 2 },
     opencomplex    = { direct = 'chem_symbol("\\chemicalsymbol[opencomplex]");' },
     closecomplex   = { direct = 'chem_symbol("\\chemicalsymbol[closecomplex]");' },
+    --
     reset          = { direct = 'chem_reset;' },
+    --
     mp             = { direct = formatters['%s'], arguments = 1 }, -- backdoor MP code - dangerous!
 }
+
+chemistry.syntax   = syntax
 
 chemistry.definitions = chemistry.definitions or { }
 local definitions     = chemistry.definitions
@@ -266,7 +273,7 @@ function chemistry.define(name,spec,text)
     }
 end
 
-local metacode, variant, keys, max, txt, pstack, sstack, align
+local metacode, variant, keys, max, txt, stack, pstack, sstack, align
 local molecule = chemistry.molecule -- or use lpegmatch(chemistry.moleculeparser,...)
 
 local function fetch(txt)
@@ -342,6 +349,11 @@ local f_transform        = formatters['chem_%s(%s,%s,%s);']
 local f_fixed            = formatters['chem_%s(%s,%s,%q);']
 
 local function process(level,spec,text,n,rulethickness,rulecolor,offset,default_variant)
+    -- hack:
+    if text and #text == 1 and text[1] == "" then
+        text = { }
+    end
+    --
     insert(stack,{ spec = spec, text = text, n = n })
     local txt = #stack
     local m = #metacode
@@ -365,6 +377,7 @@ local function process(level,spec,text,n,rulethickness,rulecolor,offset,default_
             for i=1,#d do
                 local di = d[i]
                 current_variant = process(level+1,di.spec,di.text,1,rulethickness,rulecolor,offset,current_variant) -- offset?
+                m = #metacode
             end
         else
             local factor, osign, operation, special, index, upto, set, text = lpegmatch(pattern,step)
@@ -781,7 +794,7 @@ end
 function chemistry.component(spec,text,rulethickness,rulecolor)
     if metacode then
         local spec = settings_to_array_with_repeat(spec,true) -- no lower?
-        local text = settings_to_array_with_repeat(text,true)
+        local text = settings_to_array_with_repeat(text,true) -- always produces "" catched later
         metacode[#metacode+1] = f_start_component
         process(1,spec,text,1,rulethickness,rulecolor)
         metacode[#metacode+1] = f_stop_component
@@ -824,10 +837,10 @@ implement {
             { "symalign" },
             { "axis" },
             { "framecolor" },
-            { "rulethickness" },
-            { "offset" },
-            { "unit" },
-            { "factor" }
+            { "rulethickness", "dimension" },
+            { "offset", "dimension" },
+            { "unit", "dimension" },
+            { "factor", "integer" }
         }
     }
 }
@@ -848,6 +861,7 @@ implement {
 
 local inline = {
     ["single"]      = "\\chemicalsinglebond",  ["-"]    = "\\chemicalsinglebond",
+ --                                            ["−"]    = "\\chemicalsinglebond",
     ["double"]      = "\\chemicaldoublebond",  ["--"]   = "\\chemicaldoublebond",
                                                ["="]    = "\\chemicaldoublebond",
     ["triple"]      = "\\chemicaltriplebond",  ["---"]  = "\\chemicaltriplebond",
@@ -863,7 +877,8 @@ local inline = {
     ["space"]       = "\\chemicalspace",
 }
 
-local ctx_chemicalinline = context.chemicalinline
+local ctx_chemicalinline  = context.chemicalinline
+local ctx_chemicalspecial = context.chemicalspecial
 
 function chemistry.inlinechemical(spec)
     local spec = settings_to_array_with_repeat(spec,true)
@@ -871,7 +886,7 @@ function chemistry.inlinechemical(spec)
         local s = spec[i]
         local inl = inline[lower(s)]
         if inl then
-            context(inl) -- could be a fast context.sprint
+            ctx_chemicalspecial(inl)
         else
             ctx_chemicalinline(molecule(s))
         end
@@ -883,3 +898,73 @@ implement {
     actions   = chemistry.inlinechemical,
     arguments = "string"
 }
+
+-- This is the new approach:
+
+do
+
+    local short_mapping = {
+        ["-"]    = "\\csinglebond ",
+     -- ["−"]    = "\\csinglebond ",
+        ["--"]   = "\\cdoublebond ",
+        ["="]    = "\\cdoublebond ",
+        ["---"]  = "\\ctriplebond ",
+        ["≡"]    = "\\ctriplebond ",
+        ["->"]   = "\\cgives ",
+        ["<-"]   = "\\creturns ",
+        ["<->"]  = "\\cmesomeric ",
+        ["-->"]  = "\\clonggives ",
+        ["<--"]  = "\\clongreturns ",
+        ["<-->"] = "\\clongmesomeric ",
+        ["<=>"]  = "\\cequilibrium ",
+        ["<="]   = "\\cleaningleft ",
+        ["=>"]   = "\\cleaningright ",
+        ["<==>"] = "\\clongequilibrium ",
+        ["<=="]  = "\\clongleaningleft ",
+        ["==>"]  = "\\clongleaningright ",
+    }
+
+    local long_mapping = {
+        ["single"]        = "\\csinglebond ",
+        ["double"]        = "\\cdoublebond ",
+        ["triple"]        = "\\ctriplebond ",
+        ["gives"]         = "\\cgives ",        ["lgives"]        = "\\clonggives ",
+        ["returns"]       = "\\creturns ",      ["lreturns"]      = "\\clongreturns ",
+        ["mesomeric"]     = "\\cmesomeric ",    ["lmesomeric"]    = "\\clongmesomeric ",
+        ["equilibrium"]   = "\\cequilibrium ",  ["lequilibrium"]  = "\\clongequilibrium ",
+        ["leaningleft"]   = "\\cleaningleft ",  ["lleaningleft"]  = "\\clongleaningleft ",
+        ["leaningright"]  = "\\cleaningright ", ["lleaningright"] = "\\clongleaningright ",
+     -- ["plus"]          = "\\cplus ",
+     -- ["minus"]         = "\\cminus ",
+     -- ["equals"]        = "\\cequals ",
+    }
+
+    local sign      = S("+-")
+    local script    = S("^_")
+    local character = lpegpatterns.utf8character
+    local cardinal  = lpegpatterns.cardinal
+    local spaces    = lpegpatterns.whitespace
+    local nospaces  = spaces^0/""
+
+    local short     = lpeg.utfchartabletopattern(short_mapping)
+    local long      = lpeg.utfchartabletopattern(long_mapping)
+
+    local csname    = P("\\") * R("az")^1 -- \left[ * lpegpatterns.nestedbrackets^-1
+
+    local pattern = Cs ((
+        csname
+      + spaces * (short / short_mapping) * spaces
+      + spaces * (long  / long_mapping) * spaces
+      + script^1 * nospaces * Cc("{") * nospaces * (sign^-1 * cardinal^1 + sign) * Cc("}")
+      + character
+    )^0)
+
+    interfaces.implement {
+        name      = "ic",
+        arguments = "string",
+        actions   = function(s)
+            context(lpegmatch(pattern,s))
+        end
+    }
+
+end

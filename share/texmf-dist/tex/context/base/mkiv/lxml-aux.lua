@@ -110,11 +110,7 @@ function xml.processattributes(root,pattern,handle)
     return collected
 end
 
---[[ldx--
-<p>The following functions collect elements and texts.</p>
---ldx]]--
-
--- are these still needed -> lxml-cmp.lua
+-- The following functions collect elements and texts.
 
 function xml.collect(root, pattern)
     return xmlapplylpath(root,pattern)
@@ -153,9 +149,7 @@ function xml.collect_tags(root, pattern, nonamespace)
     end
 end
 
---[[ldx--
-<p>We've now arrived at the functions that manipulate the tree.</p>
---ldx]]--
+-- We've now arrived at the functions that manipulate the tree.
 
 local no_root = { no_root = true }
 
@@ -311,6 +305,37 @@ function xml.replace(root,pattern,whatever)
                     d[n] = t
                 end
                 redo_ni(d) -- probably not needed
+            end
+        end
+    end
+end
+
+function xml.expand(root,pattern,whatever)
+    local collected = root and xmlapplylpath(root,pattern)
+    if collected then
+        for c=1,#collected do
+            local e = collected[c]
+            local p = e.__p__
+            if p then
+                if trace_manipulations then
+                    report('expanding',pattern,c,e)
+                end
+                local d = p.dt
+                local n = e.ni
+                local t = whatever(e,p)
+                if t then
+                    if type(t) == "table" then
+                        t = xmlcopy(t)
+                        d[n] = t[1]
+                        for i=2,#t do
+                            n = n + 1
+                            insert(d,n,t[i])
+                        end
+                    else
+                        d[n] = t
+                    end
+                    redo_ni(d) -- probably not needed
+                end
             end
         end
     end
@@ -749,9 +774,7 @@ function xml.remapname(root, pattern, newtg, newns, newrn)
     end
 end
 
---[[ldx--
-<p>Helper (for q2p).</p>
---ldx]]--
+-- Helper (for q2p).
 
 function xml.cdatatotext(e)
     local dt = e.dt
@@ -848,9 +871,7 @@ end
 -- xml.addentitiesdoctype(x,"hexadecimal")
 -- print(x)
 
---[[ldx--
-<p>Here are a few synonyms.</p>
---ldx]]--
+-- Here are a few synonyms:
 
 xml.all     = xml.each
 xml.insert  = xml.insertafter

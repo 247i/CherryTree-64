@@ -120,7 +120,8 @@
    \c!number=\v!yes, % else description
    \c!start=0,
    \c!state=\v!start,
-   \c!levels=4]
+   \c!levels=4,
+   \c!define=\v!yes]
 
 % to be considered:
 %
@@ -129,22 +130,26 @@
 % with push/pop (also at definition time)
 
 \protected\def\strc_define_commands_enumeration#tag#level#parent%
-  {\doifelsenothing{#parent}
-     {\normalexpanded{\defineconstruction[#tag][\s!handler=\v!enumeration,\c!level=#level]}%
-      \setevalue{\??enumeration#tag:\s!parent}{\??enumeration}}%
-     {\normalexpanded{\defineconstruction[#tag][#parent][\s!handler=\v!enumeration,\c!level=#level]}%
-      \setevalue{\??enumeration#tag:\s!parent}{\??enumeration#parent}}%
-   \frozen\instance\setuevalue{\e!next #tag}{\strc_enumerations_next   {#tag}{\number#level}}% obsolete
-   \frozen\instance\setuevalue{\c!reset#tag}{\strc_enumerations_reset  {#tag}{\number#level}}% obsolete
-   %frozen\instance\setuevalue{\c!set  #tag}{\strc_enumerations_set    {#tag}{\number#level}}% obsolete
-   \frozen\instance\setuevalue        {#tag}{\strc_enumerations_command[#tag]}% we could pass level here as well (faster)
-   \frozen\instance\setuevalue{\e!start#tag}{\strc_enumerations_start  [#tag]}% we could pass level here as well (faster)
-   \frozen\instance\setuevalue{\e!stop #tag}{\strc_enumerations_stop   }}
+  {\ifempty{#parent}%
+     \expanded{\defineconstruction[#tag][\s!handler=\v!enumeration,\c!level=#level]}%
+     \edefcsname\??enumeration#tag:\s!parent\endcsname{\??enumeration}%
+   \else
+     \expanded{\defineconstruction[#tag][#parent][\s!handler=\v!enumeration,\c!level=#level]}%
+     \edefcsname\??enumeration#tag:\s!parent\endcsname{\??enumeration#parent}%
+   \fi
+   \ifcstok{\enumerationparameter\c!define}\v!yes
+     \protected\frozen\instance\edefcsname\e!next #tag\endcsname{\strc_enumerations_next{#tag}{\number#level}}%  obsolete
+     \protected\frozen\instance\edefcsname\c!reset#tag\endcsname{\strc_enumerations_reset{#tag}{\number#level}}% obsolete
+     %protected\frozen\instance\edefcsname\c!set  #tag\endcsname{\strc_enumerations_set{#tag}{\number#level}}%   obsolete
+     \protected\frozen\instance\edefcsname        #tag\endcsname{\namedenumeration[#tag]}%
+     \protected\frozen\instance\edefcsname\e!start#tag\endcsname{\startnamedenumeration[#tag]}%
+     \protected\frozen\instance \defcsname\e!stop #tag\endcsname{\stopnamedenumeration}%
+   \fi}
 
-\let\m_strc_enumeration_sub\empty
+\lettonothing\m_strc_enumeration_sub
 
 \appendtoks
-    \let\m_strc_enumeration_sub\empty
+    \lettonothing\m_strc_enumeration_sub
     \ifempty\currentenumerationparent
        % clone => parent | subclone => clone | subsubclone => subclone
        \strc_define_commands_enumeration
@@ -177,10 +182,7 @@
   %\strc_enumerations_setup_counter\currentenumeration
 \to \everydefineenumeration
 
-\let\p_strc_constructions_title \empty
-\let\p_strc_constructions_number\empty
-
-\protected\setvalue{\??constructioninitializer\v!enumeration}%
+\protected\defcsname\??constructioninitializer\v!enumeration\endcsname
   {\let         \currentenumeration              \currentconstruction
    \enforced\let\constructionparameter           \enumerationparameter
    \enforced\let\constructionnamespace           \??enumeration
@@ -188,24 +190,22 @@
    \enforced\let\letconstructionparameter        \letenumerationparameter
    \enforced\let\useconstructionstyleandcolor    \useenumerationstyleandcolor
    \enforced\let\setupcurrentconstruction        \setupcurrentenumeration
-   \edef\p_strc_constructions_number{\constructionparameter\c!number}%
-   \ifx\p_strc_constructions_number\v!yes
-     \settrue\c_strc_constructions_number_state
+   \ifcstok{\constructionparameter\c!number}\v!yes
+     \c_strc_constructions_number_state\conditionaltrue
      \iftrialtypesetting
        \strc_counters_save\currentconstructionnumber
      \fi
      \strc_counters_increment_sub\currentconstructionnumber\currentconstructionlevel
    \else
-     \setfalse\c_strc_constructions_number_state
+     \c_strc_constructions_number_state\conditionalfalse
    \fi
-   \edef\p_strc_constructions_title{\constructionparameter\c!title}%
-   \ifx\p_strc_constructions_title\v!yes
-     \settrue\c_strc_constructions_title_state
+   \ifcstok{\constructionparameter\c!title}\v!yes
+     \c_strc_constructions_title_state\conditionaltrue
    \else
-     \setfalse\c_strc_constructions_title_state
+     \c_strc_constructions_title_state\conditionalfalse
    \fi}
 
-\protected\setvalue{\??constructionfinalizer\v!enumeration}%
+\protected\defcsname\??constructionfinalizer\v!enumeration\endcsname
   {\ifconditional\c_strc_constructions_number_state
      \iftrialtypesetting
        \strc_counters_restore\currentconstructionnumber
@@ -214,9 +214,9 @@
 
 %D Interfaces:
 
-\let\strc_enumerations_command\strc_descriptions_command
-\let\strc_enumerations_start  \strc_descriptions_start
-\let\strc_enumerations_stop   \strc_descriptions_stop
+\let\namedenumeration     \nameddescription
+\let\startnamedenumeration\startnameddescription
+\let\stopnamedenumeration \stopnameddescription
 
 \protected\def\strc_enumerations_next {\strc_constructions_next_indeed \namedenumerationparameter} % #1#2
 \protected\def\strc_enumerations_reset{\strc_constructions_reset_indeed\namedenumerationparameter} % #1#2
@@ -250,14 +250,15 @@
 \letcsname\??constructionstarthandler  \v!enumeration\expandafter\endcsname\csname\??constructionstarthandler  \v!description\endcsname
 \letcsname\??constructionstophandler   \v!enumeration\expandafter\endcsname\csname\??constructionstophandler   \v!description\endcsname
 
-\protected\setvalue{\??constructiontexthandler\v!enumeration}%
+\protected\defcsname\??constructiontexthandler\v!enumeration\endcsname
   {\begingroup
    \useconstructionstyleandcolor\c!headstyle\c!headcolor
    \strc_enumerations_text
    \endgroup}
 
 \protected\def\strc_enumerations_text
-  {\the\everyenumeration % will become obsolete
+  {\push_macro_currentconstructionreference % see strc-con xdef
+   \expand\everyenumeration % will become obsolete
    \ifconditional\c_strc_constructions_number_state
      \ifx\currentconstructionreference\!!plustoken
        \strc_enumerations_full_number_symbol
@@ -268,50 +269,91 @@
      \fi
    \else
      \strc_enumerations_full_number_nop
-   \fi}
+   \fi
+   \pop_macro_currentconstructionreference}
 
-\protected\def\strc_enumerations_inject_text_with_space
+% \protected\def\strc_enumerations_inject_text_with_space
+%   {\edef\p_text{\constructionparameter\c!text}%
+%    \ifempty\p_text \else
+%       \p_text
+%       \removeunwantedspaces
+%       \nobreakspace % should be a option
+%    \fi}
+
+%D \starttyping
+%D \defineenumeration
+%D   [theorem]
+%D   [text=\labeltexts{theorem},
+%D    alternative=serried,
+%D    width=fit,
+%D    space=no]
+%D
+%D \setuplabeltext
+%D   [en]
+%D   [theorem={{XYZ },{ PQR}}]
+%D
+%D \starttheorem
+%D     blablabla
+%D \stoptheorem
+%D \stoptyping
+
+\protected\def\strc_enumerations_inject_text_with_space#1%
   {\edef\p_text{\constructionparameter\c!text}%
-   \ifempty\p_text \else
-      \p_text
-      \removeunwantedspaces
-      \nobreakspace
+   \ifempty\p_text
+      \edef\p_text{\constructionparameter\c!label}%
+      \ifempty\p_text
+        #1%
+      \else
+        \labeltexts{\p_text}{#1}%
+      \fi
+   \orelse\ifcstok{\constructionparameter\c!space}\v!no
+     \p_text{#1}%
+   \else
+     \p_text{\removeunwantedspaces\nobreakspace#1}%
    \fi}
 
 \protected\def\strc_enumerations_inject_extra_text
   {\ifconditional\c_strc_constructions_title_state
-     \clf_doifelselisthastitle{\currentconstructionmain}\numexpr\currentconstructionlistentry\relax
+     \doifelselisthastitle{\currentconstructionmain}{\currentconstructionlistentry}%
        \strc_enumerations_inject_extra_text_indeed
        \donothing
    \fi}
 
 \protected\def\strc_enumerations_inject_text
   {\constructionparameter\c!numbercommand
-    {\constructionparameter\c!text}}
+     {\constructionparameter\c!text}}
 
 % head ( number title )
 
 \protected\def\strc_enumerations_inject_extra_text_indeed
   {\begingroup
-   \hskip\constructionparameter\c!titledistance % we listen to the headstyle
+   \hskip{\constructionparameter\c!titledistance}% we listen to the headstyle
    \useconstructionstyleandcolor\c!titlestyle\c!titlecolor
    \constructionparameter\c!titlecommand
-     {\constructionparameter\c!titleleft
+     {\foolbidimode % experiment
+      \constructionparameter\c!titleleft
       \clf_savedlisttitle{\currentconstructionmain}\currentconstructionlistentry\relax
-      \constructionparameter\c!titleright}%
+      \constructionparameter\c!titleright
+      }%
    \endgroup}
 
 \protected\def\strc_enumerations_inject_symbol % todo check
-  {\constructionparameter\c!left
+  {\begingroup
+   \useconstructionstyleandcolor\c!numberstyle\c!numbercolor
+   \constructionparameter\c!left
    \constructionparameter\c!symbol
-   \constructionparameter\c!right}
+   \constructionparameter\c!right
+   \endgroup}
 
 \protected\def\strc_enumerations_inject_number
-  {\constructionparameter\c!left
+  {\begingroup
+   \useconstructionstyleandcolor\c!numberstyle\c!numbercolor
+   \constructionparameter\c!left
    \constructionparameter\c!starter
    \clf_savedlistprefixednumber{\currentconstructionmain}\currentconstructionlistentry\relax
    \constructionparameter\c!stopper
-   \constructionparameter\c!right}
+   \constructionparameter\c!right
+   \endgroup}
 
 \protected\def\strc_enumerations_inject_text_and_number
   {\constructionparameter\c!numbercommand

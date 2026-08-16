@@ -246,7 +246,8 @@ local function setupidentity()
         addtoinfo("ConTeXt.Version",version)
         addtoinfo("ConTeXt.Time",os.date("%Y-%m-%d %H:%M"))
         addtoinfo("ConTeXt.Jobname",jobname)
-        addtoinfo("ConTeXt.Url","www.pragma-ade.com")
+     -- addtoinfo("ConTeXt.Url","www.pragma-ade.com")
+        addtoinfo("ConTeXt.Url","github.com/contextgarden/context")
         addtoinfo("ConTeXt.Support","contextgarden.net")
         addtoinfo("TeX.Support","tug.org")
         --
@@ -512,7 +513,7 @@ local function documentspecification()
             HideMenubar       = nomenubar and true                   or nil,
         })
     end
-    addtoinfo   ("Trapped", pdfconstant("False")) -- '/Trapped' in /Info, 'Trapped' in XMP
+ -- addtoinfo   ("Trapped", pdfconstant("False")) -- '/Trapped' in /Info, 'Trapped' in XMP
     addtocatalog("Version", pdfconstant(format("1.%s",pdfminorversion())))
     addtocatalog("Lang",    pdfstring(tokens.getters.macro("currentmainlanguage")))
 end

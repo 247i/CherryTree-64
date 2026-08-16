@@ -15,6 +15,20 @@
 
 \installcorenamespace{graphicvariable}
 
+% \unprotect
+
+% \newdimension\d_adaptive_width
+% \newdimension\d_adaptive_height
+% \newdimension\d_adaptive_depth
+% \newdimension\d_adaptive_line
+% \newdimension\d_adaptive_hsize
+% \newbox      \b_adaptive_box
+
+% \protect
+
+\permanent\def\btx{} % begin (textext) string
+\permanent\def\etx{} % end   (textext) string
+
 \registerctxluafile{mlib-fio}{autosuffix}
 \registerctxluafile{mlib-run}{autosuffix}
 \registerctxluafile{mlib-ctx}{autosuffix}
@@ -26,9 +40,22 @@
 \registerctxluafile{mlib-lmp}{autosuffix}
 \registerctxluafile{mlib-int}{autosuffix}
 \registerctxluafile{mlib-lmt}{autosuffix}
-\registerctxluafile{mlib-cnt}{autosuffix,optimize}
-\registerctxluafile{mlib-svg}{autosuffix,optimize}
+\registerctxluafile{mlib-pos}{autosuffix}
+\registerctxluafile{mlib-cnt}{autosuffix}
+\registerctxluafile{mlib-svg}{autosuffix}
+\registerctxluafile{mlib-fnt}{autosuffix} % outline fun
+\registerctxluafile{mlib-ptr}{autosuffix}
+%registerctxluafile{mlib-fnc}{autosuffix} % delayed
+\registerctxluafile{mlib-msh}{autosuffix} % can't be delayed as it has helpers
+%registerctxluafile{mlib-eff}{autosuffix} % delayed
 
 \unprotect
+
+\defineframed
+  [potracebitmap]
+  [\c!foregroundstyle=\tttf,
+   \c!offset=\v!overlay,%
+   \c!align=\v!normal,%
+   \c!frame=\v!off]%
 
 \protect \endinput

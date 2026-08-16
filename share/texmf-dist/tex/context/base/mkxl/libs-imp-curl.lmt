@@ -19,6 +19,7 @@ if not curllib then return end
 
 local next, type = next, type
 local lower, gsub = string.lower, string.gsub
+local dirname = file.dirname
 
 local mapping = {
     ["acceptencoding"]          = 102,
@@ -136,9 +137,9 @@ local mapping = {
     ["password"]                = 174,
     ["port"]                    =   3,
     ["post"]                    =  47,
- -- ["postfields"]              =  15,
- -- ["postfieldsize"]           =  60,
- -- ["postfieldsizelarge"]      = 120,
+    ["postfields"]              =  15,
+    ["postfieldsize"]           =  60,
+    ["postfieldsizelarge"]      = 120,
     ["postquote"]               =  39,
     ["postredir"]               = 161,
     ["prequote"]                =  93,
@@ -261,7 +262,7 @@ local function okay()
     return okay()
 end
 
-local function fetch(options)
+local function fetch(options,data)
     if okay() then
         local t = type(options)
         if t == "table" then
@@ -272,12 +273,17 @@ local function fetch(options)
                     o[index] = value
                 end
             end
-            return curl_fetch(o)
+         -- if o.capath == true then
+         --     o.capath = libpath
+         -- end
+            return curl_fetch(o,data)
         elseif t == "string" then
             return curl_fetch { [mapping.url] = options }
         else
             report("invalid argument")
         end
+    else
+        report("no curl library loaded")
     end
 end
 
@@ -286,10 +292,19 @@ local curl = {
     escape     = function (s) return okay() and curl_escape    (s) end,
     unescape   = function (s) return okay() and curl_unescape  (s) end,
     fetch      = fetch,
+    libfile    = libfile,
+    libpath    = dirname(libfile),
 }
 
 -- inspect(curl.fetch("http://www.pragma-ade.com/index.html"))
 -- inspect(curl.fetch { url = "http://www.pragma-ade.com/index.html" })
+--
+-- inspect(curl.fetch {
+--     url           = "https://www.ctan.org/json/2.0/packages",
+--     sslverifyhost = 0,
+--     sslverifypeer = 0,
+--  -- capath        = true
+-- } )
 
 package.loaded[libname] = curl
 

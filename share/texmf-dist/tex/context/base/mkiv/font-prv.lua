@@ -15,20 +15,23 @@ local fontdata          = fonts.hashes.identifiers
 
 local setmetatableindex = table.setmetatableindex
 
+-- if we run out of space we can think of another range but by sharing we can
+-- use these privates for mechanisms like alignments-on-character and such
+
 local currentprivate    = fonts.privateoffsets.textextrabase
 local maximumprivate    = currentprivate + 0xFFF
 
-local extraprivates     = { }
+local extraprivates     = utilities.storage.allocate()
+local sharedprivates    = utilities.storage.allocate()
+
 helpers.extraprivates   = extraprivates
+helpers.sharedprivates  = sharedprivates
 
 function fonts.helpers.addextraprivate(name,f)
     extraprivates[#extraprivates+1] = { name, f }
 end
 
--- if we run out of space we can think of another range but by sharing we can
--- use these privates for mechanisms like alignments-on-character and such
-
-local sharedprivates = setmetatableindex(function(t,k)
+setmetatableindex(sharedprivates,function(t,k)
     local v = currentprivate
     if currentprivate < maximumprivate then
         currentprivate = currentprivate + 1
@@ -79,6 +82,22 @@ end
 
 function helpers.newprivateslot(name)
     return sharedprivates[name]
+end
+
+function helpers.isprivate(unicode)
+    if unicode < 0xD7FF or (unicode > 0xDFFF and unicode <= 0xFFFF) then
+        return false
+    elseif unicode >= 0x00E000 and unicode <= 0x00F8FF then
+        return true
+    elseif unicode >= 0x0F0000 and unicode <= 0x0FFFFF then
+        return true
+    elseif unicode >= 0x100000 and unicode <= 0x10FFFF then
+        return true
+    elseif unicode >= 0x00D800 and unicode <= 0x00DFFF then
+        return true
+    else
+        return false
+    end
 end
 
 do

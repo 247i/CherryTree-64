@@ -72,7 +72,7 @@ local function tounicode16(unicode)
         return s_unknown
     else
         unicode = unicode - 0x10000
-        return f_double(idiv(k,0x400)+0xD800,unicode%0x400+0xDC00)
+        return f_double(idiv(unicode,0x400)+0xD800,unicode%0x400+0xDC00)
     end
 end
 
@@ -93,7 +93,7 @@ local function tounicode16sequence(unicodes)
             t[l] = s_unknown
         else
             u = u - 0x10000
-            t[l] = f_double(idiv(k,0x400)+0xD800,u%0x400+0xDC00)
+            t[l] = f_double(idiv(u,0x400)+0xD800,u%0x400+0xDC00)
         end
     end
     return concat(t)
@@ -253,9 +253,9 @@ function mappings.addtounicode(data,filename,checklookups,forceligatures)
     local usedmap       = cidinfo and fonts.cid.getmap(cidinfo)
     local uparser       = makenameparser() -- hm, every time?
     if usedmap then
-          oparser  = usedmap and makenameparser(cidinfo.ordering)
-          cidnames = usedmap.names
-          cidcodes = usedmap.unicodes
+        oparser  = usedmap and makenameparser(cidinfo.ordering)
+        cidnames = usedmap.names
+        cidcodes = usedmap.unicodes
     end
     local ns = 0
     local nl = 0

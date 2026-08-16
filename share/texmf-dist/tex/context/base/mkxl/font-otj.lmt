@@ -7,6 +7,8 @@ if not modules then modules = { } end modules ['font-otj'] = {
     license   = "see context related readme files",
 }
 
+-- todo: old checkmark code can go
+
 -- This property based variant is not faster but looks nicer than the attribute one. We
 -- need to use rawget (which is about 4 times slower than a direct access but we cannot
 -- get/set that one for our purpose! This version does a bit more with discretionaries
@@ -71,10 +73,10 @@ local setcolor           = tracers and tracers.colors.set
 local resetcolor         = tracers and tracers.colors.reset
 
 local nodecodes          = nodes.nodecodes
-local glyph_code         = nodecodes.glyph
-local disc_code          = nodecodes.disc
-local kern_code          = nodecodes.kern
-local glue_code          = nodecodes.glue
+local glyph_code         <const> = nodecodes.glyph
+local disc_code          <const> = nodecodes.disc
+local kern_code          <const> = nodecodes.kern
+local glue_code          <const> = nodecodes.glue
 
 local nuts               = nodes.nuts
 local nodepool           = nuts.pool
@@ -85,8 +87,8 @@ local tonut              = nuts.tonut
 local getnext            = nuts.getnext
 local getprev            = nuts.getprev
 local getid              = nuts.getid
-local getfont            = nuts.getfont
 local getchar            = nuts.getchar
+local getcharspec        = nuts.getcharspec
 local setchar            = nuts.setchar
 ----- getxoffset         = nuts.getxoffset
 ----- getyoffset         = nuts.getyoffset
@@ -99,6 +101,8 @@ local yscaled            = nuts.yscaled
 local getboth            = nuts.getboth
 local getdisc            = nuts.getdisc
 local setdisc            = nuts.setdisc
+local getreplace         = nuts.getreplace
+local setreplace         = nuts.setreplace
 local setoffsets         = nuts.setoffsets
 local addxoffset         = nuts.addxoffset
 local addyoffset         = nuts.addyoffset
@@ -111,27 +115,33 @@ local setwidth           = nuts.setwidth
 local getwidth           = nuts.getwidth
 local addxymargins       = nuts.addxymargins -- we delegate scaling
 local copynode           = nuts.copy
+local setattrlist        = nuts.setattrlist
 
 local nextchar           = nuts.traversers.char
 local nextglue           = nuts.traversers.glue
 
-local insert_node_before = nuts.insert_before
-local insert_node_after  = nuts.insert_after
+local insertnodebefore   = nuts.insertbefore
+local insertnodeafter    = nuts.insertafter
 
 local properties         = nodes.properties.data
 
 local fontkern           = nuts.pool and nuts.pool.fontkern
-local italickern         = nuts.pool and nuts.pool.italickern
+local spacefontkern      = nuts.pool and nuts.pool.spacefontkern
 
-local useitalickerns     = false
+local function somekern(makekern,amount,current)
+    local kern = makekern(amount)
+    setattrlist(kern,current)
+    return kern
+end
+
+local usespacefontkerns  = false
 local useadvance         = false
-local usezwjkerns        = true  -- when useadvance
 
-directives.register("fonts.injections.useitalics", function(v)
+directives.register("fonts.injections.usespacefontkerns", function(v)
     if v then
-        report_injections("using italics for space kerns (tracing only)")
+        report_injections("using spacefontkerns for space kerns (tracing only)")
     end
-    useitalickerns = v
+    usespacefontkerns = v
 end)
 
 registerdirective("fonts.injections.method", function(v)
@@ -510,8 +520,8 @@ local function dir(n)
 end
 
 local function showchar(n,nested)
-    local char = getchar(n)
-    report_injections("%wfont %s, char %U, glyph %c",nested and 2 or 0,getfont(n),char,char)
+    local char, font = getcharspec(n)
+    report_injections("%wfont %s, char %U, glyph %c",nested and 2 or 0,font,char,char)
 end
 
 local function show(n,what,nested,symbol)
@@ -658,13 +668,13 @@ end
 --                         if useadvance then
 --                             addmargins(current,-leftkern)
 --                         elseif prev and getid(prev) == glue_code then
---                             if useitalickerns then
---                                 head = insert_node_before(head,current,italickern(leftkern))
+--                             if usespacefontkerns then
+--                                 head = insertnodebefore(head,current,spacefontkern(leftkern))
 --                             else
 --                                 setwidth(prev, getwidth(prev) + leftkern)
 --                             end
 --                         else
---                             head = insert_node_before(head,current,fontkern(leftkern))
+--                             head = insertnodebefore(head,current,fontkern(leftkern))
 --                         end
 --                     end
 --                 end
@@ -742,7 +752,7 @@ end
 --                                 if useadvance then
 --                                     addmargins(n,-leftkern)
 --                                 else
---                                     pre  = insert_node_before(pre,n,fontkern(leftkern))
+--                                     pre  = insertnodebefore(pre,n,fontkern(leftkern))
 --                                     done = true
 --                                 end
 --                             end
@@ -763,7 +773,7 @@ end
 --                                 if useadvance then
 --                                     addmargins(n,-leftkern)
 --                                 else
---                                     post = insert_node_before(post,n,fontkern(leftkern))
+--                                     post = insertnodebefore(post,n,fontkern(leftkern))
 --                                     done = true
 --                                 end
 --                             end
@@ -784,7 +794,7 @@ end
 --                                 if useadvance then
 --                                     addmargins(n,-leftkern)
 --                                 else
---                                     replace = insert_node_before(replace,n,fontkern(leftkern))
+--                                     replace = insertnodebefore(replace,n,fontkern(leftkern))
 --                                     done    = true
 --                                 end
 --                             end
@@ -841,13 +851,13 @@ local function inject_kerns_only_kerns(head,where)
                     if leftkern and leftkern ~= 0 then
                         leftkern = xscaled(current,leftkern)
                         if prev and getid(prev) == glue_code then
-                            if useitalickerns then
-                                head = insert_node_before(head,current,italickern(leftkern))
+                            if usespacefontkerns then
+                                head = insertnodebefore(head,current,spacefontkern(leftkern))
                             else
                                 setwidth(prev,getwidth(prev) + leftkern)
                             end
                         else
-                            head = insert_node_before(head,current,fontkern(leftkern))
+                            head = insertnodebefore(head,current,somekern(fontkern,leftkern,current))
                         end
                     end
                 end
@@ -858,7 +868,7 @@ local function inject_kerns_only_kerns(head,where)
                         if i then
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                setlink(posttail,fontkern(xscaled(current,leftkern)))
+                                setlink(posttail,somekern(fontkern,xscaled(current,leftkern),current))
                                 done = true
                             end
                         end
@@ -868,7 +878,7 @@ local function inject_kerns_only_kerns(head,where)
                         if i then
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                setlink(replacetail,fontkern(xscaled(current,leftkern)))
+                                setlink(replacetail,somekern(fontkern,xscaled(current,leftkern),current))
                                 done = true
                             end
                         end
@@ -878,7 +888,7 @@ local function inject_kerns_only_kerns(head,where)
                             -- glyph|disc|glyph (special case)
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                replace = fontkern(xscaled(current,leftkern))
+                                replace = somekern(fontkern,xscaled(current,leftkern),current)
                                 done    = true
                             end
                         end
@@ -906,7 +916,7 @@ local function inject_kerns_only_kerns(head,where)
                         if i then
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                pre  = insert_node_before(pre,n,fontkern(xscaled(n,leftkern)))
+                                pre  = insertnodebefore(pre,n,somekern(fontkern,xscaled(n,leftkern),n))
                                 done = true
                             end
                         end
@@ -922,7 +932,7 @@ local function inject_kerns_only_kerns(head,where)
                         if i then
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                post = insert_node_before(post,n,fontkern(xscaled(n,leftkern)))
+                                post = insertnodebefore(post,n,somekern(fontkern,xscaled(n,leftkern),n))
                                 done = true
                             end
                         end
@@ -938,7 +948,7 @@ local function inject_kerns_only_kerns(head,where)
                         if i then
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                replace = insert_node_before(replace,n,fontkern(xscaled(n,leftkern)))
+                                replace = insertnodebefore(replace,n,somekern(fontkern,xscaled(n,leftkern),n))
                                 done    = true
                             end
                         end
@@ -1009,14 +1019,8 @@ local function inject_kerns_only_margins(head,where)
                         if i then
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                if usezwjkerns then
-                                    replace = copynode(current)
-                                    setchar(replace,0x200D) -- zwj
-                                    addxymargins(replace,-leftkern)
-                                else
-                                    replace = fontkern(xscaled(current,leftkern))
-                                end
-                                setdisc(prevdisc,pre,post,replace) -- setreplace
+                                -- prev disc | current
+                                addxymargins(current,-leftkern) -- NEEDS CHECKING
                             end
                         end
                     end
@@ -1140,24 +1144,24 @@ end
 --                                 addxoffset(current,leftkern)
 --                                 rightkern = 0
 --                             elseif prev and getid(prev) == glue_code then
---                                 if useitalickerns then
---                                     head = insert_node_before(head,current,italickern(leftkern))
+--                                 if usespacefontkerns then
+--                                     head = insertnodebefore(head,current,spacefontkern(leftkern))
 --                                 else
 --                                     setwidth(prev,getwidth(prev)+leftkern)
 --                                 end
 --                             else
---                                 head = insert_node_before(head,current,fontkern(leftkern))
+--                                 head = insertnodebefore(head,current,fontkern(leftkern))
 --                             end
 --                         end
 --                         if rightkern ~= 0 then
 --                             if next and getid(next) == glue_code then
---                                 if useitalickerns then
---                                     insert_node_after(head,current,italickern(rightkern))
+--                                 if usespacefontkerns then
+--                                     insertnodeafter(head,current,spacefontkern(rightkern))
 --                                 else
 --                                     setwidth(next, getwidth(next)+rightkern)
 --                                 end
 --                             else
---                                 insert_node_after(head,current,fontkern(rightkern))
+--                                 insertnodeafter(head,current,fontkern(rightkern))
 --                             end
 --                         end
 --                     end
@@ -1260,11 +1264,11 @@ end
 --                                 end
 --                             else
 --                                 if leftkern ~= 0 then
---                                     pre  = insert_node_before(pre,n,fontkern(leftkern))
+--                                     pre  = insertnodebefore(pre,n,fontkern(leftkern))
 --                                     done = true
 --                                 end
 --                                 if rightkern ~= 0 then
---                                     insert_node_after(pre,n,fontkern(rightkern))
+--                                     insertnodeafter(pre,n,fontkern(rightkern))
 --                                     done = true
 --                                 end
 --                             end
@@ -1298,11 +1302,11 @@ end
 --                                 end
 --                             else
 --                                 if leftkern ~= 0 then
---                                     post = insert_node_before(post,n,fontkern(leftkern))
+--                                     post = insertnodebefore(post,n,fontkern(leftkern))
 --                                     done = true
 --                                 end
 --                                 if rightkern ~= 0 then
---                                     insert_node_after(post,n,fontkern(rightkern))
+--                                     insertnodeafter(post,n,fontkern(rightkern))
 --                                     done = true
 --                                 end
 --                             end
@@ -1336,11 +1340,11 @@ end
 --                                 end
 --                             else
 --                                 if leftkern ~= 0 then
---                                     replace = insert_node_before(replace,n,fontkern(leftkern))
+--                                     replace = insertnodebefore(replace,n,fontkern(leftkern))
 --                                     done    = true
 --                                 end
 --                                 if rightkern ~= 0 then
---                                     insert_node_after(replace,n,fontkern(rightkern))
+--                                     insertnodeafter(replace,n,fontkern(rightkern))
 --                                     done = true
 --                                 end
 --                             end
@@ -1361,7 +1365,7 @@ end
 --                                 if useadvance then
 --                                     addmargins(pre,-rightkern)
 --                                 else
---                                     pre  = insert_node_before(pre,pre,fontkern(rightkern))
+--                                     pre  = insertnodebefore(pre,pre,fontkern(rightkern))
 --                                     done = true
 --                                 end
 --                             end
@@ -1380,7 +1384,7 @@ end
 --                                 if useadvance then
 --                                     addmargins(replace,-rightkern)
 --                                 else
---                                     replace = insert_node_before(replace,replace,fontkern(rightkern))
+--                                     replace = insertnodebefore(replace,replace,fontkern(rightkern))
 --                                     done    = true
 --                                 end
 --                             end
@@ -1453,39 +1457,37 @@ local function inject_positions_only_kerns(head,where)
                             addxoffset(current,leftkern)
                             rightkern = 0
                         elseif prev and getid(prev) == glue_code then
-                            if useitalickerns then
-                                head = insert_node_before(head,current,italickern(leftkern))
+                            if usespacefontkerns then
+                                head = insertnodebefore(head,current,spacefontkern(leftkern))
                             else
                                 setwidth(prev,getwidth(prev)+leftkern)
                             end
                         else
-                            head = insert_node_before(head,current,fontkern(leftkern))
+                            head = insertnodebefore(head,current,somekern(fontkern,leftkern,current))
                         end
                     end
                     if rightkern ~= 0 then
                         if next and getid(next) == glue_code then
-                            if useitalickerns then
-                                insert_node_after(head,current,italickern(rightkern))
+                            if usespacefontkerns then
+                                insertnodeafter(head,current,spacefontkern(rightkern))
                             else
                                 setwidth(next, getwidth(next)+rightkern)
                             end
                         else
-                            insert_node_after(head,current,fontkern(rightkern))
+                            insertnodeafter(head,current,somekern(fontkern,rightkern,current))
                         end
                     end
-                else
+                elseif next then
                     local i = p.emptyinjections
                     if i then
                         -- glyph|disc|glyph (special case)
                         local rightkern = i.rightkern
-                        if rightkern and rightkern ~= 0 then
-                            if next and getid(next) == disc_code then
-                                if replace then
-                                    -- error, we expect an empty one
-                                else
-                                    replace = fontkern(xscaled(current,rightkern)) -- maybe also leftkern
-                                    done    = true	--KE
-                                end
+                        if rightkern and rightkern ~= 0 and getid(next) == disc_code then
+                            local replace = getreplace(next)
+                            if replace then
+                                -- can't happen
+                            else
+                                setreplace(next,somekern(fontkern,xscaled(current,rightkern),current))
                             end
                         end
                     end
@@ -1497,7 +1499,7 @@ local function inject_positions_only_kerns(head,where)
                         if i then
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                setlink(posttail,fontkern(xscaled(current,leftkern)))
+                                setlink(posttail,somekern(fontkern,xscaled(current,leftkern),current))
                                 done = true
                             end
                         end
@@ -1507,7 +1509,7 @@ local function inject_positions_only_kerns(head,where)
                         if i then
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                setlink(replacetail,fontkern(xscaled(current,leftkern)))
+                                setlink(replacetail,somekern(fontkern,xscaled(current,leftkern),current))
                                 done = true
                             end
                         end
@@ -1517,7 +1519,7 @@ local function inject_positions_only_kerns(head,where)
                             -- new .. okay?
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                replace = fontkern(xscaled(current,leftkern))
+                                replace = somekern(fontkern,xscaled(current,leftkern),current)
                                 done = true
                             end
                         end
@@ -1549,11 +1551,11 @@ local function inject_positions_only_kerns(head,where)
                                 addyoffset(n,yscaled(n,yoffset))
                             end
                             if leftkern and leftkern ~= 0 then
-                                pre  = insert_node_before(pre,n,fontkern(xscaled(n,leftkern)))
+                                pre  = insertnodebefore(pre,n,somekern(fontkern,xscaled(n,leftkern),n))
                                 done = true
                             end
                             if rightkern and rightkern ~= 0 then
-                                insert_node_after(pre,n,fontkern(xscaled(n,rightkern)))
+                                insertnodeafter(pre,n,somekern(fontkern,xscaled(n,rightkern),n))
                                 done = true
                             end
                         end
@@ -1574,11 +1576,11 @@ local function inject_positions_only_kerns(head,where)
                                 addyoffset(n,yscaled(n,yoffset))
                             end
                             if leftkern and leftkern ~= 0 then
-                                post = insert_node_before(post,n,fontkern(xscaled(n,leftkern)))
+                                post = insertnodebefore(post,n,somekern(fontkern,xscaled(n,leftkern),n))
                                 done = true
                             end
                             if rightkern and rightkern ~= 0 then
-                                insert_node_after(post,n,fontkern(xscaled(n,rightkern)))
+                                insertnodeafter(post,n,somekern(fontkern,xscaled(n,rightkern),n))
                                 done = true
                             end
                         end
@@ -1599,11 +1601,11 @@ local function inject_positions_only_kerns(head,where)
                                 addyoffset(n,yscaled(n,yoffset))
                             end
                             if leftkern and leftkern ~= 0 then
-                                replace = insert_node_before(replace,n,fontkern(xscaled(n,leftkern)))
+                                replace = insertnodebefore(replace,n,somekern(fontkern,xscaled(n,leftkern),n))
                                 done    = true
                             end
                             if rightkern and rightkern ~= 0 then
-                                insert_node_after(replace,n,fontkern(xscaled(n,rightkern)))
+                                insertnodeafter(replace,n,somekern(fontkern,xscaled(n,rightkern),n))
                                 done = true
                             end
                         end
@@ -1620,7 +1622,7 @@ local function inject_positions_only_kerns(head,where)
                             -- glyph|pre glyphs
                             local rightkern = i.rightkern
                             if rightkern and rightkern ~= 0 then
-                                pre  = insert_node_before(pre,pre,fontkern(xscaled(prevglyph,rightkern)))
+                                pre  = insertnodebefore(pre,pre,somekern(fontkern,xscaled(prevglyph,rightkern),prevglyph))
                                 done = true
                             end
                         end
@@ -1634,7 +1636,7 @@ local function inject_positions_only_kerns(head,where)
                             -- glyph|replace glyphs
                             local rightkern = i.rightkern
                             if rightkern and rightkern ~= 0 then
-                                replace = insert_node_before(replace,replace,fontkern(xscaled(prevglyph,rightkern)))
+                                replace = insertnodebefore(replace,replace,somekern(fontkern,xscaled(prevglyph,rightkern),prevglyph))
                                 done    = true
                             end
                         end
@@ -1694,25 +1696,17 @@ local function inject_positions_only_margins(head,where)
                     if leftkern ~= 0 or rightkern ~= 0 or yoffset ~= 0 then
                         addxymargins(n,-leftkern,-rightkern,yoffset) -- also scales
                     end
-                else
+                elseif next then
                     local i = p.emptyinjections
                     if i then
                         -- glyph|disc|glyph (special case)
                         local rightkern = i.rightkern
-                        if rightkern and rightkern ~= 0 then
-                            if next and getid(next) == disc_code then
-                                if replace then
-                                    -- error, we expect an empty one
-                                else
-                                    if usezwjkerns then
-                                        replace = copynode(current)
-                                        setchar(replace,0x200D) -- zwj
-                                        addxymargins(replace,false,-rightkern)
-                                    else
-                                        replace = fontkern(xscaled(current,rightkern)) -- maybe also leftkern
-                                    end
-                                    done = true	--KE
-                                end
+                        if rightkern and rightkern ~= 0 and getid(next) == disc_code then
+                            local replace = getreplace(next)
+                            if replace then
+                                -- can't happen
+                            else
+                                setreplace(next,somekern(fontkern,xscaled(current,rightkern),current))
                             end
                         end
                     end
@@ -1741,14 +1735,8 @@ local function inject_positions_only_margins(head,where)
                             -- new .. okay?
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                if usezwjkerns then
-                                    replace = copynode(current)
-                                    setchar(replace,0x200D) -- zwj
-                                    addxymargins(replace,-leftkern)
-                                else
-                                    replace = fontkern(xscaled(current,leftkern))
-                                end
-                                setdisc(prevdisc,pre,post,replace)
+                                -- prev disc | current
+                                addxymargins(current,-leftkern) -- NEEDS CHECKING
                             end
                         end
                     end
@@ -1916,7 +1904,7 @@ local function processmark(p,n,pn) -- p = basenode
                 end
             end
         end
-        if pn.checkmark then
+        if pn.checkmark then -- no longer needed
             local wn = getwidth(n) -- in arial marks have widths
             if wn and wn ~= 0 then
                 wn = wn/2
@@ -1934,8 +1922,8 @@ local function processmark(p,n,pn) -- p = basenode
                 --
                 -- todo: head and check for prev / next kern
                 --
-                insert_node_before(n,n,fontkern(-wn))
-                insert_node_after(n,n,fontkern(-wn))
+                insertnodebefore(n,n,somekern(fontkern,-wn,n))
+                insertnodeafter(n,n,somekern(fontkern,-wn,n))
             end
         end
     end
@@ -2056,41 +2044,39 @@ local function inject_everything(head,where)
                                 addxoffset(current,leftkern)
                                 rightkern = 0
                             elseif prev and getid(prev) == glue_code then
-                                if useitalickerns then
-                                    head = insert_node_before(head,current,italickern(leftkern))
+                                if usespacefontkerns then
+                                    head = insertnodebefore(head,current,spacefontkern(leftkern))
                                 else
                                     setwidth(prev, getwidth(prev) + leftkern)
                                 end
                             else
-                                head = insert_node_before(head,current,fontkern(leftkern))
+                                head = insertnodebefore(head,current,somekern(fontkern,leftkern,current))
                             end
                         end
                         if rightkern and rightkern ~= 0 then
                             rightkern = xscaled(current,rightkern)
                             if next and getid(next) == glue_code then
-                                if useitalickerns then
-                                    insert_node_after(head,current,italickern(rightkern))
+                                if usespacefontkerns then
+                                    insertnodeafter(head,current,spacefontkern(rightkern))
                                 else
                                     setwidth(next, getwidth(next) + rightkern)
                                 end
                             else
-                                insert_node_after(head,current,fontkern(rightkern))
+                                insertnodeafter(head,current,somekern(fontkern,rightkern,current))
                             end
                         end
                     end
-                else
+                elseif next then
                     local i = p.emptyinjections
                     if i then
                         -- glyph|disc|glyph (special case)
                         local rightkern = i.rightkern
-                        if rightkern and rightkern ~= 0 then
-                            if next and getid(next) == disc_code then
-                                if replace then
-                                    -- error, we expect an empty one
-                                else
-                                    replace = fontkern(xscaled(current,rightkern))
-                                    done    = true
-                                end
+                        if rightkern and rightkern ~= 0 and getid(next) == disc_code then
+                            local replace = getreplace(next)
+                            if replace then
+                                -- can't happen
+                            else
+                                setreplace(next,somekern(fontkern,xscaled(current,rightkern),current))
                             end
                         end
                     end
@@ -2103,7 +2089,7 @@ local function inject_everything(head,where)
                             if i then
                                 local leftkern = i.leftkern
                                 if leftkern and leftkern ~= 0 then
-                                    setlink(posttail,fontkern(xscaled(current,leftkern)))
+                                    setlink(posttail,somekern(fontkern,xscaled(current,leftkern),current))
                                     done = true
                                 end
                             end
@@ -2113,7 +2099,7 @@ local function inject_everything(head,where)
                             if i then
                                 local leftkern = i.leftkern
                                 if leftkern and leftkern ~= 0 then
-                                    setlink(replacetail,fontkern(xscaled(current,leftkern)))
+                                    setlink(replacetail,somekern(fontkern,xscaled(current,leftkern),current))
                                     done = true
                                 end
                             end
@@ -2122,7 +2108,7 @@ local function inject_everything(head,where)
                             if i then
                                 local leftkern = i.leftkern
                                 if leftkern and leftkern ~= 0 then
-                                    replace = fontkern(xscaled(current,leftkern))
+                                    replace = somekern(fontkern,xscaled(current,leftkern),current)
                                     done    = true
                                 end
                             end
@@ -2168,12 +2154,12 @@ local function inject_everything(head,where)
                             end
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                pre  = insert_node_before(pre,n,fontkern(xscaled(n,leftkern)))
+                                pre  = insertnodebefore(pre,n,somekern(fontkern,xscaled(n,leftkern),n))
                                 done = true
                             end
                             local rightkern = i.rightkern
                             if rightkern and rightkern ~= 0 then
-                                insert_node_after(pre,n,fontkern(xscaled(n,rightkern)))
+                                insertnodeafter(pre,n,somekern(fontkern,xscaled(n,rightkern),n))
                                 done = true
                             end
                             if hasmarks then
@@ -2199,13 +2185,13 @@ local function inject_everything(head,where)
                             end
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                post = insert_node_before(post,n,fontkern(xscaled(n,leftkern)))
+                                post = insertnodebefore(post,n,somekern(fontkern,xscaled(n,leftkern),n))
                                 done = true
                             end
                             local rightkern = i.rightkern
                             if rightkern and rightkern ~= 0 then
                                 done = true
-                                insert_node_after(post,n,fontkern(xscaled(n,rightkern)))
+                                insertnodeafter(post,n,somekern(fontkern,xscaled(n,rightkern),n))
                             end
                             if hasmarks then
                                 local pm = i.markbasenode
@@ -2230,12 +2216,12 @@ local function inject_everything(head,where)
                             end
                             local leftkern = i.leftkern
                             if leftkern and leftkern ~= 0 then
-                                replace = insert_node_before(replace,n,fontkern(xscaled(n,leftkern)))
+                                replace = insertnodebefore(replace,n,somekern(fontkern,xscaled(n,leftkern),n))
                                 done    = true
                             end
                             local rightkern = i.rightkern
                             if rightkern and rightkern ~= 0 then
-                                insert_node_after(replace,n,fontkern(xscaled(n,rightkern)))
+                                insertnodeafter(replace,n,somekern(fontkern,xscaled(n,rightkern),n))
                                 done = true
                             end
                             if hasmarks then
@@ -2257,7 +2243,7 @@ local function inject_everything(head,where)
                             -- glyph|pre glyphs
                             local rightkern = i.rightkern
                             if rightkern and rightkern ~= 0 then
-                                pre  = insert_node_before(pre,pre,fontkern(xscaled(prevglyph,rightkern)))
+                                pre  = insertnodebefore(pre,pre,somekern(fontkern,xscaled(prevglyph,rightkern),prevglyph))
                                 done = true
                             end
                         end
@@ -2271,7 +2257,7 @@ local function inject_everything(head,where)
                             -- glyph|replace glyphs
                             local rightkern = i.rightkern
                             if rightkern and rightkern ~= 0 then
-                                replace = insert_node_before(replace,replace,fontkern(xscaled(prevglyph,rightkern)))
+                                replace = insertnodebefore(replace,replace,somekern(fontkern,xscaled(prevglyph,rightkern),prevglyph))
                                 done    = true
                             end
                         end
@@ -2342,7 +2328,7 @@ function nodes.injections.setspacekerns(font,sequence)
     end
 end
 
-local threshold =  1 -- todo: add a few methods for context
+local threshold = 1 -- todo: add a few methods for context
 
 directives.register("otf.threshold", function(v) threshold = tonumber(v) or 1 end)
 
@@ -2373,8 +2359,8 @@ end
 -- local getprev = nodes.direct.getprev
 -- local getnext = nodes.direct.getnext
 --
--- local whatsit_code = nodes.nodecodes.whatsit
--- local glyph_code   = nodes.nodecodes.glyph
+-- local whatsit_code <const> = nodes.nodecodes.whatsit
+-- local glyph_code   <const> = nodes.nodecodes.glyph
 --
 -- local function getspaceboth(n) -- fragile: what it prev/next has no width field
 --     local prev, next = getboth(n)
@@ -2419,39 +2405,41 @@ local function injectspaces(head)
 
     for n in nextglue, head do
         local prev, next = getspaceboth(n)
-        local prevchar = prev and ischar(prev)
-        local nextchar = next and ischar(next)
+        local prevchar, prevfont = getcharspec(prev)
+        local nextchar, nextfont = getcharspec(next)
         if nextchar then
-            local font = getfont(next)
-            local trig = triggers[font]
+            local trig = triggers[nextfont]
             if trig then
-                if lastfont ~= font then
-                    updatefont(font,trig)
+                if lastfont ~= nextfont then
+                    updatefont(nextfont,trig)
                 end
                 if rightkerns then
                     rightkern = rightkerns[nextchar]
+                    if rightkern then
+                        xscale = getxscale(next)
+                    end
                 end
-                xscale = getxscale(next)
             end
         end
         if prevchar then
-            local font = getfont(prev)
-            local trig = triggers[font]
+            local trig = triggers[prevfont]
             if trig then
-                if lastfont ~= font then
-                    updatefont(font,trig)
+                if lastfont ~= prevfont then
+                    updatefont(prevfont,trig)
                 end
                 if leftkerns then
                     leftkern = leftkerns[prevchar]
+                    if leftkern then
+                        xscale = getxscale(prev)
+                    end
                 end
-                xscale = getxscale(prev)
             end
         end
         if leftkern then
             local old = getwidth(n)
-            if old > threshold then
+            if old > xscale*threshold then
                 if rightkern then
-                    if useitalickerns then
+                    if usespacefontkerns then
                         local lnew = leftkern  * factor
                         local rnew = rightkern * factor
                         if trace_spaces then
@@ -2459,10 +2447,10 @@ local function injectspaces(head)
                         end
                         lnew = lnew * xscale
                         rnew = rnew * xscale
-                        head = insert_node_before(head,n,italickern(lnew))
-                        insert_node_after(head,n,italickern(rnew))
+                        head = insertnodebefore(head,n,spacefontkern(lnew))
+                        insertnodeafter(head,n,spacefontkern(rnew))
                     else
-                        local new = old + (leftkern + rightkern) * factor
+                        local new = old + (leftkern + rightkern) * factor * xscale
                         if trace_spaces then
                             report_spaces("%C [%p -> %p] %C",prevchar,old,new,nextchar)
                         end
@@ -2470,13 +2458,12 @@ local function injectspaces(head)
                     end
                     rightkern = false
                 else
-                    if useitalickerns then
-                        local new = leftkern * factor
+                    if usespacefontkerns then
+                        local new = leftkern * factor * xscale
                         if trace_spaces then
                             report_spaces("%C [%p + %p]",prevchar,old,new)
                         end
-                        new = new * xscale
-                        insert_node_after(head,n,italickern(new)) -- tricky with traverse but ok
+                        insertnodeafter(head,n,spacefontkern(new)) -- tricky with traverse but ok
                     else
                         local new = old + leftkern * factor * xscale
                         if trace_spaces then
@@ -2489,13 +2476,13 @@ local function injectspaces(head)
             leftkern  = false
         elseif rightkern then
             local old = getwidth(n)
-            if old > threshold then
+            if old > xscale*threshold then
                 local new = rightkern * factor * xscale
-                if useitalickerns then
+                if usespacefontkerns then
                     if trace_spaces then
                         report_spaces("[%p + %p] %C",old,new,nextchar)
                     end
-                    insert_node_after(head,n,italickern(new))
+                    insertnodeafter(head,n,spacefontkern(new))
                 else
                     new = old + new
                     if trace_spaces then
@@ -2528,7 +2515,7 @@ function injections.handler(head,where)
             report_injections("injection variant %a (%s)","everything","kerns")
         end
         -- I will do useadvance here when I am playing with fonts that follow this
-        -- injection routem, which is seldom.
+        -- injection route, which is seldom.
         return inject_everything(head,where)
     elseif nofregisteredpositions > 0 then
         if trace_injections then

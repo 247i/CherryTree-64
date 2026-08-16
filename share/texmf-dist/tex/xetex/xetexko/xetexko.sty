@@ -1,6 +1,6 @@
 % xetexko.sty
 %
-% Copyright (c) 2013-2022 Dohyun Kim  <nomos at ktug org>
+% Copyright (c) 2013-2025 Dohyun Kim  <nomosnomos at gmail com>
 %
 % This work may be distributed and/or modified under the
 % conditions of the LaTeX Project Public License, either version 1.3c
@@ -15,8 +15,8 @@
 \catcode`@=11
 
 \ifdefined\ProvidesPackage
-  \NeedsTeXFormat{LaTeX2e}[2021/06/01]
-  \ProvidesPackage{xetexko}[2022/03/18 v4.1 typesetting Korean with XeTeX]
+  \NeedsTeXFormat{LaTeX2e}[2025/06/01]
+  \ProvidesPackage{xetexko}[2025/08/24 v4.6 typesetting Korean with XeTeX]
 \else
   \ifdefined\@tempcnta\else \newcount\@tempcnta \fi
   \ifdefined\@sptoken \else
@@ -305,7 +305,11 @@
 \protected\def\typesetclassic{%
   \chardef\XeKo@typesetclassic\@ne
   \def\XeKo@quarterdim{\dimexpr.25em\relax}%
-  \def\XeKo@stretchshrink{plus.08em minus.04em\relax}%
+  \ifdefined\XeKo@stretch@shrink
+    \let\XeKo@stretchshrink\XeKo@stretch@shrink
+  \else
+    \def\XeKo@stretchshrink{plus.08em minus.04em\relax}%
+  \fi
   \let\XeKo@latincjk\XeKo@latincjk@classic
   \let\XeKo@postmath\XeKo@latincjk@classic
   \XeTeXlinebreakpenalty=\z@
@@ -315,13 +319,23 @@
 \protected\def\typesetmodern{%
   \chardef\XeKo@typesetclassic\z@
   \def\XeKo@quarterdim{\dimexpr.05em\relax}%
-  \def\XeKo@stretchshrink{plus.04em minus.02em\relax}%
+  \ifdefined\XeKo@stretch@shrink
+    \let\XeKo@stretchshrink\XeKo@stretch@shrink
+  \else
+    \def\XeKo@stretchshrink{plus.04em minus.02em\relax}%
+  \fi
   \let\XeKo@latincjk\XeKo@latincjk@modern
   \let\XeKo@postmath\XeKo@postmath@modern
   \XeTeXlinebreakpenalty=50
   \XeTeXlinebreakskip=\z@ \XeKo@stretchshrink
   }
 \typesetmodern
+% xetexkostretchshrink
+\protected\def\xetexkostretchshrink#1{%
+  \def\XeKo@stretchshrink{#1\relax}%
+  \let\XeKo@stretch@shrink\XeKo@stretchshrink
+  \XeTeXlinebreakskip=\z@ \XeKo@stretchshrink
+}
 
 \chardef\XeKo@typesetvertical\z@
 \chardef\XeKo@STchineseJapanese\z@ % 0=KOR, 1=SC, 2=TC, 3=JPN
@@ -362,9 +376,9 @@
   }
 \def\XeKo@Tchinese@classes{% these glyphs in traditional chinese fonts are center-aligned
   \XeTeXcharclass "3001 = \XeTeXcharclassMD % 、
-  \XeTeXcharclass "3002 = \XeTeXcharclassLD % 。
+  \XeTeXcharclass "3002 = \XeTeXcharclassMD % 。
   \XeTeXcharclass "FF0C = \XeTeXcharclassMD % ，
-  \XeTeXcharclass "FF0E = \XeTeXcharclassLD % ．
+  \XeTeXcharclass "FF0E = \XeTeXcharclassMD % ．
   }
 
 \protected\def\typesetvertical{%
@@ -1137,7 +1151,7 @@
       \or \unkern\unkern \XeKo@latincjk       % SY AO
       \or \unkern\unkern                      % AA AO
       \or \unkern\unkern % AO AO
-      \or \unkern\unkern                      % AC AO
+      \or \unkern\unkern \inhibitglue         % AC AO
       \or \unkern\unkern                      % AP AO
       \or \unkern\unkern                      % AM AO
       \or \unkern\unkern                      % AH AO
@@ -1529,6 +1543,34 @@
     #1\relax
   \fi
   }
+% for users' AddToHook
+\def\xetexkoprehanjaspacing{%
+  \ifx\f@encoding\UTFencname
+  \ifnum\lastnodetype=12 %
+    \ifcase\lastkern
+      \or \XKinterhanjabreak \or \or \or \or
+      \or \unkern\unkern \XKinterhanjabreak   % HG ID
+      \or \unkern\unkern \XKinterhanjabreak   % ID ID
+      \or \unkern\unkern                      % SY ID
+      \or \unkern\unkern \XeKo@latincjk       % AA ID
+      \or \unkern\unkern                      % AO ID
+      \or \unkern\unkern \XeKo@latincjk       % AC ID
+      \or \unkern\unkern \XeKo@latincjk       % AP ID
+      \or \unkern\unkern \XeKo@latincjk       % AM ID
+      \or \unkern\unkern \XKinterhanjabreak   % AH ID
+      \or \unkern\unkern                      % OP ID
+      \or \unkern\unkern \XeKo@halfhalf       % CL ID
+      \or \unkern\unkern \XeKo@quarterquarter % MD ID
+      \or \unkern\unkern \XeKo@halfzero       % FS ID
+      \or \unkern\unkern \XeKo@halfhalf       % EX ID
+      \or \unkern\unkern \XKinterhanjabreak   % LD ID
+      \or \unkern\unkern \XeKo@quarterquarter % VC ID
+    \fi
+  \else\ifnum\lastnodetype=10 % mathoff
+    \XeKo@postmath
+  \fi\fi\fi
+}
+\def\xetexkoposthanjaspacing{\kern-7sp\kern 7sp\relax}
 
 %%% josa selection
 \begingroup
@@ -1980,16 +2022,16 @@
   \else
     \linewidth\hsize \columnwidth\hsize
   \fi
-  \expandafter\def\expandafter\@outputpage\expandafter{%
-    \expandafter\XeKo@rotatebox\expandafter\@outputbox
-    \expandafter\textwidth\expandafter\textheight
-    \@outputpage
+  \AddToHook{build/page/before}[xetexko/beforeOR]{%
+    \XeKo@rotatebox\@outputbox
+    \textwidth\textheight
   }%
   \typesetvertical
   \let\verticaltypesetting\relax % prevent multiple running
 }
 \def\endverticaltypesetting{%
   \clearpage
+  \RemoveFromHook{build/page/before}[xetexko/beforeOR]%
   \endgroup
   \global\@colroom\textheight
   \global\@colht\textheight
@@ -2062,6 +2104,8 @@
     \fi
   \fi }
 
+\let\XeKo@selectfont\selectfont
+
 \ExplSyntaxOn
 \AddToHook{selectfont}
 {
@@ -2105,7 +2149,7 @@
 \cs_new:Nn \__xtxko_assign_font_opts:n
 {
   \tl_clear:N \l_xtxko_font_opts_tl
-  \keys_set_known:nxN { xtxko-font } {#1} \l_xtxko_rest_opts_tl
+  \keys_set_known:neN { xtxko-font } {#1} \l_xtxko_rest_opts_tl
 }
 \DeclareDocumentCommand \setmainhangulfont { O{} m O{} }
 {
@@ -2113,7 +2157,7 @@
   \fontspec_set_family:Nnn \XeKo@mainhangulfamily { Ligatures=TeX, \l_xtxko_rest_opts_tl } { #2 }
   \cs_set_protected_nopar:Npn \xetexkomainhangulfont
   {
-    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@mainhangulfamily \selectfont
+    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@mainhangulfamily \XeKo@selectfont
   }
   \cs_set_eq:NN \xetexkomainhanguloption \l_xtxko_font_opts_tl
   \str_if_eq:eeT \familydefault \rmdefault
@@ -2132,7 +2176,7 @@
   \fontspec_set_family:Nnn \XeKo@sanshangulfamily { Ligatures=TeX, \l_xtxko_rest_opts_tl } { #2 }
   \cs_set_protected_nopar:Npn \xetexkosanshangulfont
   {
-    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@sanshangulfamily \selectfont
+    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@sanshangulfamily \XeKo@selectfont
   }
   \cs_set_eq:NN \xetexkosanshanguloption \l_xtxko_font_opts_tl
   \str_if_eq:eeT \familydefault \sfdefault
@@ -2151,7 +2195,7 @@
   \fontspec_set_family:Nnn \XeKo@monohangulfamily { \l_xtxko_rest_opts_tl } { #2 }
   \cs_set_protected_nopar:Npn \xetexkomonohangulfont
   {
-    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@monohangulfamily \selectfont
+    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@monohangulfamily \XeKo@selectfont
   }
   \cs_set_eq:NN \xetexkomonohanguloption \l_xtxko_font_opts_tl
   \str_if_eq:eeT \familydefault \ttdefault
@@ -2171,9 +2215,9 @@
   \cs_set_nopar:cpn { xetexko_user_font_ \cs_to_str:N #1 }
   {
     \fontencoding \g_fontspec_encoding_tl
-    \exp_args:Nc \fontfamily { xetexko_user_family_ \cs_to_str:N #1 } \selectfont
+    \exp_args:Nc \fontfamily { xetexko_user_family_ \cs_to_str:N #1 } \XeKo@selectfont
   }
-  \cs_set_nopar:cpx { xetexko_user_option_ \cs_to_str:N #1 }
+  \cs_set_nopar:cpe { xetexko_user_option_ \cs_to_str:N #1 }
   {
     \exp_not:o { \l_xtxko_font_opts_tl }
   }
@@ -2196,9 +2240,9 @@
   \cs_set_nopar:Npn \xetexkohangulfont
   {
     \fontencoding \g_fontspec_encoding_tl
-    \fontfamily \xetexkohangulfontfamily \selectfont
+    \fontfamily \xetexkohangulfontfamily \XeKo@selectfont
   }
-  \cs_set_nopar:Npx \xetexkohanguloption
+  \cs_set_nopar:Npe \xetexkohanguloption
   {
     \exp_not:o { \l_xtxko_font_opts_tl }
   }
@@ -2211,16 +2255,16 @@
   \group_begin:
   \fontseries\seriesdefault\fontshape\shapedefault \xetexkohangulfont
   \cs_set_eq:NN \l_xtxko_font_opts_tl \xetexkohanguloption
-  \keys_set_known:nxN { xtxko-font } { #1 } \l_xtxko_rest_opts_tl
+  \keys_set_known:neN { xtxko-font } { #1 } \l_xtxko_rest_opts_tl
   \addfontfeature { \l_xtxko_rest_opts_tl }
-  \use:x
+  \use:e
   {
     \group_end:
     \exp_not:N \cs_set_nopar:Npn \exp_not:N \xetexkohangulfont
     {
       \exp_not:N \fontencoding { \f@encoding }
       \exp_not:N \fontfamily   { \f@family }
-      \exp_not:N \selectfont
+      \exp_not:N \XeKo@selectfont
     }
     \exp_not:N \cs_set_nopar:Npn \exp_not:N \xetexkohanguloption
     {
@@ -2237,7 +2281,7 @@
   \fontspec_set_family:Nnn \XeKo@mainhanjafamily { Ligatures=TeX, \l_xtxko_rest_opts_tl } { #2 }
   \cs_set_protected_nopar:Npn \xetexkomainhanjafont
   {
-    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@mainhanjafamily \selectfont
+    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@mainhanjafamily \XeKo@selectfont
   }
   \cs_set_eq:NN \xetexkomainhanjaoption \l_xtxko_font_opts_tl
   \str_if_eq:eeT \familydefault \rmdefault
@@ -2256,7 +2300,7 @@
   \fontspec_set_family:Nnn \XeKo@sanshanjafamily { Ligatures=TeX, \l_xtxko_rest_opts_tl } { #2 }
   \cs_set_protected_nopar:Npn \xetexkosanshanjafont
   {
-    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@sanshanjafamily \selectfont
+    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@sanshanjafamily \XeKo@selectfont
   }
   \cs_set_eq:NN \xetexkosanshanjaoption \l_xtxko_font_opts_tl
   \str_if_eq:eeT \familydefault \sfdefault
@@ -2275,7 +2319,7 @@
   \fontspec_set_family:Nnn \XeKo@monohanjafamily { \l_xtxko_rest_opts_tl } { #2 }
   \cs_set_protected_nopar:Npn \xetexkomonohanjafont
   {
-    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@monohanjafamily \selectfont
+    \fontencoding \g_fontspec_encoding_tl \fontfamily \XeKo@monohanjafamily \XeKo@selectfont
   }
   \cs_set_eq:NN \xetexkomonohanjaoption \l_xtxko_font_opts_tl
   \str_if_eq:eeT \familydefault \ttdefault
@@ -2295,9 +2339,9 @@
   \cs_set_nopar:cpn { xetexko_user_font_ \cs_to_str:N #1 }
   {
     \fontencoding \g_fontspec_encoding_tl
-    \exp_args:Nc \fontfamily { xetexko_user_family_ \cs_to_str:N #1 } \selectfont
+    \exp_args:Nc \fontfamily { xetexko_user_family_ \cs_to_str:N #1 } \XeKo@selectfont
   }
-  \cs_set_nopar:cpx { xetexko_user_option_ \cs_to_str:N #1 }
+  \cs_set_nopar:cpe { xetexko_user_option_ \cs_to_str:N #1 }
   {
     \exp_not:o { \l_xtxko_font_opts_tl }
   }
@@ -2320,9 +2364,9 @@
   \cs_set_nopar:Npn \xetexkohanjafont
   {
     \fontencoding \g_fontspec_encoding_tl
-    \fontfamily \xetexkohanjafontfamily \selectfont
+    \fontfamily \xetexkohanjafontfamily \XeKo@selectfont
   }
-  \cs_set_nopar:Npx \xetexkohanjaoption
+  \cs_set_nopar:Npe \xetexkohanjaoption
   {
     \exp_not:o { \l_xtxko_font_opts_tl }
   }
@@ -2335,16 +2379,16 @@
   \group_begin:
   \fontseries\seriesdefault\fontshape\shapedefault \xetexkohanjafont
   \cs_set_eq:NN \l_xtxko_font_opts_tl \xetexkohanjaoption
-  \keys_set_known:nxN { xtxko-font } { #1 } \l_xtxko_rest_opts_tl
+  \keys_set_known:neN { xtxko-font } { #1 } \l_xtxko_rest_opts_tl
   \addfontfeature { \l_xtxko_rest_opts_tl }
-  \use:x
+  \use:e
   {
     \group_end:
     \exp_not:N \cs_set_nopar:Npn \exp_not:N \xetexkohanjafont
     {
       \exp_not:N \fontencoding { \f@encoding }
       \exp_not:N \fontfamily   { \f@family }
-      \exp_not:N \selectfont
+      \exp_not:N \XeKo@selectfont
     }
     \exp_not:N \cs_set_nopar:Npn \exp_not:N \xetexkohanjaoption
     {
@@ -2460,8 +2504,10 @@
   \ifdefined\XeKo@hanja@font\else
     \let\XeKo@hanja@font    \XeKo@hangul@font
   \fi
-  \@ifpackageloaded{ulem}{\xetexkoulemsupport}{}
-  \@ifpackageloaded{hyperref}{\pdfstringdefDisableCommands{%
+  }
+
+\AddToHook{package/ulem/after}{\xetexkoulemsupport}
+\AddToHook{package/hyperref/after}{\pdfstringdefDisableCommands{%
     \let\hangulalphs\relax
     \let\hangulnums\relax
     \let\hangulparens\relax
@@ -2519,6 +2565,7 @@
     \let\addhangulfontfeatures\@gobble
     \let\addhanjafontfeature\@gobble
     \let\addhanjafontfeatures\@gobble
+    \let\xetexkostretchshrink\@gobble
     \def\는{는}%
     \def\은{은}%
     \def\을{을}%
@@ -2530,8 +2577,7 @@
     \def\라{라}%
     \def\으{으}%
     \def\로{로}%
-    \def\hellipsis{...}}}{}
-  }
+    \def\hellipsis{...}}}
 
 \newif\if@hangul
 \newif\if@hanja
@@ -2548,8 +2594,8 @@
 \protected\def\hellipsis{^^^^2026^^^^2026}
 
 \if@hangul
-  \linespread{1.3888}
-  \footnotesep=1.3888\footnotesep
+  \linespread{1.38889}
+  \footnotesep=1.38889\footnotesep
   \skip\footins=\glueexpr\skip\footins/72*100\relax
   \frenchspacing
 \fi

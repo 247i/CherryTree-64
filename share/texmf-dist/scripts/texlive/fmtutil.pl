@@ -1,22 +1,40 @@
 #!/usr/bin/env perl
-# $Id: fmtutil.pl 60154 2021-08-03 21:55:56Z karl $
+# $Id: fmtutil.pl 77314 2026-01-09 16:20:28Z karl $
 # fmtutil - utility to maintain format files.
 # (Maintained in TeX Live:Master/texmf-dist/scripts/texlive.)
 # 
-# Copyright 2014-2021 Norbert Preining
+# Copyright 2014-2025 Norbert Preining
 # This file is licensed under the GNU General Public License version 2
 # or any later version.
 #
 # History:
 # Original shell script 2001 Thomas Esser, public domain
 
+use strict; use warnings;
 my $TEXMFROOT;
 
 BEGIN {
   $^W = 1;
+  # make subprograms (including kpsewhich) have the right path:
+  my $bindir;
+  my $Master = __FILE__;
+  if ($^O =~ /^MSWin/i) {
+    # on w32 $0 and __FILE__ point directly to this script; they can be relative
+    $Master =~ s!\\!/!g;
+    $Master =~ s![^/]*$!../../..!
+      unless ($Master =~ s!/texmf-dist/scripts/texlive/tlmgr\.pl$!!i);
+    $bindir = "$Master/bin/windows";
+  } else {
+    $Master =~ s,/*[^/]*$,,;
+    $bindir = $Master;
+    $Master = "$Master/../..";
+  }
+  $ENV{"PATH"} = "$bindir:$ENV{PATH}";
   $TEXMFROOT = `kpsewhich -var-value=TEXMFROOT`;
-  if ($?) {
-    die "$0: kpsewhich -var-value=TEXMFROOT failed, aborting early.\n";
+  if ($? || ! $TEXMFROOT) {
+    warn "$0: kpsewhich -var-value=TEXMFROOT failed, aborting early.\n";
+    warn "$0:   got TEXMFROOT value: $TEXMFROOT" if $TEXMFROOT;
+    die  "$0:   had PATH: $ENV{PATH}\n";
   }
   chomp($TEXMFROOT);
   unshift(@INC, "$TEXMFROOT/tlpkg", "$TEXMFROOT/texmf-dist/scripts/texlive");
@@ -24,11 +42,11 @@ BEGIN {
   TeX::Update->import();
 }
 
-my $svnid = '$Id: fmtutil.pl 60154 2021-08-03 21:55:56Z karl $';
-my $lastchdate = '$Date: 2021-08-03 23:55:56 +0200 (Tue, 03 Aug 2021) $';
+my $svnid = '$Id: fmtutil.pl 77314 2026-01-09 16:20:28Z karl $';
+my $lastchdate = '$Date: 2026-01-09 17:20:28 +0100 (Fri, 09 Jan 2026) $';
 $lastchdate =~ s/^\$Date:\s*//;
 $lastchdate =~ s/ \(.*$//;
-my $svnrev = '$Revision: 60154 $';
+my $svnrev = '$Revision: 77314 $';
 $svnrev =~ s/^\$Revision:\s*//;
 $svnrev =~ s/\s*\$$//;
 my $version = "r$svnrev ($lastchdate)";
@@ -42,9 +60,9 @@ use Cwd;
 # don't import anything automatically, this requires us to explicitly
 # call functions with TeXLive::TLUtils prefix, and makes it easier to
 # find and if necessary remove references to TLUtils
-use TeXLive::TLUtils qw();
+use TeXLive::TLUtils qw(wndws);
 
-require TeXLive::TLWinGoo if TeXLive::TLUtils::win32;
+require TeXLive::TLWinGoo if wndws();
 
 # numerical constants
 my $FMT_NOTSELECTED = 0;
@@ -53,8 +71,8 @@ my $FMT_FAILURE     = 2;
 my $FMT_SUCCESS     = 3;
 my $FMT_NOTAVAIL    = 4;
 
-my $nul = (win32() ? 'nul' : '/dev/null');
-my $sep = (win32() ? ';' : ':');
+my $nul = (wndws() ? 'nul' : '/dev/null');
+my $sep = (wndws() ? ';' : ':');
 
 my @deferred_stderr;
 my @deferred_stdout;
@@ -84,7 +102,7 @@ chomp(our $TEXMFSYSCONFIG = `kpsewhich -var-value=TEXMFSYSCONFIG`);
 chomp(our $TEXMFHOME = `kpsewhich -var-value=TEXMFHOME`);
 
 # make sure that on windows *everything* is in lower case for comparison
-if (win32()) {
+if (wndws()) {
   $TEXMFDIST = lc($TEXMFDIST);
   $TEXMFVAR = lc($TEXMFVAR);
   $TEXMFSYSVAR = lc($TEXMFSYSVAR);
@@ -153,6 +171,7 @@ my $mktexfmtMode = 0;
 my $mktexfmtFirst = 1;
 
 my $status = &main();
+print_info("executable location: $0\n");
 print_info("exiting with status $status\n");
 exit $status;
 
@@ -280,7 +299,7 @@ sub main {
     # but for compatibility we'll silently keep the option.
     $cmd = 'edit';
     my $editor = $ENV{'VISUAL'} || $ENV{'EDITOR'};
-    $editor ||= (&win32 ? "notepad" : "vi");
+    $editor ||= (&wndws ? "notepad" : "vi");
     if (-r $changes_config_file) {
       &copyFile($changes_config_file, $bakFile);
     } else {
@@ -383,13 +402,18 @@ sub log_to_status {
 sub callback_build_formats {
   my ($what, $whatarg) = @_;
 
+  # sometimes (missing, all) there is no argument passed.
+  # Avoid warning from undef value being logged.
+  # https://tug.org/pipermail/tex-live/2023-September/049526.html
+  $whatarg = "" if ! defined $whatarg;
+
   # set up a tmp dir
   # On W32 it seems that File::Temp creates restrictive permissions (ok)
   # that are copied over with the files created inside it (not ok).
   # So make our own temp dir.
   my $tmpdir = "";
   if (! $opts{"dry-run"}) {
-    if (win32()) {
+    if (wndws()) {
       my $foo;
       my $tmp_deflt = File::Spec->tmpdir;
       for my $i (1..5) {
@@ -432,7 +456,12 @@ sub callback_build_formats {
   die "abs_path failed, strange: $!" if !$opts{'fmtdir'};
   print_info("writing formats under $opts{fmtdir}\n"); # report
 
-  # code taken over from the original shell script for KPSE_DOT etc
+  # Set KPSE_DOT in the environment so that kpathsea's expand functions
+  # will prepend it to relative paths when looking for files. This is
+  # needed because we chdir to a temp dir, but we want (say) "." as a
+  # path element to refer to the original working directory where the
+  # script was run, not the temp dir.
+  # 
   my $thisdir = cwd();
   $ENV{'KPSE_DOT'} = $thisdir;
   # due to KPSE_DOT, we don't search the current directory, so include
@@ -445,6 +474,9 @@ sub callback_build_formats {
   # for MFBASES.
   $ENV{'TEXFORMATS'} ||= "";
   $ENV{'TEXFORMATS'} = "$tmpdir$sep$ENV{TEXFORMATS}";
+  #
+  # ensure that LC_ALL is set to C to guarantee luatex generating formats
+  $ENV{'LC_ALL'} = "C";
 
   # switch to temporary directory for format generation; on the other hand,
   # for -n, the tmpdir won't exist, but we don't want to find a spurious
@@ -519,7 +551,7 @@ sub callback_build_formats {
   print_info("failed to build: $err (@err)\n")       if ($err);
   print_info("total formats: $total\n");
   chdir($thisdir) || warn "chdir($thisdir) failed: $!";
-  if (win32()) {
+  if (wndws()) {
     # try to remove the tmpdir with all files
     TeXLive::TLUtils::rmtree($tmpdir);
   }
@@ -709,6 +741,15 @@ sub rebuild_one_format {
   # get rid of leading * in inifiles
   $inifile =~ s/^\*//;
 
+  # Add -kanji-internal option for create (e-)p(La)TeX format
+  # with (e-)upTeX's pTeX compatible mode.
+  if ($eng =~ /^e?uptex$/
+      && $fmt =~ /^e?p/
+      && $addargs !~ /-kanji-internal=/) {
+    my $kanji = wndws() ? "sjis" : "euc";
+    $addargs = "-kanji-internal=$kanji " . $addargs;
+  }
+
   if ($fmt eq "metafun")       { $prgswitch .= "mpost"; }
   elsif ($fmt eq "mptopdf")    { $prgswitch .= "context"; }
   elsif ($fmt =~ m/^cont-..$/) { $prgswitch .= "context"; }
@@ -770,13 +811,37 @@ sub rebuild_one_format {
 
   #
   # check for existence of $engine
-  # we do *NOT* use the return value but rely on execution of the shell
+  # we do *NOT* use the return value but rely on execution of the shell.
+  # This won't find engines in "." (etc.) in PATH, because we have cd'd
+  # to a temporary directory.
+  # 
+  # Although we could change our which() fn to prepend KPSE_DOT (like
+  # kpathsea does), it won't help, because we won't be able to execute
+  # an engine "./$eng" (since we're in the temp dir). Prepending
+  # KPSE_DOT to the executable name seems too much. Instead, tell the
+  # user to have PATH include the absolute directory.
   if (!TeXLive::TLUtils::which($eng)) {
-    if ($opts{'no-error-if-no-engine'} &&
-        ",$opts{'no-error-if-no-engine'}," =~ m/,$eng,/) {
+    if ($opts{'no-error-if-no-engine'}
+        && ",$opts{'no-error-if-no-engine'}," =~ m/,$eng,/) {
       return $FMT_NOTAVAIL;
     } else {
       print_deferred_error("not building $fmt due to missing engine: $eng\n");
+      # could be irrelevant if PATH didn't contain ., and won't find
+      # other cases like the engine being in .., but it's just a help message,
+      # in response to
+      # https://tug.org/pipermail/tlbuild/2025q1/005685.html
+      if (-x "$ENV{KPSE_DOT}/$eng") {
+        print_deferred_error(<<END_ENGINE_IN_CWD);
+It seems your engine ($eng)
+  is in the original working directory
+  ($ENV{KPSE_DOT}).
+Since fmtutil works in a new temporary directory, the engine can't
+  be run from elsewhere. Sorry.
+To use an engine from an arbitrary directory, set your PATH to include
+  the absolute directory where the engine resides, instead of a relative
+  directory like ".".
+END_ENGINE_IN_CWD
+      }
       return $FMT_FAILURE;
     }
   }
@@ -808,6 +873,13 @@ sub rebuild_one_format {
   if ($opts{"dry-run"}) {
     print_info("would copy log file to: $destdir/$logfile\n");
   } else {
+    # Add the actual invocation to the end of the log file
+    if (open(my $fd, ">>", $logfile)) {
+      print $fd "# actual command line used during this run\n# $cmdline\n";
+      close($fd);
+    } else {
+      print_deferred_error("cannot append cmdline to log file");
+    }
     # Here and in the following we use copy instead of move
     # to make sure that in SElinux enabled cases the rules of
     # the destination directory are applied.
@@ -1185,7 +1257,7 @@ sub determine_config_files {
           die "$prg: Config file \"$f\" not found";
         }
       }
-      push @tmp, (win32() ? lc($f) : $f);
+      push @tmp, (wndws() ? lc($f) : $f);
     }
     @{$opts{'cnffile'}} = @tmp;
     # in case that config files are given on the command line, the first
@@ -1196,12 +1268,12 @@ sub determine_config_files {
     chomp(@all_files);
     my @used_files;
     for my $f (@all_files) {
-      push @used_files, (win32() ? lc($f) : $f);
+      push @used_files, (wndws() ? lc($f) : $f);
     }
     #
     my $TEXMFLOCALVAR;
     my @TEXMFLOCAL;
-    if (win32()) {
+    if (wndws()) {
       chomp($TEXMFLOCALVAR =`kpsewhich --expand-path=\$TEXMFLOCAL`);
       @TEXMFLOCAL = map { lc } split(/;/ , $TEXMFLOCALVAR);
     } else {
@@ -1337,7 +1409,7 @@ sub save_fmtutil {
 #   and reset it to the real home dir of root.
 
 sub reset_root_home {
-  if (!win32() && ($> == 0)) {  # $> is effective uid
+  if (!wndws() && ($> == 0)) {  # $> is effective uid
     my $envhome = $ENV{'HOME'};
     # if $HOME isn't an existing directory, we don't care.
     if (defined($envhome) && (-d $envhome)) {
@@ -1406,16 +1478,6 @@ sub print_deferred_error {
 }
 
 
-# copied from TeXLive::TLUtils to reduce dependencies
-sub win32 {
-  if ($^O =~ /^MSWin/i) {
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
-
 
 # version, help.
 
@@ -1472,7 +1534,7 @@ Options:
   --force                 (does nothing, exists for compatibility)
   --test                  (does nothing, exists for compatibility)
 
-Commands:
+Commands (exactly one must be specified):
   --all                   recreate all format files
   --missing               create all missing format files
   --byengine ENGINE       (re)create formats built with ENGINE
@@ -1600,6 +1662,13 @@ Supporting development binaries:
   easily running development binaries in parallel with the released
   binaries.
 
+Environment:
+
+  This script runs TeX and Metafont to generate the fmt/base file, and
+  thus all normal environment variables and search path rules for TeX/MF
+  apply.
+
+Executable location: $0
 Report bugs to: tex-live\@tug.org
 TeX Live home page: <https://tug.org/texlive/>
 EOF

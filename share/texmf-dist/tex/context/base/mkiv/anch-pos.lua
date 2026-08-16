@@ -6,12 +6,9 @@ if not modules then modules = { } end modules ['anch-pos'] = {
     license   = "see context related readme files"
 }
 
---[[ldx--
-<p>We save positional information in the main utility table. Not only
-can we store much more information in <l n='lua'/> but it's also
-more efficient.</p>
---ldx]]--
-
+-- We save positional information in the main utility table. Not only can we store
+-- much more information in Lua but it's also more efficient.
+--
 -- plus (extra) is obsolete but we will keep it for a while
 --
 -- maybe replace texsp by our own converter (stay at the lua end)
@@ -49,6 +46,7 @@ local context           = context
 local ctx_latelua       = context.latelua
 
 local tex               = tex
+local texgetdimen       = tex.getdimen
 local texgetcount       = tex.getcount
 local texgetinteger     = tex.getintegervalue or tex.getcount
 local texsetcount       = tex.setcount
@@ -574,8 +572,8 @@ implement {
     actions = function()
         nofparagraphs = nofparagraphs + 1
         texsetcount("global","c_anch_positions_paragraph",nofparagraphs)
-        local box = getbox("strutbox")
-        local w, h, d = getwhd(box)
+        local h = texgetdimen("strutht")
+        local d = texgetdimen("strutdp")
         local t = {
             p  = true,
             c  = true,
@@ -704,8 +702,8 @@ implement {
     name      = "dosetpositionstrut",
     arguments = "string",
     actions   = function(name)
-        local box = getbox("strutbox")
-        local w, h, d = getwhd(box)
+        local h = texgetdimen("strutht")
+        local d = texgetdimen("strutdp")
         local spec = {
             p   = true,
             c   = column,
@@ -726,8 +724,8 @@ implement {
     name      = "dosetpositionstrutkind",
     arguments = { "string", "integer" },
     actions   = function(name,kind)
-        local box = getbox("strutbox")
-        local w, h, d = getwhd(box)
+        local h = texgetdimen("strutht")
+        local d = texgetdimen("strutdp")
         local spec = {
             k   = kind,
             p   = true,
@@ -837,7 +835,7 @@ end
 function jobpositions.whd(id)
     local jpi = collected[id]
     if jpi then
-        return jpi.h, jpi.h, jpi.d
+        return jpi.w, jpi.h, jpi.d
     end
 end
 
@@ -985,7 +983,7 @@ local function overlapping(one,two,overlappingmargin) -- hm, strings so this is 
 end
 
 local function onsamepage(list,page)
-    for id in gmatch(list,"(, )") do
+    for id in gmatch(list,"([^,%s]+)") do
         local jpi = collected[id]
         if jpi then
             local p = jpi.p

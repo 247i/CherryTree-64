@@ -21,9 +21,9 @@
 
 \installframedcommandhandler \??fittingpage {fittingpage} \??fittingpage
 
-\newdimen\d_page_fitting_width
-\newdimen\d_page_fitting_height
-\newbox  \b_page_fitting
+\newdimension\d_page_fitting_width
+\newdimension\d_page_fitting_height
+\newbox      \b_page_fitting
 
 \definepapersize
   [fittingpage]
@@ -45,22 +45,24 @@
    \c!location=\v!middle]
 
 \appendtoks
-    \frozen\instance\protected\edefcsname\e!start\currentfittingpage\endcsname{\startfittingpage[\currentfittingpage]}%
-    \frozen\instance\protected\edefcsname\e!stop \currentfittingpage\endcsname{\stopfittingpage}%
+    \protected\frozen\instance\edefcsname\e!start\currentfittingpage\endcsname{\startfittingpage[\currentfittingpage]}%
+    \protected\frozen\instance\edefcsname\e!stop \currentfittingpage\endcsname{\stopfittingpage}%
 \to \everydefinefittingpage
 
-\permanent\tolerant\protected\def\startfittingpage[#1]#*[#2]%
+\permanent\tolerant\protected\def\startfittingpage[#1]#*[#S#2]%
   {\page % this is kind of tricky! there can be preceding page refs
    \autostarttext
    \bgroup % resulting in a zero height page; test fig-make !
    \setupinterlinespace[\v!top=0]% no topskip
-   \def\currentfittingpage{#1}%
+   \cdef\currentfittingpage{#1}%
    \dontcomplain
    % runs under current page regime, i.e. page variables passed to mp
    \setupcurrentfittingpage[\c!paper=,#2]% auto or size or nothing
-   \doifelsenothing{\fittingpageparameter\c!command}
-     \page_fitting_start_normal
-     \page_fitting_start_command}
+   \ifempty{\fittingpageparameter\c!command}%
+     \expandafter\page_fitting_start_normal
+   \else
+     \expandafter\page_fitting_start_command
+   \fi}
 
 \def\page_fitting_start_command
   {\grabuntil{\e!stop\currentfittingpage}\page_fitting_stop_command}
@@ -75,34 +77,38 @@
       \bgroup
       \inheritedfittingpageframed
       \bgroup
-      \gobblespacetokens}
+      \ignorepars}
 
 \protected\def\page_fitting_stop_normal % todo: figure out why a small mp image gets shifted
   {\removeunwantedspaces
    \egroup
    \egroup
    % finalize
-   \doif{\fittingpageparameter\c!margin}\v!page
-     {\setbox\b_page_fitting\hpack\bgroup
-        \offsetbox
-          [\c!leftoffset=\backspace,
-           \c!rightoffset=\cutspace,
-           \c!topoffset=\topspace,
-           \c!bottomoffset=\bottomspace]
-          {\box\b_page_fitting}%
-       \egroup}%
-   \doifsomething{\fittingpageparameter\c!scale}
-     {\setbox\b_page_fitting\hpack\bgroup
-        \scale[\c!scale=\fittingpageparameter\c!scale]{\box\b_page_fitting}%
-      \egroup}%
-   \ifdim\ht\b_page_fitting=\zeropoint
+   \ifcstok{\fittingpageparameter\c!margin}\v!page
+     \setbox\b_page_fitting\hpack\bgroup
+       \offsetbox
+         [\c!leftoffset=\backspace,
+          \c!rightoffset=\cutspace,
+          \c!topoffset=\topspace,
+          \c!bottomoffset=\bottomspace]
+         {\box\b_page_fitting}%
+     \egroup
+   \fi
+   \ifempty{\fittingpageparameter\c!scale}\else
+     \setbox\b_page_fitting\hpack\bgroup
+       \scale[\c!scale=\fittingpageparameter\c!scale]{\box\b_page_fitting}%
+     \egroup
+   \fi
+   \ifzeropt\ht\b_page_fitting
      \ht\b_page_fitting\onepoint
    \fi
-   \ifdim\wd\b_page_fitting=\zeropoint
+   \ifzeropt\wd\b_page_fitting
      \wd\b_page_fitting\onepoint
    \fi
    \d_page_fitting_width \wd\b_page_fitting
-   \d_page_fitting_height\ht\b_page_fitting
+ % \d_page_fitting_height\ht\b_page_fitting
+   % a change if plan ...
+   \d_page_fitting_height\htdp\b_page_fitting
    \startlocallayout % hm, we change the papersize so we still need it
    \enforced\let\checkcurrentlayout\relax % else interference with odd/even layout
    \processaction
@@ -110,7 +116,13 @@
      [   \v!auto=>\let\scratchstringone\printpapersize,
       \s!unknown=>\let\scratchstringone\commalistelement,
       \s!default=>\def\scratchstringone{fittingpage}]%
-   \normalexpanded{\setuppapersize[fittingpage][\scratchstringone]}%
+   \expanded{\setuppapersize[fittingpage][\scratchstringone]}%
+   %
+   \edef\p_label{\fittingpageparameter\c!label}%
+   \ifempty\p_label\else
+     \expanded{\setuppagenumber[\c!label=\p_label]}%
+   \fi
+   %
    \startmakeup[fittingpage]%
      \box\b_page_fitting
    \stopmakeup
@@ -123,7 +135,7 @@
 \setupfittingpage
   [%\c!scale=1000,
    %\c!pagestate=,
-   \c!strut=\v!no,
+   \c!strut=\v!none, % was no, but we get a noindent then (with the danger of a lineskip)
    \c!align=\v!normal,
    \c!offset=\v!overlay,
    \c!width=\v!fit,
@@ -189,17 +201,17 @@
 
 \defineexternalfigure[\v!page:\v!figure][\c!offset=\v!overlay] % we force a parent
 
-\permanent\tolerant\protected\def\startpagefigure[#1]#*[#2]%
+\permanent\tolerant\protected\def\startpagefigure[#1]#*[#S#2]%
   {\bgroup
    \setupexternalfigure[\v!page:\v!figure][\c!offset=\v!overlay,#2]%
    \startTEXpage[\c!offset=\namedexternalfigureparameter{\v!page:\v!figure}\c!offset,\c!align=\v!normal]%
-     \externalfigure[#1]\ignorespaces} % so we can put some text below the graphic
+     \externalfigure[#1][\v!page:\v!figure]\ignorespaces} % so we can put some text below the graphic
 
 \permanent\protected\def\stoppagefigure
   {\stopTEXpage
    \egroup}
 
-\permanent\tolerant\protected\def\pagefigure[#1]#*[#2]%
+\permanent\tolerant\protected\def\pagefigure[#1]#*[#S#2]%
   {\startpagefigure[#1][#2]\stoppagefigure}
 
 \protect \endinput

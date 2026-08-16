@@ -17,7 +17,7 @@ local lpegmatch = lpeg.match
 local P, S, C = lpeg.P, lpeg.S, lpeg.C
 local patterns = lpeg.patterns
 local setmetatableindex = table.setmetatableindex
-local formatters, strip = string.formatters, string.strip
+local formatters, strip, collapse = string.formatters, string.strip, utilities.strings.collapse
 
 local tex, xml = tex, xml
 local lowerchars, upperchars, lettered = characters.lower, characters.upper, characters.lettered
@@ -29,10 +29,15 @@ local lxml = lxml
 local catcodenumbers     = catcodes.numbers
 local ctxcatcodes        = catcodenumbers.ctxcatcodes -- todo: use different method
 local notcatcodes        = catcodenumbers.notcatcodes -- todo: use different method
+local tpacatcodes        = catcodenumbers.tpacatcodes
 
 local commands           = commands
 local context            = context
 local contextsprint      = context.sprint             -- with catcodes (here we use fast variants, but with option for tracing)
+
+local ctx_doif           = commands.doif
+local ctx_doifnot        = commands.doifnot
+local ctx_doifelse       = commands.doifelse
 
 local synctex            = luatex.synctex
 
@@ -146,9 +151,10 @@ function lxml.resolvedentity(str)
                 e(str)
             elseif e then
                 if trace_entities then
-                    report_xml("passing entity %a as %a using %a",str,e,"ctxcatcodes")
+                    report_xml("passing entity %a as %a using %a, case %i",str,e,"ctxcatcodes",1)
                 end
                 context(e)
+-- contextsprint(ctxcatcodes,e)
             end
             return
         end
@@ -160,7 +166,7 @@ function lxml.resolvedentity(str)
             end
             if e then
                 if trace_entities then
-                    report_xml("passing entity %a as %a using %a",str,e,"notcatcodes")
+                    report_xml("passing entity %a as %a using %a, case %i",str,e,"notcatcodes",2)
                 end
                 contextsprint(notcatcodes,e)
                 return
@@ -172,13 +178,14 @@ function lxml.resolvedentity(str)
         if chr then
             if parsedentity == reparsedentity then
                 if trace_entities then
-                    report_xml("passing entity %a as %a using %a",str,chr,"ctxcatcodes")
+                    report_xml("passing entity %a as %a using %a, case %i",str,chr,"ctxcatcodes",3)
                 end
                 context(chr)
+-- contextsprint(ctxcatcodes,chr)
             else
                 contextsprint(notcatcodes,chr)
                 if trace_entities then
-                    report_xml("passing entity %a as %a using %a",str,chr,"notcatcodes")
+                    report_xml("passing entity %a as %a using %a, case %i",str,chr,"notcatcodes",4)
                 end
             end
         elseif err then
@@ -196,7 +203,7 @@ function lxml.resolvedentity(str)
             contextsprint(texcatcodes,"}")
         else
             if trace_entities then
-                report_xml("passing entity %a as %a using %a",str,str,"notcatcodes")
+                report_xml("passing entity %a as %a using %a, case %i",str,str,"notcatcodes",5)
             end
             contextsprint(notcatcodes,str)
         end
@@ -242,6 +249,7 @@ local _, xmlspacecapture_yes = context.newtexthandler {
     simpleline = context.xmlcdataobeyedline,
     space      = context.xmlcdataobeyedspace,
     catcodes   = notcatcodes,
+ -- catcodes   = tpacatcodes, -- to be considered but maybe we want to keep 'm
     exception  = entity,
 }
 local _, xmlspacecapture_nop = context.newtexthandler {
@@ -250,6 +258,7 @@ local _, xmlspacecapture_nop = context.newtexthandler {
     simpleline = context.xmlcdataobeyedline,
     space      = context.xmlcdataobeyedspace,
     catcodes   = notcatcodes,
+ -- catcodes   = tpacatcodes, -- to be considered but maybe we want to keep 'm
 }
 
 local _, xmllinecapture_yes = context.newtexthandler {
@@ -319,6 +328,8 @@ end
 function lxml.stopraw()
     forceraw = false
 end
+
+local rawroot = nil
 
 function lxml.rawroot()
     return rawroot
@@ -644,7 +655,7 @@ function lxml.include(id,pattern,attribute,options)
         if filename then
             -- preprocessing
             if options.prepare then
-                filename = commands.preparedfile(filename)
+                filename = ctxrunner.preparedfile(filename)
             end
             -- handy if we have a flattened structure
             if options.basename then
@@ -672,6 +683,20 @@ function lxml.include(id,pattern,attribute,options)
         end
     end)
     stoptiming(xml)
+end
+
+function lxml.filename(id)
+    local e = getid(id)
+    if e then
+        context(e.cf)
+    end
+end
+
+function lxml.fileline(id)
+    local e = getid(id)
+    if e then
+        context(e.cl)
+    end
 end
 
 function lxml.inclusion(id,default,base)
@@ -772,6 +797,8 @@ local tex_element
 
 if tokenizedxmlw then
 
+-- local expandmacro = token.expandmacro
+
     tex_element = function(e,handlers)
         if setfilename then
             syncfilename(e,"element")
@@ -793,6 +820,10 @@ if tokenizedxmlw then
                         addindex(rootname,false,true)
                         ix = e.ix
                     end
+-- lmtx only, same performance, a bit more immediate:
+--
+-- expandmacro(tokenizedxmlw,ctxcatcodes,true,command,true,rootname.."::"..ix)
+--
                     contextsprint(ctxcatcodes,tokenizedxmlw,"{",command,"}{",rootname,"::",ix,"}")
                 else
                     report_lxml("fatal error: no index for %a",command)
@@ -944,6 +975,8 @@ lxml.xmltexhandler = xmltexhandler
 
 local function tex_space(e)
     e = xmlunspecialized(e)
+    -- the special characters are now entities like &U+7C; for |
+ -- print(e)
     lpegmatch(xmlspacecapture,e)
 end
 
@@ -1030,9 +1063,9 @@ local function sprint(root,p) -- check rawroot usage
                 root = xmldespecialized(xmltostring(root))
                 lpegmatch(xmltextcapture,root) -- goes to toc
             else
-if setfilename and p then -- and not root.cl
-    syncfilename(p,"sprint t")
-end
+                if setfilename and p then -- and not root.cl
+                    syncfilename(p,"sprint t")
+                end
                 xmlserialize(root,xmltexhandler)
             end
         end
@@ -1422,7 +1455,7 @@ local function all(collected)
     end
 end
 
-local function reverse(collected)
+texfinalizers.reverse = function(collected)
     if collected then
         local nc = #collected
         if nc >0 then
@@ -1681,7 +1714,7 @@ local function ctxtext(collected)
     end
 end
 
-local function stripped(collected) -- tricky as we strip in place
+texfinalizers.stripped = function(collected) -- tricky as we strip in place
     if collected then
         local nc = #collected
         if nc > 0 then
@@ -1692,7 +1725,16 @@ local function stripped(collected) -- tricky as we strip in place
     end
 end
 
-local function lower(collected)
+texfinalizers.collapsed = function(collected)
+    if collected and #collected > 0 then
+        local s = xmltext(collected[1])
+        if s ~= "" then
+            sprint(collapse(s))
+        end
+    end
+end
+
+texfinalizers.lower = function(collected)
     if not collected then
         local nc = #collected
         if nc > 0 then
@@ -1703,7 +1745,7 @@ local function lower(collected)
     end
 end
 
-local function upper(collected)
+texfinalizers.upper = function(collected)
     if collected then
         local nc = #collected
         if nc > 0 then
@@ -1772,30 +1814,30 @@ local function depth(collected)
     contextsprint(ctxcatcodes,d)
 end
 
+-- todo just move up as not used local
+
 texfinalizers.first          = first
 texfinalizers.last           = last
 texfinalizers.all            = all
-texfinalizers.reverse        = reverse
 texfinalizers.count          = count
 texfinalizers.command        = command
 texfinalizers.attribute      = attribute
-texfinalizers.param          = parameter
+texfinalizers.param          = parameter            -- obsolete
 texfinalizers.parameter      = parameter
 texfinalizers.text           = text
-texfinalizers.stripped       = stripped
-texfinalizers.lower          = lower
-texfinalizers.upper          = upper
 texfinalizers.ctxtext        = ctxtext
 texfinalizers.context        = ctxtext
 texfinalizers.position       = position
 texfinalizers.match          = match
 texfinalizers.index          = index
 texfinalizers.concat         = concatlist
-texfinalizers.concatrange    = concatrange
+texfinalizers.concatrange    = concatrange         -- used below
 texfinalizers.chainattribute = chainattribute
 texfinalizers.chainpath      = chainpath
 texfinalizers.default        = all -- !!
-texfinalizers.depth          = depth
+texfinalizers.depth          = depth               -- used below
+
+--
 
 function texfinalizers.tag(collected,n)
     if collected then
@@ -2064,6 +2106,46 @@ do
         end
     end
 
+    function lxml.texatt(id,a,default)
+        local e = getid(id)
+        if e then
+            local at = e.at
+            if at then
+                att = at[a]
+                if att ~= "" then
+--                     context(ctxcatcodes,att)
+                    context(att)
+                end
+            else
+                att = ""
+            end
+        else
+            att = ""
+        end
+    end
+
+    function lxml.ifatt(id,a,value)
+        local e = getid(id)
+        if e then
+            local at = e.at
+            att = at and at[a] or ""
+        else
+            att = ""
+        end
+        return att == value
+    end
+
+    function lxml.ifattempty(id,a)
+        local e = getid(id)
+        if e then
+            local at = e.at
+            att = at and at[a] or ""
+        else
+            att = ""
+        end
+        return att == ""
+    end
+
     function lxml.refatt(id,a)
         local e = getid(id)
         if e then
@@ -2085,10 +2167,6 @@ do
     function lxml.lastatt()
         contextsprint(notcatcodes,att)
     end
-
-    local ctx_doif     = commands.doif
-    local ctx_doifnot  = commands.doifnot
-    local ctx_doifelse = commands.doifelse
 
     implement {
         name      = "xmldoifatt",
@@ -2223,7 +2301,7 @@ function lxml.snippet(id,i)
     if e then
         local dt = e.dt
         if dt then
-            local dti = dt[i]
+            local dti = dt[tonumber(i)] -- string in lxml
             if dti then
                 xmlsprint(dti,e)
             end
@@ -2300,14 +2378,12 @@ do
 
     local found, empty = xml.found, xml.empty
 
-    local doif, doifnot, doifelse = commands.doif, commands.doifnot, commands.doifelse
-
-    function lxml.doif         (id,pattern) doif    (found(getid(id),pattern)) end
-    function lxml.doifnot      (id,pattern) doifnot (found(getid(id),pattern)) end
-    function lxml.doifelse     (id,pattern) doifelse(found(getid(id),pattern)) end
-    function lxml.doiftext     (id,pattern) doif    (not empty(getid(id),pattern)) end
-    function lxml.doifnottext  (id,pattern) doifnot (not empty(getid(id),pattern)) end
-    function lxml.doifelsetext (id,pattern) doifelse(not empty(getid(id),pattern)) end
+    function lxml.doif         (id,pattern) ctx_doif    (found(getid(id),pattern)) end
+    function lxml.doifnot      (id,pattern) ctx_doifnot (found(getid(id),pattern)) end
+    function lxml.doifelse     (id,pattern) ctx_doifelse(found(getid(id),pattern)) end
+    function lxml.doiftext     (id,pattern) ctx_doif    (not empty(getid(id),pattern)) end
+    function lxml.doifnottext  (id,pattern) ctx_doifnot (not empty(getid(id),pattern)) end
+    function lxml.doifelsetext (id,pattern) ctx_doifelse(not empty(getid(id),pattern)) end
 
     -- special case: "*" and "" -> self else lpath lookup
 
@@ -2322,9 +2398,11 @@ do
         end
     end
 
-    function lxml.doifempty    (id,pattern) doif    (checkedempty(id,pattern)) end
-    function lxml.doifnotempty (id,pattern) doifnot (checkedempty(id,pattern)) end
-    function lxml.doifelseempty(id,pattern) doifelse(checkedempty(id,pattern)) end
+    xml.checkedempty = checkedempty
+
+    function lxml.doifempty    (id,pattern) ctx_doif    (checkedempty(id,pattern)) end
+    function lxml.doifnotempty (id,pattern) ctx_doifnot (checkedempty(id,pattern)) end
+    function lxml.doifelseempty(id,pattern) ctx_doifelse(checkedempty(id,pattern)) end
 
 end
 
@@ -2727,6 +2805,8 @@ do
 
 end
 
+-- hm, maybe to ini to, these implements
+
 implement {
     name      = "xmlsetinjectors",
     actions   = xml.setinjectors,
@@ -2815,5 +2895,57 @@ do
     --         end
     --     )
     -- end
+
+end
+
+do
+
+    local lpegmatch = lpegmatch
+    local unescaper = lpeg.patterns.urlunescaper
+
+    function xmlfinalizers.url(e,a)
+        local u = #e > 0 and e[1].at[a]
+        return u and lpegmatch(unescaper,u)
+    end
+
+    if CONTEXTLMTXMODE > 0 then
+
+        function texfinalizers.url(e,a)
+            local u = #e > 0 and e[1].at[a]
+            if u then
+                contextsprint(tex.hshcatcodes,string.texhashed(lpegmatch(unescaper,u)))
+            end
+        end
+
+    else
+
+        function texfinalizers.url(e,a)
+            local u = #e > 0 and e[1].at[a]
+            if u then
+             -- context.verbatim(lpegmatch(unescaper,u)) -- no hash intercept here, verbatim is new per 23-09-06
+                context(lpegmatch(unescaper,u))
+            end
+        end
+
+    end
+
+end
+
+if CONTEXTLMTXMODE > 0 then
+
+    local setmacro = tokens.setters.macro
+
+    xmlfinalizers.tomacro = function(collected,macroname,index)
+        if macroname and macroname ~= '' then
+            if index == 'last' then
+                index = #collected
+            elseif index == 'first' then
+                index = 1
+            else
+                index = tonumber(index) or 1
+            end
+            setmacro(tex.nilcatcodes,macroname,collapse(xmltext(collected[index])))
+        end
+    end
 
 end

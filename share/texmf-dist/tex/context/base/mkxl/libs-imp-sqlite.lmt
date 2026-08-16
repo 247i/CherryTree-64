@@ -9,7 +9,7 @@ if not modules then modules = { } end modules ['libs-imp-sqlite'] = {
 -- c:/data/develop/tex-context/tex/texmf-win64/bin/lib/luametatex/lua/copies/sqlite/sqlite3.dll
 
 local libname = "sqlite"
-local libfile = "sqlite3"
+local libfile = "sqlite3" -- on linux: symlink to libsqlite3.so.0 or so
 
 local sqlitelib = resolvers.libraries.validoptional(libname)
 
@@ -100,7 +100,7 @@ local function execute(specification)
                 end
             end
         else
-            db       = open_db(filename)
+            db       = sqlite_open(filename)
             preamble = f_preamble(filename,base,base)
         end
         if not db then
@@ -156,6 +156,7 @@ end
 local wraptemplate = [[
 local converters    = utilities.sql.converters
 local deserialize   = utilities.sql.deserialize
+local fromjson      = utilities.sql.fromjson
 
 local tostring      = tostring
 local tonumber      = tonumber

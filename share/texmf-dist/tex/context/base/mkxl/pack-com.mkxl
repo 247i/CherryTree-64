@@ -67,7 +67,8 @@
 %D \stopcombination
 %D \stoptyping
 
-\ifdefined\dotagcombination \else \aliased\let\dotagcombination\relax \fi
+\ifdefined\dotagcombination     \else \aliased\let\dotagcombination    \relax \fi
+\ifdefined\dotagcombinationpair \else \aliased\let\dotagcombinationpair\relax \fi
 
 \newsystemmode{combination}
 
@@ -75,18 +76,28 @@
     \globalresetsystemmode{combination}%
 \to \everyinsidefloat
 
-\newcount\c_pack_combinations_nesting  % local
+\newinteger  \c_pack_combinations_nesting        % local
 
-\newcount\c_pack_combinations_x        % global
-\newcount\c_pack_combinations_y        % global
-\newcount\c_pack_combinations_max      % global
-
-\newdimen\d_pack_combinations_ht       % global
-
-\newbox  \b_pack_combinations_captions % global % can go
-\newbox  \b_pack_combinations_temp     % global % can go
-\newbox  \b_pack_combinations_content  % local
-\newbox  \b_pack_combinations_caption  % local
+\newinteger  \c_pack_combinations_x              % global (counts down)
+\newinteger  \c_pack_combinations_y              % global (also abused as total)
+\newinteger  \c_pack_combinations_r              % global (row)
+\newinteger  \c_pack_combinations_c              % global (column)
+\newinteger  \c_pack_combinations_x_saved
+\newinteger  \c_pack_combinations_y_saved
+\newinteger  \c_pack_combinations_r_saved
+\newinteger  \c_pack_combinations_c_saved
+\newinteger  \c_pack_combinations_max            % global
+\newinteger  \c_pack_combinations_max_saved
+\newdimension\d_pack_combinations_ht             % global
+\newdimension\d_pack_combinations_ht_saved
+\newbox      \b_pack_combinations_captions       % global % can go
+\newbox      \b_pack_combinations_captions_saved
+\newbox      \b_pack_combinations_temp           % global % can go
+\newbox      \b_pack_combinations_temp_saved
+\newbox      \b_pack_combinations_content        % local
+\newbox      \b_pack_combinations_content_saved
+\newbox      \b_pack_combinations_caption        % local
+\newbox      \b_pack_combinations_caption_saved
 
 \installcorenamespace{combination}
 
@@ -95,24 +106,17 @@
 \initializeboxstack{\??combination captions}
 \initializeboxstack{\??combination temp}
 
-\newcount\c_pack_combinations_x_saved
-\newcount\c_pack_combinations_y_saved
-\newcount\c_pack_combinations_max_saved
+\c_strc_constructions_define_commands\conditionalfalse
 
-\newdimen\d_pack_combinations_ht_saved
-
-\newbox  \b_pack_combinations_captions_saved
-\newbox  \b_pack_combinations_temp_saved
-\newbox  \b_pack_combinations_content_saved
-\newbox  \b_pack_combinations_caption_saved
-
-\setfalse\c_strc_constructions_define_commands
+% use push and pop value
 
 \def\pack_combinations_push
-  {\advance\c_pack_combinations_nesting\plusone
+  {\advanceby\c_pack_combinations_nesting\plusone
    \ifnum\c_pack_combinations_nesting>\plusone
      \c_pack_combinations_x_saved  \c_pack_combinations_x
      \c_pack_combinations_y_saved  \c_pack_combinations_y
+     \c_pack_combinations_r_saved  \c_pack_combinations_r
+     \c_pack_combinations_c_saved  \c_pack_combinations_c
      \c_pack_combinations_max_saved\c_pack_combinations_max
      \d_pack_combinations_ht_saved \d_pack_combinations_ht
      \setbox\b_pack_combinations_captions_saved\box\b_pack_combinations_captions
@@ -127,6 +131,8 @@
   {\ifnum\c_pack_combinations_nesting>\plusone
      \global\c_pack_combinations_x  \c_pack_combinations_x_saved
      \global\c_pack_combinations_y  \c_pack_combinations_y_saved
+     \global\c_pack_combinations_r  \c_pack_combinations_r_saved
+     \global\c_pack_combinations_c  \c_pack_combinations_c_saved
      \global\c_pack_combinations_max\c_pack_combinations_max_saved
      \global\d_pack_combinations_ht \d_pack_combinations_ht_saved
      \global\setbox\b_pack_combinations_captions\box\b_pack_combinations_captions_saved
@@ -136,14 +142,14 @@
    \else
      \globalresetsystemmode{combination}% why global
    \fi
-   \advance\c_pack_combinations_nesting\minusone}
+   \advanceby\c_pack_combinations_nesting\minusone}
 
 \definelabel
   [\v!combination] % handy for configuring
   [\c!numberconversion=\v!character,
    \c!text=]
 
-\settrue\c_strc_constructions_define_commands
+\c_strc_constructions_define_commands\conditionaltrue
 
 \setupcombination
   [\c!width=\v!fit,
@@ -165,19 +171,23 @@
 \installcorenamespace{combinationalternative}
 
 \appendtoks
-    \setfalse\c_strc_constructions_define_commands
-    \normalexpanded
+    \c_strc_constructions_define_commands\conditionalfalse
+    \expanded
       {\definelabel
          [\v!combination:\currentcombination]%
          [\v!combination\ifempty\currentcombinationparent\else:\currentcombinationparent\fi]}%
          [\s!counter=\currentcombination,\c!levels=1]%
-    \settrue\c_strc_constructions_define_commands
+    \c_strc_constructions_define_commands\conditionaltrue
 \to \everydefinecombination
 
-\setvalue{\??combinationlocation\v!left  }{\let\m_pack_combinations_leftfiller\relax}
-\setvalue{\??combinationlocation\v!right }{\let\m_pack_combinations_rightfiller\relax}
-\setvalue{\??combinationlocation\v!top   }{\let\m_pack_combinations_valigner\depthonlybox}
-\setvalue{\??combinationlocation\v!middle}{\let\m_pack_combinations_valigner\halfwaybox}
+\let\m_pack_combinations_leftfiller \relax
+\let\m_pack_combinations_rightfiller\relax
+\let\m_pack_combinations_valigner   \relax
+
+\defcsname\??combinationlocation\v!left  \endcsname{\let\m_pack_combinations_leftfiller \relax}
+\defcsname\??combinationlocation\v!right \endcsname{\let\m_pack_combinations_rightfiller\relax}
+\defcsname\??combinationlocation\v!top   \endcsname{\let\m_pack_combinations_valigner   \depthonlybox}
+\defcsname\??combinationlocation\v!middle\endcsname{\let\m_pack_combinations_valigner   \halfwaybox}
 
 \def\pack_combinations_location_reset
   {\let\m_pack_combinations_rightfiller\hfil
@@ -228,59 +238,62 @@
 
 \newtoks\everycombination
 
-\aliased\let\combination\empty
+\aliased\lettonothing\combination
 
-\let\p_nx_ny\empty
+\lettonothing\p_nx_ny
 
-\permanent\protected\def\stopcombination
-  {\bgroup\normalexpanded{\egroup{}\ntimes{{}{}}\c_pack_combinations_y}% brr
-   \dostoptagged
-   \egroup
-   \pack_combinations_pop
-   \egroup}
+\installcorenamespace{combinationmethod}
 
-\permanent\tolerant\protected\def\startcombination[#1]#*[#2]% can be simplified
+% \defcsname\??combinationmethod:\v!start\endcsname
+%   {}
+%
+% \defcsname\??combinationmethod\endcsname
+%   {\vbox}
+%
+% \defcsname\??combinationmethod:\v!stop\endcsname
+%   {}
+
+\permanent\tolerant\protected\def\startcombination[#S#1]#*[#S#2]% can be simplified
   {\bgroup % so we can grab a group
    \pack_combinations_push
-   \edef\currentcombination{#1}%
+   \cdef\currentcombination{#1}%
    \edef\p_nx_ny{#2}%
    %
    \ifempty\p_nx_ny
-     \ifcondition\validassignment{#1}%
-       \let\currentcombination\empty
+     \ifhastok={#1}%
+       \lettonothing\currentcombination
        \setupcurrentcombination[#1]%
        \edef\p_nx_ny{\combinationparameter\c!nx*\combinationparameter\c!ny*}%
+     \orelse\ifhastok*\currentcombination
+       \edef\p_nx_ny{\currentcombination*\plusone*}%
+       \lettonothing\currentcombination
+     \orelse\ifchknum\currentcombination\or
+       \edef\p_nx_ny{\currentcombination*\plusone*}%
+       \lettonothing\currentcombination
      \else
-       \doifelseinstring{*}\currentcombination
-         {\edef\p_nx_ny{\currentcombination*\plusone*}%
-          \let\currentcombination\empty}
-         {\doifelsenumber\currentcombination
-            {\edef\p_nx_ny{\currentcombination*\plusone*}%
-             \let\currentcombination\empty}
-            {\edef\p_nx_ny{\combinationparameter\c!nx*\combinationparameter\c!ny*}}}%
-     \fi
-   \else
-     \ifcondition\validassignment{#2}%
-       \setupcurrentcombination[#2]%
        \edef\p_nx_ny{\combinationparameter\c!nx*\combinationparameter\c!ny*}%
-     \else
-       \edef\p_nx_ny{\p_nx_ny*\plusone*}%
      \fi
+   \orelse\ifhastok={#2}%
+     \setupcurrentcombination[#2]%
+     \edef\p_nx_ny{\combinationparameter\c!nx*\combinationparameter\c!ny*}%
+   \else
+     \edef\p_nx_ny{\p_nx_ny*\plusone*}%
    \fi
+   \begincsname\??combinationmethod\combinationparameter\c!method:\v!start\endcsname
    %
 % test first:
 %
 %    \ifempty\p_nx_ny
 %      \ifhastok={#1}%
-%        \let\currentcombination\empty
+%        \lettonothing\currentcombination
 %        \setupcurrentcombination[#1]%
 %        \edef\p_nx_ny{\combinationparameter\c!nx*\combinationparameter\c!ny*}%
 %      \orelse\ifhastok*{\currentcombination}%
 %        \edef\p_nx_ny{\currentcombination*\plusone*}%
-%        \let\currentcombination\empty
+%        \lettonothing\currentcombination
 %      \orelse\ifchknum\currentcombination\or
 %        \edef\p_nx_ny{\currentcombination*\plusone*}%
-%        \let\currentcombination\empty
+%        \lettonothing\currentcombination
 %      \else
 %        \edef\p_nx_ny{\combinationparameter\c!nx*\combinationparameter\c!ny*}%
 %      \fi
@@ -293,7 +306,7 @@
    %
    \forgetall
    %
-   \the\everycombination
+   \expand\everycombination
    %
    \enforced\let\startcontent\pack_common_content_start
    \enforced\let\stopcontent \pack_common_content_stop
@@ -308,12 +321,25 @@
    \pack_combinations_location_reset
    \rawprocesscommacommand[\p_location]\pack_combinations_location_step
    %
-   \dostarttaggedchained\t!combination\currentcombination\??combination
-   \vbox \ifx\p_height\v!fit\else to \p_height \fi \bgroup
-   \enforced\let\combination\empty % permits \combination{}{} handy for cld
-   \normalexpanded{\pack_combinations_start_indeed[\p_nx_ny]}}
+   \dostarttaggedchained\t!combination\currentcombination\currentcombination\??combination
+%    \vbox \ifx\p_height\v!fit\else to \p_height \fi \bgroup
+   \ifcsname\??combinationmethod\combinationparameter\c!method\endcsname
+     \lastnamedcs\else\vbox
+   \fi\ifx\p_height\v!fit\else to {\p_height} \fi \bgroup
+   \enforced\lettonothing\combination % permits \combination{}{} handy for cld
+   \expanded{\pack_combinations_start_indeed[\p_nx_ny]}}
+
+\permanent\protected\def\stopcombination
+  {\bgroup\expanded{\egroup{}\ntimes{{}{}}\c_pack_combinations_y}% brr
+   \dostoptagged
+   \egroup
+   \begincsname\??combinationmethod\combinationparameter\c!method:\v!stop\endcsname
+   \pack_combinations_pop
+   \egroup}
 
 \let\pack_combinations_check_x_y\relax
+
+\aliased\let\combinationwidth\!!zeropoint
 
 \protected\def\pack_combinations_start_indeed[#1*#2*#3]%
   {\global\c_pack_combinations_x#1\relax
@@ -324,16 +350,23 @@
    \dotagcombination
    \global\setbox\b_pack_combinations_captions\emptybox
    \global\c_pack_combinations_max\c_pack_combinations_x
-   \multiply\c_pack_combinations_y\c_pack_combinations_x
-   \tabskip\zeropoint
-   \halign \ifx\p_width\v!fit\else to \p_width \fi \bgroup % repetitive preamble
+   \multiplyby\c_pack_combinations_y\c_pack_combinations_x
+   \tabskip\zeroskip
+   \enforced\permanent\protected\edef\combinationwidth % \immutable
+     {\todimension{%
+        (\hsize-\numexpr\c_pack_combinations_x-\plusone\relax\dimexpr\combinationparameter\c!distance\relax)/\c_pack_combinations_x
+      }}%
+   \global\c_pack_combinations_r\zerocount
+   \global\c_pack_combinations_c\zerocount
+   \halign         \ifx\p_width\v!fit\else to {\p_width} \fi \bgroup % repetitive preamble
+ % \halign noskips \ifx\p_width\v!fit\else to {\p_width} \fi \bgroup % repetitive preamble
    \aligntab
    \m_pack_combinations_leftfiller
-   \alignmark\alignmark
+   \aligncontent
    \m_pack_combinations_rightfiller
    \aligntab
    \tabskip\zeropoint \s!plus 1fill % \fillskip
-   \alignmark\alignmark
+   \aligncontent
    \cr
    \pack_combinations_pickup}
 
@@ -341,13 +374,22 @@
 %D some settings conflict with already used combination settings so instead we plug
 %D in labels. This also permits extensions later on.
 
+\lettonothing\p_pack_combinations_alternative
+
 \appendtoks
     \edef\p_pack_combinations_alternative{\combinationparameter\c!alternative}%
 \to \everydefinecombination
 
 \def\pack_combinations_pickup
-  {\dostarttagged\t!combinationpair\empty     % better make this text
-   \dostarttagged\t!combinationcontent\empty
+  {\ifnum\c_pack_combinations_x=\c_pack_combinations_max
+      \global\advance\c_pack_combinations_r\plusone
+      \global        \c_pack_combinations_c\plusone
+   \else
+      \global\advance\c_pack_combinations_c\plusone
+   \fi
+   \dostarttaggednodetail\t!combinationpair     % better make this text
+   \dotagcombinationpair\c_pack_combinations_c\c_pack_combinations_r % for tracing
+   \dostarttaggednodetail\t!combinationcontent
    \expandafterpars\pack_combinations_pickup_content_indeed}
 
 \def\pack_combinations_pickup_content_indeed
@@ -356,13 +398,13 @@
 \def\pack_combinations_pickup_content % we want to add struts but still ignore an empty box
   {\dostoptagged
    \setbox\b_pack_combinations_content\box\nextbox
-   \dostarttagged\t!combinationcaption\empty
+   \dostarttaggednodetail\t!combinationcaption
    \expandnamespacemacro\??combinationalternative\p_pack_combinations_alternative\v!text}
 
-\setvalue{\??combinationalternative\v!text}%
+\defcsname\??combinationalternative\v!text\endcsname
   {\expandafterpars\pack_combinations_alternative_text_indeed}
 
-\setvalue{\??combinationalternative\v!label}%
+\defcsname\??combinationalternative\v!label\endcsname
   {\expandafterpars\pack_combinations_alternative_label_indeed}
 
 \def\pack_combinations_alternative_text_indeed
@@ -376,16 +418,15 @@
      \usealignparameter\combinationparameter
      \usecombinationstyleandcolor\c!style\c!color
      \begstrut
-       \normalexpanded{\strc_labels_command[\v!combination\ifempty\currentcombination\else:\currentcombination\fi]}%
+       \expanded{\strc_labels_command[\v!combination\ifempty\currentcombination\else:\currentcombination\fi]}%
      \endstrut
    \egroup}
 
 \appendtoks
     \edef\p_pack_combinations_alternative{\combinationparameter\c!alternative}%
     \ifx\p_pack_combinations_alternative\v!label
-      \edef\p_continue{\combinationparameter\c!continue}%
-      \ifx\p_continue\v!yes \else
-        \normalexpanded{\strc_labels_reset{\v!combination\ifempty\currentcombination\else:\currentcombination\fi}{1}}%
+      \ifcstok{\combinationparameter\c!continue}\v!yes\else
+        \expanded{\strc_labels_reset{\v!combination\ifempty\currentcombination\else:\currentcombination\fi}{1}}%
      \fi
     \fi
 \to \everycombination
@@ -402,17 +443,24 @@
 \def\pack_combinations_caption_second
   {\ifx\nexttoken\egroup
      % the caption is empty
-   \orelse\ifx\nexttoken\stopcaption
+   \orelse\ifx\nexttoken\stopcaption % language
      % the caption is empty (new per 2014-05-24)
+   \orelse\ifx\nexttoken\pack_combinations_float_hack_b
+     % make sure we honor empty captions (new per 2023-04-20)
    \else
      % todo: \p_pack_combinations_alternative\v!none: no style, strut etc
      \hsize\wd\b_pack_combinations_content
      \usealignparameter\combinationparameter
      \usecombinationstyleandcolor\c!style\c!color
      \bgroup
-     \aftergroup\endstrut
-     \aftergroup\egroup
-     \begstrut
+     \ifcstok{\combinationparameter\c!strut}\v!no
+       % make sure we have empty captions (new per 2023-04-20)
+       \aftergroup\egroup
+     \else
+       \aftergroup\endstrut
+       \aftergroup\egroup
+       \begstrut
+     \fi
    \fi}
 
 \def\pack_combinations_pickup_package_pair % we need to store the caption row
@@ -422,8 +470,8 @@
       % we need to save the caption for a next alignment line
       \pack_combinations_save_caption}%
    \ifnum\c_pack_combinations_y>\plusone
-     \global\advance\c_pack_combinations_y\minusone
-     \global\advance\c_pack_combinations_x\minusone
+     \global\advanceby\c_pack_combinations_y\minusone
+     \global\advanceby\c_pack_combinations_x\minusone
      \ifcase\c_pack_combinations_x
        \doubleexpandafter\pack_combinations_pickup_package_pair_a
      \else
@@ -451,7 +499,7 @@
   {\aligntab
    \aligntab
    \aligntab
-   \kern\p_distance
+   \kern{\p_distance}%
    \aligntab
    \pack_combinations_pickup}
 
@@ -466,7 +514,7 @@
   {\ifdim\htdp\b_pack_combinations_caption>\d_pack_combinations_ht
      \global\d_pack_combinations_ht\htdp\b_pack_combinations_caption
    \fi
-   \savebox{\??combinationcaption:\number\c_pack_combinations_nesting}{\number\c_pack_combinations_x}{\box\b_pack_combinations_caption}}
+   \savebox{\??combinationcaption:\the\c_pack_combinations_nesting}{\the\c_pack_combinations_x}{\box\b_pack_combinations_caption}}
 
 \let\pack_combinations_flush_captions_indeed\relax
 
@@ -485,10 +533,10 @@
 
 \def\pack_combinations_flush_captions_yes
   {\vpack to \d_pack_combinations_ht\bgroup
-     \foundbox{\??combinationcaption:\number\c_pack_combinations_nesting}{\number\c_pack_combinations_x}%
+     \foundbox{\??combinationcaption:\the\c_pack_combinations_nesting}{\the\c_pack_combinations_x}%
      \vss
    \egroup
-   \global\advance\c_pack_combinations_x\minusone
+   \global\advanceby\c_pack_combinations_x\minusone
    \ifnum\c_pack_combinations_x>\zerocount % \c_pack_combinations_max
      \expandafter\pack_combinations_flush_captions_yes_followup
    \else
@@ -525,6 +573,10 @@
 %D
 %D \typebuffer \getbuffer
 
+\definecombination
+  [\v!float]
+% [\c!strut=\v!no] % not needed, we intercept anyway
+
 \protected\def\pack_combinations_float_hack_a#1%
   {\strc_floats_build_box_separate_split{#1}%
    \box\b_strc_floats_separate_content}
@@ -558,7 +610,8 @@
         {\pack_combinations_float_hack_b{\recurselevel}}%
       \to\scratchtoks}% brrr
    \let\pack_combinations_check_x_y\pack_combinations_float_check_x_y
-   \expanded{\startcombination[#1]\the\scratchtoks}\stopcombination
+ % \expanded{\startcombination[#1]\the\scratchtoks}\stopcombination
+   \expanded{\startcombination[\v!float][#1]\the\scratchtoks}\stopcombination
    \resetlocalfloats
    \egroup}
 
@@ -708,20 +761,20 @@
 
 % watch the hsize/vsize tricks
 
-\newbox  \b_pack_pairedboxes_first
-\newbox  \b_pack_pairedboxes_second
-\newdimen\s_pack_pairedboxes_size
+\newbox      \b_pack_pairedboxes_first
+\newbox      \b_pack_pairedboxes_second
+\newdimension\d_pack_pairedboxes_size
 
 \appendtoks
-   \frozen\instance\setuevalue{\e!setup\currentpairedbox\e!endsetup}{\setuppairedbox     [\currentpairedbox]}%
-   \frozen\instance\setuevalue{\e!place\currentpairedbox           }{\placepairedbox     [\currentpairedbox]}% one argument is mandate anyway
-   \frozen\instance\setuevalue{\e!start\e!place\currentpairedbox   }{\startplacepairedbox[\currentpairedbox]}% one argument is mandate anyway
-   \frozen\instance\setuevalue{\e!stop\e!place \currentpairedbox   }{\stopplacepairedbox                    }%
+   \protected\frozen\instance\edefcsname\e!setup\currentpairedbox\e!endsetup\endcsname{\setuppairedbox     [\currentpairedbox]}%
+   \protected\frozen\instance\edefcsname\e!place\currentpairedbox           \endcsname{\placepairedbox     [\currentpairedbox]}% one argument is mandate anyway
+   \protected\frozen\instance\edefcsname\e!start\e!place\currentpairedbox   \endcsname{\startplacepairedbox[\currentpairedbox]}% one argument is mandate anyway
+   \protected\frozen\instance\edefcsname\e!stop\e!place \currentpairedbox   \endcsname{\stopplacepairedbox                    }%
 \to \everydefinepairedbox
 
-\permanent\tolerant\protected\def\startplacepairedbox[#1]#*[#2]%
+\permanent\tolerant\protected\def\startplacepairedbox[#1]#*[#S#2]%
   {\bgroup
-   \edef\currentpairedbox{#1}%
+   \cdef\currentpairedbox{#1}%
    \setupcurrentpairedbox[#2]%
    \pairedboxparameter\c!before
    \bgroup
@@ -762,7 +815,7 @@
    \pairedboxparameter\c!after
    \egroup}
 
-\newconditional\c_pack_pairedboxes_horizontal \settrue\c_pack_pairedboxes_horizontal
+\newconditional\c_pack_pairedboxes_horizontal \c_pack_pairedboxes_horizontal\conditionaltrue
 
 \installcorenamespace{pairedboxnature}
 \installcorenamespace{pairedboxalign}
@@ -772,33 +825,33 @@
 \let\pack_pairedboxes_fill_bottom\relax
 
 \defcsname\??pairedboxnature\v!left\endcsname
-  {\settrue\c_pack_pairedboxes_horizontal
+  {\c_pack_pairedboxes_horizontal\conditionaltrue
    \let\pack_pairedboxes_flush\pack_pairedboxes_flush_left}
 
 \defcsname\??pairedboxnature\v!right\endcsname
-  {\settrue\c_pack_pairedboxes_horizontal
+  {\c_pack_pairedboxes_horizontal\conditionaltrue
    \let\pack_pairedboxes_flush\pack_pairedboxes_flush_right}
 
 \defcsname\??pairedboxnature\v!top\endcsname
-  {\setfalse\c_pack_pairedboxes_horizontal
+  {\c_pack_pairedboxes_horizontal\conditionalfalse
    \let\pack_pairedboxes_fill_top\relax
    \let\pack_pairedboxes_fill_bottom\vss
    \let\pack_pairedboxes_flush\pack_pairedboxes_flush_top}
 
 \defcsname\??pairedboxnature\v!bottom\endcsname
-  {\setfalse\c_pack_pairedboxes_horizontal
+  {\c_pack_pairedboxes_horizontal\conditionalfalse
    \let\pack_pairedboxes_fill_top\vss
    \let\pack_pairedboxes_fill_bottom\relax
    \let\pack_pairedboxes_flush\pack_pairedboxes_flush_bottom}
 
 \def\pack_pairedboxes_flush_left
   {\box\b_pack_pairedboxes_second
-   \kern\pairedboxparameter\c!distance
+   \kern{\pairedboxparameter\c!distance}%
    \box\b_pack_pairedboxes_first}
 
 \def\pack_pairedboxes_flush_right
   {\box\b_pack_pairedboxes_first
-   \kern\pairedboxparameter\c!distance
+   \kern{\pairedboxparameter\c!distance}%
    \box\b_pack_pairedboxes_second}
 
 \def\pack_pairedboxes_flush_top
@@ -853,8 +906,8 @@
 \defcsname\??pairedboxalign\v!bottom\endcsname{\csname\??pairedboxalign\v!low \endcsname}
 \defcsname\??pairedboxalign   \v!top\endcsname{\csname\??pairedboxalign\v!high\endcsname}
 
-\def\pack_pairedbox_valign#1{\setbox#1\vpack to \s_pack_pairedboxes_size{\pack_pairedboxes_align_t\box#1\pack_pairedboxes_align_b}}
-\def\pack_pairedbox_halign#1{\setbox#1\hpack to \s_pack_pairedboxes_size{\pack_pairedboxes_align_l\box#1\pack_pairedboxes_align_r}}
+\def\pack_pairedbox_valign#1{\setbox#1\vpack to \d_pack_pairedboxes_size{\pack_pairedboxes_align_t\box#1\pack_pairedboxes_align_b}}
+\def\pack_pairedbox_halign#1{\setbox#1\hpack to \d_pack_pairedboxes_size{\pack_pairedboxes_align_l\box#1\pack_pairedboxes_align_r}}
 
 \def\pack_pairedboxes_before
   {\ifempty\p_location
@@ -884,20 +937,20 @@
    \fi}
 
 \def\pack_pairedboxes_between_horizontal
-  {\scratchdistance\pairedboxparameter\c!distance
-   \scratchwidth\pairedboxparameter\c!maxwidth\relax
+  {\scratchdistance{\pairedboxparameter\c!distance}%
+   \scratchwidth{\pairedboxparameter\c!maxwidth}%
    \setlocalhsize
-   \hsize\dimexpr\availablehsize-\wd\b_pack_pairedboxes_first-\scratchdistance\relax
-   \hsize\pairedboxparameter\c!width\relax % can be \hsize
-   \scratchdimen\dimexpr\wd\b_pack_pairedboxes_first+\scratchdistance\relax
-   \ifdim\dimexpr\hsize+\scratchdimen\relax>\scratchwidth
-     \hsize\dimexpr\scratchwidth-\scratchdimen\relax
+   \hsize{\availablehsize-\wd\b_pack_pairedboxes_first-\scratchdistance}%
+   \hsize{\pairedboxparameter\c!width}% can be \hsize
+   \scratchdimen{\wd\b_pack_pairedboxes_first+\scratchdistance}%
+   \ifdim{\hsize+\scratchdimen}>\scratchwidth
+     \hsize{\scratchwidth-\scratchdimen}%
    \fi}
 
 \def\pack_pairedboxes_between_vertical
-  {\scratchwidth\pairedboxparameter\c!maxwidth\relax
+  {\scratchwidth{\pairedboxparameter\c!maxwidth}%
    \hsize\wd\b_pack_pairedboxes_first
-   \hsize\pairedboxparameter\c!width\relax % can be \hsize
+   \hsize{\pairedboxparameter\c!width}% can be \hsize
    \ifdim\hsize>\scratchwidth\relax
      \hsize\scratchwidth
    \fi}
@@ -918,18 +971,20 @@
 \def\pack_pairedboxes_pack_horizontal
   {\dontleavehmode\hbox\bgroup
      \forgetall
-     \s_pack_pairedboxes_size\ht
+     \d_pack_pairedboxes_size\ht
        \ifdim\ht\b_pack_pairedboxes_first>\ht\b_pack_pairedboxes_second
          \b_pack_pairedboxes_first
        \else
          \b_pack_pairedboxes_second
        \fi
-     \vsize\s_pack_pairedboxes_size
-     \ifdim\s_pack_pairedboxes_size<\pairedboxparameter\c!height\relax % can be \vsize
-       \s_pack_pairedboxes_size\pairedboxparameter\c!height
+     \vsize\d_pack_pairedboxes_size
+     \scratchheight{\pairedboxparameter\c!height}%
+     \ifdim\d_pack_pairedboxes_size<\scratchheight % can be \vsize
+       \d_pack_pairedboxes_size\scratchheight
      \fi
-     \ifdim\s_pack_pairedboxes_size>\pairedboxparameter\c!maxheight\relax
-       \s_pack_pairedboxes_size\pairedboxparameter\c!maxheight
+     \scratchheight{\pairedboxparameter\c!maxheight}%
+     \ifdim\d_pack_pairedboxes_size>\scratchheight
+       \d_pack_pairedboxes_size\scratchheight
      \fi
      \pack_pairedbox_valign\b_pack_pairedboxes_first
      \pack_pairedbox_valign\b_pack_pairedboxes_second
@@ -939,7 +994,7 @@
 \def\pack_pairedboxes_pack_vertical
   {\dontleavehmode\vpack\bgroup
      \forgetall
-     \s_pack_pairedboxes_size\wd
+     \d_pack_pairedboxes_size\wd
        \ifdim\wd\b_pack_pairedboxes_first>\wd\b_pack_pairedboxes_second
          \b_pack_pairedboxes_first
        \else
@@ -947,16 +1002,18 @@
        \fi
      \pack_pairedbox_halign\b_pack_pairedboxes_first
      \pack_pairedbox_halign\b_pack_pairedboxes_second
-     \s_pack_pairedboxes_size\ht\b_pack_pairedboxes_second
-     \vsize\s_pack_pairedboxes_size
-     \ifdim\ht\b_pack_pairedboxes_second<\pairedboxparameter\c!height\relax % can be \vsize
-       \s_pack_pairedboxes_size\pairedboxparameter\c!height\relax % \relax needed
+     \d_pack_pairedboxes_size\ht\b_pack_pairedboxes_second
+     \vsize\d_pack_pairedboxes_size
+     \scratchheight{\pairedboxparameter\c!height}%
+     \ifdim\ht\b_pack_pairedboxes_second<\scratchheight % can be \vsize
+       \d_pack_pairedboxes_size\scratchheight
      \fi
-     \ifdim\s_pack_pairedboxes_size>\pairedboxparameter\c!maxheight\relax % todo: totale hoogte
-       \s_pack_pairedboxes_size\pairedboxparameter\c!maxheight\relax % \relax needed
+     \scratchheight{\pairedboxparameter\c!maxheight}%
+     \ifdim\d_pack_pairedboxes_size>\scratchheight
+       \d_pack_pairedboxes_size\scratchheight
      \fi
-     \ifdim\s_pack_pairedboxes_size>\ht\b_pack_pairedboxes_second
-       \setbox\b_pack_pairedboxes_second\vpack to \s_pack_pairedboxes_size
+     \ifdim\d_pack_pairedboxes_size>\ht\b_pack_pairedboxes_second
+       \setbox\b_pack_pairedboxes_second\vpack to \d_pack_pairedboxes_size
          {\pack_pairedboxes_fill_top
           \box\b_pack_pairedboxes_second
           \pack_pairedboxes_fill_bottom}% \kern\zeropoint
@@ -981,10 +1038,10 @@
 \def\pack_sidebyside_one    {\bgroup\setbox\scratchboxone\box\nextbox\dowithnextboxcs\pack_sidebyside_two    \hbox}
 
 \def\pack_topofeachother_two{\setbox\scratchboxtwo\box\nextbox
-                             \halign{\hss\alignmark\alignmark\hss\cr\box\scratchboxone\cr\box\scratchboxtwo\cr}%
+                             \halign{\hss\aligncontent\hss\cr\box\scratchboxone\cr\box\scratchboxtwo\cr}%
                              \egroup\egroup}
 \def\pack_sidebyside_two    {\setbox\scratchboxtwo\box\nextbox
-                             \valign{\vss\alignmark\alignmark\vss\cr\box\scratchboxone\cr\box\scratchboxtwo\cr}%
+                             \valign{\vss\aligncontent\vss\cr\box\scratchboxone\cr\box\scratchboxtwo\cr}%
                              \egroup\egroup}
 
 \protect \endinput

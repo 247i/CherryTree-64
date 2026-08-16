@@ -59,8 +59,21 @@ function checkers.pdf(data)
             end
             if pdfdoc then
                 --
-                local info = querypdf(pdfdoc,request.page,request.size)
+                local page  = request.page
+                local label = request.pagelabel
+                local info  = querypdf(pdfdoc,page,request.size,label)
                 if info then
+                    -- in case we have resolved a page label
+                    local foundpage = info.pagenumber
+                    if foundpage and foundpage ~= page then
+                        if trace_pdf then
+                            report_pdf("page label %a resolved to page %i in image %a",label,foundpage,filename)
+                        end
+                    else
+                        foundpage = page
+                    end
+                    request.page = foundpage
+                    --
                     local bbox     = info and info.boundingbox or { 0, 0, 0, 0 }
                     local height   = bbox[4] - bbox[2]
                     local width    = bbox[3] - bbox[1]
@@ -79,6 +92,7 @@ function checkers.pdf(data)
                     return {
                         filename   = filename,
                      -- page       = 1,
+                        page       = foundpage,
                         pages      = pdfdoc.nofpages,
                         width      = width,
                         height     = height,
@@ -109,7 +123,7 @@ function checkers.pdf(data)
                 if trace_pdf then
                     report_pdf("copy page %i from image %a, %i pages copied",page,filename,copied)
                 end
-                local result = copypage(pdfdoc,page,nil,request.compact,request.width,request.height,request.attr)
+                local result = copypage(pdfdoc,page,nil,request.compact,request.width,request.height,request.attr,request.metadata)
                 if pdfdoc.nofcopied >= pdfdoc.nofpages then
                     if trace_pdf then
                         report_pdf("closing image %a, %i pages copied",filename,copied)
@@ -261,6 +275,7 @@ function checkers.png(data) -- same as jpg (for now)
             if found then
                 found = false
                 local ok, result = pcall(backends.codeinjections.png,t)
+--                 local ok, result = backends.codeinjections.png(t)
                 if ok then
                     return result
                 else

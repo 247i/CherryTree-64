@@ -45,6 +45,7 @@ implement { name = "xmlatt",               public = true, actions = lxml.att,   
 implement { name = "xmlattdef",            public = true, actions = lxml.att,               arguments = "3 strings" }
 implement { name = "xmlattribute",         public = true, actions = lxml.attribute,         arguments = "3 strings" }
 implement { name = "xmlattributedef",      public = true, actions = lxml.attribute,         arguments = "4 strings" }
+implement { name = "xmltexatt",            public = true, actions = lxml.texatt,            arguments = "2 strings" }
 implement { name = "xmlbadinclusions",     public = true, actions = lxml.badinclusions,     arguments = "string" }
 implement { name = "xmlchainatt",          public = true, actions = lxml.chainattribute,    arguments = { "string", "'/'", "string" } }
 implement { name = "xmlchainattdef",       public = true, actions = lxml.chainattribute,    arguments = { "string", "'/'", "string", "string"  } }
@@ -64,6 +65,8 @@ implement { name = "xmldirectivesafter",   public = true, actions = lxml.directi
 implement { name = "xmldirectivesbefore",  public = true, actions = lxml.directives.before, arguments = "string" }
 implement { name = "xmldisplayverbatim",   public = true, actions = lxml.displayverbatim,   arguments = "string" }
 implement { name = "xmlelement",           public = true, actions = lxml.element,           arguments = "2 strings" } -- could be integer but now we can alias
+implement { name = "xmlfilename",          public = true, actions = lxml.filename,          arguments = "string" }
+implement { name = "xmlfileline",          public = true, actions = lxml.fileline,          arguments = "string" }
 implement { name = "xmlfilter",            public = true, actions = lxml.filter,            arguments = "2 strings" }
 implement { name = "xmlfilterlist",        public = true, actions = lxml.filterlist,        arguments = "2 strings" }
 implement { name = "xmlfirst",             public = true, actions = lxml.first,             arguments = "2 strings" }
@@ -140,20 +143,91 @@ implement { name = "xmlremovesetup",                      actions = lxml.removes
 implement { name = "xmlflushsetups",                      actions = lxml.flushsetups,       arguments = "3 strings" }    -- 2:*
 implement { name = "xmlresetsetups",                      actions = lxml.resetsetups,       arguments = "string" }
 
-implement { name = "xmlgetindex",          actions = lxml.getindex,          arguments = "2 strings" }
-implement { name = "xmlwithindex",         actions = lxml.withindex,         arguments = "3 strings" }
+implement { name = "xmlgetindex",                         actions = lxml.getindex,          arguments = "2 strings" }
+implement { name = "xmlwithindex",                        actions = lxml.withindex,         arguments = "3 strings" }
 
-implement { name = "xmlsetentity",         actions =  xml.registerentity,    arguments = "2 strings" }
-implement { name = "xmltexentity",         actions = lxml.registerentity,    arguments = "2 strings" }
+implement { name = "xmlsetentity",                        actions =  xml.registerentity,    arguments = "2 strings" }
+implement { name = "xmltexentity",                        actions = lxml.registerentity,    arguments = "2 strings" }
 
-implement { name = "xmlsetcommandtotext",  actions = lxml.setcommandtotext,  arguments = "string" }
-implement { name = "xmlsetcommandtonone",  actions = lxml.setcommandtonone,  arguments = "string" }
+implement { name = "xmlsetcommandtotext",                 actions = lxml.setcommandtotext,  arguments = "string" }
+implement { name = "xmlsetcommandtonone",                 actions = lxml.setcommandtonone,  arguments = "string" }
 
-implement { name = "xmlstarttiming",       actions = function() statistics.starttiming(lxml) end }
-implement { name = "xmlstoptiming",        actions = function() statistics.stoptiming (lxml) end }
+implement { name = "xmlstarttiming",                      actions = function() statistics.starttiming(lxml) end }
+implement { name = "xmlstoptiming",                       actions = function() statistics.stoptiming (lxml) end }
 
-implement { name = "xmlloadentities",      actions = characters.registerentities, onceonly = true }
+implement { name = "xmlloadentities",                     actions = characters.registerentities, onceonly = true }
 
--- kind of special (3rd argument is a function)
+-- commands.xmlsetfunction = lxml.setaction -- the third argument is a lua function
 
-commands.xmlsetfunction = lxml.setaction
+if CONTEXTLMTXMODE > 0 then
+
+    local boolean_code = tokens.values.boolean
+
+    local getid        = lxml.getid
+    local found        = xml.found
+    local empty        = xml.empty
+    local checkedempty = xml.checkedempty
+    local ifatt        = lxml.ifatt
+    local ifattempty   = lxml.ifattempty
+
+    implement {
+        name      = "ifxml",
+        public    = true,
+        usage     = "condition",
+        arguments = "2 arguments",
+        actions   = function(id,pattern)
+            return boolean_code, found(getid(id),pattern) and true
+        end
+    }
+
+    implement {
+        name      = "ifxmltext",
+        public    = true,
+        usage     = "condition",
+        arguments = "2 arguments",
+        actions   = function(id,pattern)
+            return boolean_code, not empty(getid(id),pattern) and true
+        end
+    }
+
+    implement {
+        name      = "ifxmlatt",
+        public    = true,
+        usage     = "condition",
+        arguments = "3 arguments",
+        actions   = function(id,name,value)
+            return boolean_code, ifatt(getid(id),name,value)
+        end
+    }
+
+    implement {
+        name      = "ifxmlattempty",
+        public    = true,
+        usage     = "condition",
+        arguments = "2 arguments",
+        actions   = function(id,name)
+            return boolean_code, ifattempty(getid(id),name)
+        end
+    }
+
+    implement {
+        name      = "ifxmlempty",
+        public    = true,
+        usage     = "condition",
+        arguments = "2 arguments",
+        actions   = function(id,pattern)
+            return boolean_code, checkedempty(getid(id),pattern) and true
+        end
+    }
+
+    implement {
+        name      = "ifxmlselfempty",
+        public    = true,
+        usage     = "condition",
+        arguments = "argument",
+        actions   = function(id)
+            return boolean_code, checkedempty(getid(id)) and true
+        end
+    }
+
+end

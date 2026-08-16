@@ -27,7 +27,7 @@
 # etc.  If ICU is not installed in this directory, you must change the
 # following line.  There should exist $(prefix)/include/unicode/utypes.h
 # for example.
-prefix = /mingw64
+prefix = /ucrt64
 exec_prefix = ${prefix}
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
@@ -37,8 +37,8 @@ datadir = ${datarootdir}
 sbindir = ${exec_prefix}/sbin
 
 # about the ICU version
-VERSION = 72.1
-UNICODE_VERSION = 15.0
+VERSION = 78.3
+UNICODE_VERSION = 17.0
 
 # The prefix for ICU libraries, normally 'icu'
 ICUPREFIX = icu
@@ -166,7 +166,7 @@ pkglibdir = $(libdir)/$(PACKAGE)$(ICULIBSUFFIX)/$(VERSION)
 
 # Information about the host that 'configure' was run on.
 host = x86_64-w64-mingw32
-host_alias = x86_64-w64-mingw32
+host_alias = 
 host_cpu = x86_64
 host_vendor = w64
 host_os = mingw32
@@ -186,12 +186,12 @@ AR = ar
 #SH#ARFLAGS=" ${ARFLAGS}"
 CC = gcc
 CPP = gcc -E
-CFLAGS =  
+CFLAGS =  -std=c11 
 CPPFLAGS =  -I$(prefix)/include
-CXXFLAGS =  -std=c++11
-CXX = g++
+CXXFLAGS =  -std=c++17
+CXX = g++ -std=gnu++11
 DEFAULT_MODE = dll
-DEFS = -DPACKAGE_NAME=\"ICU\" -DPACKAGE_TARNAME=\"International\ Components\ for\ Unicode\" -DPACKAGE_VERSION=\"72.1\" -DPACKAGE_STRING=\"ICU\ 72.1\" -DPACKAGE_BUGREPORT=\"http://icu-project.org/bugs\" -DPACKAGE_URL=\"http://icu-project.org\" -DHAVE_STDIO_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_STRINGS_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_UNISTD_H=1 -DSTDC_HEADERS=1 -DSIZEOF_VOID_P=8 -DHAVE_LIBM=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_LIBPTHREAD=1 -DHAVE_INTTYPES_H=1 -DHAVE_DIRENT_H=1 -DHAVE_WCHAR_H=1 -DSIZEOF_WCHAR_T=2 
+DEFS = -DPACKAGE_NAME=\"ICU\" -DPACKAGE_TARNAME=\"icu4c\" -DPACKAGE_VERSION=\"78.3\" -DPACKAGE_STRING=\"ICU\ 78.3\" -DPACKAGE_BUGREPORT=\"https://icu.unicode.org/bugs\" -DPACKAGE_URL=\"https://icu.unicode.org/\" -DHAVE_STDIO_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_STRINGS_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_UNISTD_H=1 -DSTDC_HEADERS=1 -DSIZEOF_VOID_P=8 -DHAVE_LIBM=1 -DHAVE_GETTIMEOFDAY=1 -DHAVE_LIBPTHREAD=1 -DHAVE_DIRENT_H=1 -DHAVE_WCHAR_H=1 -DSIZEOF_WCHAR_T=2 
 # use a consistent INSTALL 
 INSTALL  =  $(SHELL) $(pkgdatadir)/install-sh -c
 INSTALL_DATA  =  ${INSTALL} -m 644
@@ -202,8 +202,8 @@ INSTALL_SCRIPT = ${INSTALL}
 LDFLAGS = $(RPATHLDFLAGS)
 LIBS = -lpthread -lm  
 LIB_M = 
-LIB_VERSION = 72.1
-LIB_VERSION_MAJOR = 72
+LIB_VERSION = 78.3
+LIB_VERSION_MAJOR = 78
 MKINSTALLDIRS = $(SHELL) $(pkgdatadir)/mkinstalldirs
 RANLIB = ranlib
 RMV = rm -rf
@@ -235,7 +235,7 @@ ICU_MSG=@echo "   $(1)	"  #M#
 
 # The basename of the ICU data file (i.e. icudt21b )
 ICUDATA_CHAR = l
-ICUDATA_NAME = icudt72l
+ICUDATA_NAME = icudt78l
 
 # Defaults for pkgdata's mode and directories
 # The default data dir changes depending on what packaging mode 

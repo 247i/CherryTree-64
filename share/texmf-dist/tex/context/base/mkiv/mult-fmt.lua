@@ -11,12 +11,13 @@ local concat, sortedhash = table.concat, table.sortedhash
 local sub, formatters = string.sub, string.formatters
 local utfsplit = utf.split
 
-local prtcatcodes     = catcodes.numbers.prtcatcodes
-local contextsprint   = context.sprint
-local implement       = interfaces.implement
+local prtcatcodes        = catcodes.numbers.prtcatcodes
+local contextsprint      = context.sprint
+local implement          = interfaces.implement
 
-local setmacro        = token.set_macro
-local definedmacro    = token.is_defined
+local setmacro           = token.setmacro  or token.set_macro
+local definedmacro       = token.isdefined or token.is_defined
+local setmacrotonothing  = token.setmacrotonothing
 
 local report             = logs.reporter("interface")
 local report_interface   = logs.reporter("interface","initialization")
@@ -217,9 +218,17 @@ function interfaces.setuserinterface(interface,response)
                 constant = constant[interface] or constant.en or given
                 constants[constant] = given -- breedte -> width
                 nofconstants = nofconstants + 1
-                setmacro("c!" .. given,given,"immutable")
+                setmacro("c!" .. given,given,"immutable","constant")
                 if reversetoo then
-                    setmacro("k!" .. constant,given,"immutable")
+                 -- can be a let
+                    setmacro("k!" .. constant,given,"immutable","constant")
+                 -- setmacro("k!" .. constant,given,"constant")
+                end
+                if setmacrotonothing then --lmtx
+                    -- some 750 but most only a dozen used so no real need
+                 -- setmacrotonothing("p_" .. constant)
+                else
+                 -- setmacro("p_" .. constant,"")
                 end
                 report_constant("%-40s: %s",given,constant)
             end
@@ -232,7 +241,7 @@ function interfaces.setuserinterface(interface,response)
                 variable = variable[interface] or variable.en or given
                 variables[given] = variable -- ja -> yes
                 nofvariables = nofvariables + 1
-                setmacro("v!" .. given,variable,"immutable")
+                setmacro("v!" .. given,variable,"immutable","constant")
                 report_variable("%-40s: %s",given,variable)
             end
             logs.stopfilelogging()
@@ -244,7 +253,7 @@ function interfaces.setuserinterface(interface,response)
                 element = element[interface] or element.en or given
                 elements[element] = given
                 nofelements = nofelements + 1
-                setmacro("e!" .. given,element,"immutable")
+                setmacro("e!" .. given,element,"immutable","constant")
                 report_element("%-40s: %s",given,element)
             end
             logs.stopfilelogging()

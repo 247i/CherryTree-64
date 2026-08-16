@@ -8,7 +8,8 @@ if modules then modules = { } end modules ['typo-bld'] = { -- was node-par
 
 -- no need for nuts in the one-line demo (that might move anyway)
 
-local insert, remove = table.insert, table.remove
+local next = next
+local insert, remove, sort = table.insert, table.remove, table.sort
 
 builders                 = builders or { }
 local builders           = builders
@@ -19,6 +20,12 @@ local parbuilders        = builders.paragraphs
 parbuilders.constructors = parbuilders.constructors or { }
 local       constructors = parbuilders.constructors
 
+builders.hpack           = builders.hpack or { }
+builders.vpack           = builders.vpack or { }
+
+local hpackbuilders      = builders.hpack
+local vpackbuilders      = builders.vpack
+
 constructors.names       = constructors.names or { }
 local names              = constructors.names
 
@@ -28,35 +35,30 @@ local numbers            = constructors.numbers
 constructors.methods     = constructors.methods or { }
 local methods            = constructors.methods
 
-local a_parbuilder       = attributes.numbers['parbuilder'] or 999 -- why 999
+local a_parbuilder       <const> = attributes.numbers['parbuilder'] or 999 -- why 999
 constructors.attribute   = a_parbuilder
 
-local unsetvalue         = attributes.unsetvalue
+local unsetvalue         <const> = attributes.unsetvalue
+
 local texsetattribute    = tex.setattribute
 local texnest            = tex.nest
-local texlists           = tex.lists
-
 local texget             = tex.get
 local texset             = tex.set
 
-local texgetdimen        = tex.getdimen
+local getspeciallist     = nodes.nuts.getspeciallist
+local setspeciallist     = nodes.nuts.setspeciallist
 
 local nodes              = nodes
 local nodeidstostring    = nodes.idstostring
 local nodepool           = nodes.pool
 local new_baselineskip   = nodepool.baselineskip
 local new_lineskip       = nodepool.lineskip
-local insert_node_before = nodes.insert_before
+local insertnodebefore   = nodes.insertbefore
 local hpack_node         = nodes.hpack
 
 local nuts               = nodes.nuts
-local tonode             = nodes.tonode
-local tonut              = nodes.tonut
-local count_nodes        = nuts.countall
 local getattr            = nuts.getattr
-
-local starttiming        = statistics.starttiming
-local stoptiming         = statistics.stoptiming
+local flush              = nuts.flush
 
 local registercallback   = callbacks.register
 
@@ -65,11 +67,13 @@ storage.register("builders/paragraphs/constructors/numbers", numbers, "builders.
 
 local trace_page_builder = false  trackers.register("builders.page", function(v) trace_page_builder = v end)
 local trace_vbox_builder = false  trackers.register("builders.vbox", function(v) trace_vbox_builder = v end)
-local trace_post_builder = false  trackers.register("builders.post", function(v) trace_post_builder = v end)
+----- trace_par_builder  = false  trackers.register("builders.par",  function(v) trace_par_builder  = v end)
 
 local report_page_builder = logs.reporter("builders","page")
 local report_vbox_builder = logs.reporter("builders","vbox")
 local report_par_builder  = logs.reporter("builders","par")
+
+-- this will be redone ... we will never write a par builder in lua --
 
 local mainconstructor = nil -- not stored in format
 local nofconstructors = 0
@@ -157,9 +161,9 @@ function parbuilders.constructors.methods.oneline(head,followed_by_display)
     t.prevdepth = h.depth
     t.prevgraf  = 1
     if d < texget("lineskiplimit") then
-        return insert_node_before(h,h,new_lineskip(texget("lineskip",false))) -- no stretch etc
+        return insertnodebefore(h,h,new_lineskip(texget("lineskip",false))) -- no stretch etc
     else
-        return insert_node_before(h,h,new_baselineskip(d))
+        return insertnodebefore(h,h,new_baselineskip(d))
     end
 end
 
@@ -173,53 +177,44 @@ end
 local actions = constructors.handler
 local enabled = false
 
-local function processor(head,followed_by_display)
+local function linebreak_callback(head,followed_by_display)
     -- todo: not again in otr so we need to flag
     if enabled then
-        starttiming(parbuilders)
-        head = tonut(head)
-        head = actions(head,followed_by_display)
-        head = tonode(head)
-        stoptiming(parbuilders)
-        return head
+        return actions(head,followed_by_display)
     else
-        return true -- let tex do the work
+        -- let tex do the work
     end
 end
 
-function constructors.enable () enabled = true  end
-function constructors.disable() enabled = false end
+local id, enable, disable = callbacks.optimizer("linebreak")
 
-registercallback('linebreak_filter', processor, "breaking paragraps into lines")
+function constructors.enable () enable()  enabled = true  end
+function constructors.disable() disable() enabled = false end
 
-statistics.register("linebreak processing time", function()
-    return statistics.elapsedseconds(parbuilders)
-end)
+registercallback {
+    name    = "linebreak",
+    action  = linebreak_callback,
+    comment = "breaking paragraps into lines",
+    frozen  = true,
+    disable = true,
+}
+
+-- disable()
+
+-- so far for the exprimental parbuilder hook
 
 -- todo: move from nodes.builders to builders
 
 nodes.builders = nodes.builder or { }
 local builders = nodes.builders
 
-local vboxactions = nodes.tasks.actions("vboxbuilders")
+local vpackactions = nodes.tasks.actions("vboxbuilders")
 
-function builders.vpack_filter(head,groupcode,size,packtype,maxdepth,direction)
-    local done = false
+local function vpack_callback(head,groupcode,size,packtype,maxdepth,direction)
     if head then
-        starttiming(builders)
-        head = tonut(head)
-        if trace_vbox_builder then
-            local before = count_nodes(head)
-            head, done = vboxactions(head,groupcode,size,packtype,maxdepth,direction)
-            local after = count_nodes(head)
-            nodes.processors.tracer("vpack",head,groupcode,before,after,done)
-        else
-            head, done = vboxactions(head,groupcode)
-        end
-        head = tonode(head)
-        stoptiming(builders)
+        head = vpackactions(head,groupcode)
     end
-    return head, done
+    return head
 end
 
 -- This one is special in the sense that it has no head and we operate on the mlv. Also,
@@ -228,55 +223,112 @@ end
 local pageactions = nodes.tasks.actions("mvlbuilders")
 ----- lineactions = nodes.tasks.actions("linebuilders")
 
-local function report(groupcode,head)
-    report_page_builder("trigger: %s",groupcode)
+local function report(pagecontext,head)
+    report_page_builder("trigger: %s at level %i",pagecontext,texnest.ptr)
     report_page_builder("  vsize    : %p",texget("vsize"))
     report_page_builder("  pagegoal : %p",texget("pagegoal"))
     report_page_builder("  pagetotal: %p",texget("pagetotal"))
     report_page_builder("  list     : %s",head and nodeidstostring(head) or "<empty>")
 end
 
--- check why box is called before after_linebreak .. maybe make categories and
--- call 'm less
+-- Watch out: contributehead can be any head (kind of) not per se the page one
+-- but that needs to be intercepted when needed by groupcode and level. At some
+-- point this one might be split by group.
 
--- this will be split into contribute_filter for these 4 so at some point
--- the check can go away
+-- Tricky: these pointers can change in the callback in which case the
+-- original lists can get messed up. This is the users responsibility!
 
--- Todo: contrib_head can be any head (kind of) not per se the page one so maybe I will
--- intercept that in the engine with page_contribute_head or so.
+-- local function buildpage_callback(pagecontext,head,tail,pagehead,pagetail,boundary)
+--     local head, tail = getspeciallist("contributehead")
+--     if head then
+--         if trace_page_builder then
+--             report(pagecontext,head)
+--         end
+--         head = pageactions(head,pagecontext) -- todo: tail
+--         setspeciallist("contributehead", head)
+--     else
+--         if trace_page_builder then
+--             report(pagecontext)
+--         end
+--     end
+-- end
 
-function builders.buildpage_filter(groupcode)
-    local head = texlists.contribute_head
-    if head then
-        local done = false
-        -- called quite often ... maybe time to remove timing
-        starttiming(builders)
-        if trace_page_builder then
-            report(groupcode,head)
-        end
-        head, done = pageactions(head,groupcode)
-        stoptiming(builders)
-     -- -- doesn't work here (not passed on?)
-     -- texset("pagegoal,texget("vsize") - texgetdimen("d_page_floats_inserted_top") - texgetdimen("d_page_floats_inserted_bottom")
-        texlists.contribute_head = head or nil -- needs checking
-     -- tex.setlist("contribute_head",head,head and nodes.tail(head))
-        return done and head or true -- no return value needed
-    else
-        -- happens quite often
-        if trace_page_builder then
-            report(groupcode)
-        end
---         return nil, false -- no return value needed
-        return nil
+-- In the case of vspacing we actually don't want to trigger the page builder so
+-- we need a way to signal that. This can also be a separate callback.
+
+--     local nextnode               = nuts.traversers.node
+--     local getattr                = nuts.getattr
+--     local glue_code              = nodes.nodecodes.glue
+--     local parskip_code           = nodes.gluecodes.parskip
+--     local baselineskip_code      = nodes.gluecodes.baselineskip
+--     local a_skipcategory <const> = attributes.private('skipcategory')
+--     local function checkglues(head)
+--         local found = false
+--         for n, id, subtype in nextnode, head do
+--             if id == glue_code and getattr(n,a_skipcategory) then
+--                 found = true
+--             elseif found then
+--                 if id == glue_code and subtype == parskip_code then
+--                 elseif id == glue_code and subtype == baselineskip_code then
+--                 else
+--                     -- rules and alignments and a few userskips
+--                     print("MIX MIX MIX MIX MIX",nuts.tonode(n))
+--                 end
+--             else
+--                 return false
+--             end
+--         end
+--         --         print("ONLY ONLY ONLY")
+--         return true
+--     end
+
+-- maybe hook the tracer into before
+
+local function buildpage_callback(pagecontext,head,pagehead,pagetail,boundary)
+    if trace_page_builder then
+        report(pagecontext,head)
     end
+    if head then
+-- checkglues(head)
+        -- One should leave pagehead and pagetail untouched!
+        head = pageactions(head,pagecontext,pagehead,pagetail,boundary)
+    end
+    return head -- can be a direct
 end
 
-registercallback('vpack_filter',          builders.vpack_filter,      "vertical spacing etc")
-registercallback('buildpage_filter',      builders.buildpage_filter,  "vertical spacing etc (mvl)")
+registercallback {
+    name    = "vpack",
+    action  = vpack_callback,
+    comment = "vertical spacing etc",
+    frozen  = true,
+}
 
-statistics.register("v-node processing time", function()
-    return statistics.elapsedseconds(builders)
-end)
+registercallback {
+    name    = "buildpage",
+    action  = buildpage_callback,
+    comment = "vertical spacing etc (mvl)",
+    frozen  = true,
+}
+
+local vboxactions = nodes.tasks.actions("vboxhandlers")
+
+local function vbox_callback(head,groupcode)
+    if head then
+        head = vboxactions(head,groupcode)
+    end
+    return head
+end
+
+registercallback {
+    name    = "packed_vbox",
+    action  = vbox_callback,
+    comment = "packed vbox treatments",
+    frozen  = true,
+}
+
+-- statistics.register("v-node processing time", function()
+--     return statistics.elapsedseconds(builders)
+-- end)
 
 local implement = interfaces.implement
 
@@ -290,7 +342,6 @@ implement { name = "disableparbuilder", actions = constructors.disable }
 -- Here are some tracers:
 
 local nuts         = nodes.nuts
-local tonut        = nodes.tonut
 local setcolor     = nodes.tracers.colors.set
 local listtoutf    = nodes.listtoutf
 local new_kern     = nuts.pool.kern
@@ -303,45 +354,85 @@ local getlist      = nuts.getlist
 local setwidth     = nuts.setwidth
 local setdirection = nuts.setdirection
 local setlink      = nuts.setlink
-local tonode       = nuts.tonode
 
 local list         = { }
 
 local report_quality = logs.reporter("pack quality")
 
+statistics.feedback.register { name = "vpack quality", index = 12, category = "problem" }
+statistics.feedback.register { name = "hpack quality", index = 11, category = "problem" }
+
 -- overflow|badness w h d dir
 
-local function vpack_quality(how,n,detail,first,last,filename)
-    if last <= 0 then
-        report_quality("%s vbox",how)
-    elseif first > 0 and first < last then
-        report_quality("%s vbox at line %i - %i in file %a",how,first,last,filename or "?")
-    else
-        report_quality("%s vbox at line %i in file %a",how,filename or "?",last)
+local report  = true   trackers.register("builders.vpack.quality", function(v) report  = v end)
+local collect = false  trackers.register("builders.vpack.collect", function(v) collect = v end)
+----  show    = false  trackers.register("builders.vpack.overflow",function(v) show    = v end)
+
+function vpackbuilders.report(how,detail,n,first,last,filename) -- no return value
+    if report then
+        if last <= 0 then
+            if how == "overfull" then
+                report_quality("%s vbox (%p)",how,detail)
+            else
+                report_quality("%s vbox",how)
+            end
+        elseif first > 0 and first < last then
+            if how == "overfull" then
+                report_quality("%s vbox at line %i - %i in file %a (%p)",how,first,last,filename or "?",detail)
+            else
+                report_quality("%s vbox at line %i - %i in file %a",how,first,last,filename or "?")
+            end
+        else
+            if how == "overfull" then
+                report_quality("%s vbox at line %i in file %a (%p)",how,last,filename or "?",detail)
+            else
+                report_quality("%s vbox at line %i in file %a",how,last,filename or "?")
+            end
+        end
     end
-    list[#list+1] = { "hbox", how, filename, first, last, how }
+    if collect then
+        list[#list+1] = { "vbox", how, filename, first, last, how, detail }
+    end
+    statistics.feedback.setstate("vpack quality",true)
 end
 
-trackers.register("builders.vpack.quality",function(v)
-    registercallback("vpack_quality",v and vpack_quality or nil,"check vpack quality")
-end)
+-- function builders.vpack.show(how,detail,n,first,last,filename) -- return value
+--     if show then
+--     end
+-- end
 
-local report = false
-local show   = false
+local report  = true   trackers.register("builders.hpack.quality", function(v) report  = v end)
+local collect = false  trackers.register("builders.hpack.collect", function(v) collect = v end)
+local show    = false  trackers.register("builders.hpack.overflow",function(v) show    = v end)
 
-local function hpack_quality(how,detail,n,first,last,filename)
-    n = tonut(n)
+function hpackbuilders.report(how,detail,n,first,last,filename) -- no return value
+    local str = (report or collect) and listtoutf(getlist(n),"",true,nil,true)
     if report then
-        local str = listtoutf(getlist(n),"",true,nil,true)
+        local overfull = how == "overfull"
         if last <= 0 then
-            report_quality("%s hbox: %s",how,str)
+            report_quality(
+                overfull and "%s hbox: %s (%p)" or "%s hbox: %s (badness %i)",
+                how,str,detail
+            )
         elseif first > 0 and first < last then
-            report_quality("%s hbox at line %i - %i in file %a: %s",how,first,last,filename or "?",str)
+            report_quality(
+                overfull and "%s hbox at line %i - %i in file %a: %s (%p)" or "%s hbox at line %i - %i in file %a: %s (badness %i)",
+                how,first,last,filename or "?",str,detail
+            )
         else
-            report_quality("%s hbox at line %i in file %a: %s",how,last,filename or "?",str)
+            report_quality(
+                overfull and "%s hbox at line %i in file %a: %s (%p)" or "%s hbox at line %i in file %a: %s (badness %i)",
+                how,last,filename or "?",str,detail
+            )
         end
-        list[#list+1] = { "hbox", how, filename, first, last, str }
     end
+    if collect then
+        list[#list+1] = { "hbox", how, filename, first, last, str, detail }
+    end
+    statistics.feedback.setstate("hpack quality",true)
+end
+
+function hpackbuilders.show(how,detail,n,first,last,filename,rule) -- return value
     if show then
         local width     = 2*65536
         local height    = getheight(n)
@@ -353,7 +444,10 @@ local function hpack_quality(how,detail,n,first,last,filename)
         if depth < 2*65526 then
             depth = 2*65526
         end
-        local rule = new_rule(width,height,depth)
+        if rule then
+            flush(rule)
+        end
+        rule = new_rule(width,height,depth)
         setdirection(rule,direction)
         if how == "overfull" then
             setcolor(rule,"red")
@@ -368,21 +462,47 @@ local function hpack_quality(how,detail,n,first,last,filename)
             setcolor(rule,"cyan")
         end
         rule = hpack(rule)
-        setwidth(rule,0)
+        setwidth(rule,0) -- maybe better whd all zero
         setdirection(rule,direction)
-        return tonode(rule) -- can be a nut
+    else
+        local width = texget("overfullrule")
+        if width > 0 then
+            rule = new_rule(width)
+        end
     end
+    return rule
 end
 
-trackers.register("builders.hpack.quality",function(v)
-    report = v
-    registercallback("hpack_quality",(report or show) and hpack_quality or nil,"check hpack quality")
-end)
+--
 
-trackers.register("builders.hpack.overflow",function(v)
-    show = v
-    registercallback("hpack_quality",(report or show) and hpack_quality or nil,"check hpack quality")
-end)
+local hqualityactions = nodes.tasks.actions("hquality")
+local vqualityactions = nodes.tasks.actions("vquality")
+
+function hpackbuilders.qualityactions(how,detail,n,first,last,filename)
+    local rul = nil
+    rul = hqualityactions(how,detail,n,first,last,filename)
+    return rul
+end
+
+function vpackbuilders.qualityactions(how,detail,n,first,last,filename)
+    local rul = nil
+    rul = vqualityactions(how,detail,n,first,last,filename)
+    return rul
+end
+
+registercallback {
+    name    = "hpack_quality",
+    action  = hpackbuilders.qualityactions,
+    comment = "report horizontal packing quality",
+    frozen  = true,
+}
+
+registercallback {
+    name    = "vpack_quality",
+    action  = vpackbuilders.qualityactions,
+    comment = "report vertical packing quality",
+    frozen  = true,
+}
 
 statistics.register("quality reports", function()
     local n = #list
@@ -403,8 +523,14 @@ statistics.register("quality reports", function()
         end
         logs.startfilelogging(report_quality)
         for i=1,n do
-            local l = list[i]
-            report_quality("%-" .. fw .. "s [%04i - %04i] : %-" .. hw .. "s %s : %s",file.basename(l[3]),l[4],l[5],l[2],l[1],l[6])
+            local l   = list[i]
+            local how = l[2]
+            report_quality(
+                how == "overfull"
+                    and "%-" .. fw .. "s [%04i - %04i] : %-" .. hw .. "s %s : %s (%p)"
+                     or "%-" .. fw .. "s [%04i - %04i] : %-" .. hw .. "s %s : %s (badness %i)",
+                file.basename(l[3]),l[4],l[5],how,l[1],l[6],l[7]
+            )
         end
         logs.stopfilelogging()
         report_quality()
@@ -412,3 +538,56 @@ statistics.register("quality reports", function()
         report_quality()
     end
 end)
+
+do
+
+    local loners = { }
+    local report = logs.reporter("loners")
+
+    local texgetcount = tex.getcount
+
+    local function show_loners_callback(options,penalty)
+        loners[#loners+1] = { texgetcount("realpageno"), options, penalty }
+    end
+
+    trackers.register("pages.loners",function(v)
+        registercallback {
+            name   = "show_loners",
+            action = v and show_loners_callback or nil,
+        }
+    end)
+
+    logs.registerfinalactions(function()
+        local n = #loners
+        if n > 0 then
+            local options = tex.getpenaltyoptionvalues()
+            options[0] = nil
+            logs.startfilelogging(report,"page break penalties (loners)")
+            for i=1,n do
+                local l = loners[i]
+                local t = { }
+                local o = l[2]
+                for k, v in next, options do
+                    if o & k == k then t[#t+1] = v end
+                end
+                if #t > 0 then
+                    sort(t)
+                    report("  %4i: penalty %5i, % + t,",l[1],l[3],t)
+                end
+            end
+            logs.stopfilelogging()
+        end
+    end)
+
+    statistics.register("page breaks", function()
+        local n = #loners
+        if n > 0 then
+            local pages = { }
+            for i=1,n do
+                pages[#pages+1] = loners[i][1]
+            end
+            return string.formatters("%i pages have loners reported: % t",n,pages)
+        end
+    end)
+
+end

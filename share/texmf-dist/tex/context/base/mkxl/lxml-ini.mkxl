@@ -12,7 +12,7 @@
 %C details.
 
 %D Todo: auto apply setups (manage at lua end)
-%D Todo: manuak: \xmlinclusion \xmlinclusions
+%D Todo: manual: \xmlinclusion \xmlinclusions
 
 \writestatus{loading}{ConTeXt XML Support / Initialization}
 
@@ -76,14 +76,15 @@
 
 % we need to pass the last argument as function, so
 
-\permanent\protected\def\xmlsetfunction#1#2#3{\ctxcommand{xmlsetfunction("#1",\!!bs#2\!!es,#3)}}
+%permanent\protected\def\xmlsetfunction#1#2#3{\ctxcommand{xmlsetfunction("#1",\!!bs#2\!!es,#3)}}
+\permanent\protected\def\xmlsetfunction#1#2#3{\ctxlua{lxml.setaction("#1",\!!bs#2\!!es,#3)}}
 
 % goodie:
 
-\immutable\def\xmltempbuffername{xml-temp}
+\permanent\cdef\xmltempbuffername{xml-temp}
 
 \permanent\protected\def\prettyprintbuffer#1#2% only used here
-  {\ifdefined\scitebuffer
+  {\ifdefined\scitebuffer % we could predefine to relax
      \scitebuffer[#2][#1]%
    \else
      \typebuffer[#1][\c!option=#2]%
@@ -189,11 +190,24 @@
    %xmlpushdocument{#3}%
    #2{#3}{#4}%
    \setcatcodetable\notcatcodes
-   \doifelsenothing{#5}%
-     {\xmlsetup{#3}{xml:process}}%
-     {\xmlsetup{#3}{#5}}%
+   \xmlsetup{#3}{\ifempty{#5}xml:process\else#5\fi}%
    %xmlpopdocument
    \endgroup}
+
+% This still doesn't solve a problem with weird grouping (start inside xml and
+% end outside, so one has to do proper grouping inside xml mode).
+%
+% \def\lxml_process#1#2#3#4#5% flag \loader id name what initializersetup
+%   {%\begingroup
+%    \pushmacro\xmldocument
+%    \edef\xmldocument{#3}% #2 can be \xmldocument and set as such
+%    #2{#3}{#4}%
+%    \pushcatcodetable
+%    \setcatcodetable\notcatcodes
+%    \xmlsetup{#3}{\ifempty{#5}xml:process\else#5\fi}%
+%    \popcatcodetable
+%    \popmacro\xmldocument
+%    }%\endgroup}
 
 \permanent\protected\def\xmlprocessfile  {\lxml_process\plusone  \xmlload}
 \permanent\protected\def\xmlprocessdata  {\lxml_process\zerocount\xmlloaddata}
@@ -244,11 +258,11 @@
 
 \permanent\tolerant\protected\def\startxmldisplayverbatim[#1]%
   {\startpacked
-   \edef\currenttyping{#1}%
+   \cdef\currenttyping{#1}%
    \ifempty\currenttyping
      \let\currenttyping\v!typing
    \else % maybe test for existence
-     \edef\currenttyping{xml:\currenttyping}%
+     \cdef\currenttyping{xml:\currenttyping}%
    \fi
    \enforced\protected\def\stopxmldisplayverbatim
      {\endofverbatimlines
@@ -256,20 +270,20 @@
    \doinitializeverbatim
    \beginofverbatimlines}
 
-\aliased\let\stopxmldisplayverbatim\relax
+\permanent\protected\lettonothing\stopxmldisplayverbatim
 
 \permanent\tolerant\protected\def\startxmlinlineverbatim[#1]%
   {\begingroup
-   \edef\currenttype{#1}%
+   \cdef\currenttype{#1}%
    \ifempty\currenttype
      \let\currenttype\v!type
    \else % maybe test for existence
-     \edef\currenttype{xml:\currenttype}%
+     \cdef\currenttype{xml:\currenttype}%
    \fi
    \enforced\let\stopxmlinlineverbatim\endgroup
    \doinitializeverbatim}
 
-\aliased\let\stopxmlinlineverbatim\relax
+\permanent\protected\lettonothing\stopxmlinlineverbatim
 
 % processing instructions
 
@@ -305,10 +319,10 @@
 
 \installdirectcommandhandler \??xml {xml}
 
-\letvalue{\??xmldefaults\v!normal}\zerocount
-\letvalue{\??xmldefaults\v!none  }\zerocount
-\letvalue{\??xmldefaults\v!text  }\plusone
-\letvalue{\??xmldefaults\v!hidden}\plustwo
+\letcsname\??xmldefaults\v!normal\endcsname\zerocount
+\letcsname\??xmldefaults\v!none  \endcsname\zerocount
+\letcsname\??xmldefaults\v!text  \endcsname\plusone
+\letcsname\??xmldefaults\v!hidden\endcsname\plustwo
 
 \permanent\protected\def\xmldefaulttotext
   {\ifcase\xmlprocessingmode
@@ -331,10 +345,12 @@
    \c!entities=\v!no]    % load big entity file
 
 \appendtoks
-    \doif{\directxmlparameter\c!entities}\v!yes\clf_xmlloadentities
+    \ifcstok{\directxmlparameter\c!entities}\v!yes
+        \clf_xmlloadentities
+    \fi
 \to \everysetupxml
 
-\permanent\def\xmlmapvalue    #1#2#3{\setvalue{\??xmlmapvalue#1:#2}{#3}} % keep #3 to grab spaces
+\permanent\def\xmlmapvalue    #1#2#3{\defcsname\??xmlmapvalue#1:#2\endcsname{#3}} % keep #3 to grab spaces
 \permanent\def\xmldoifelsevalue #1#2{\ifcsname\??xmlmapvalue#1:#2\endcsname\expandafter\firstoftwoarguments\else\expandafter\secondoftwoarguments\fi}
 
 \permanent\def\xmlvalue#1#2% #3

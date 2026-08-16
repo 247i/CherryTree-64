@@ -22,27 +22,28 @@ local tonode           = nuts.tonode
 
 local getattribute     = tex.getattribute
 
-local a_color          = attributes.private('color')
-local a_transparency   = attributes.private('transparency')
-local a_colormodel     = attributes.private('colormodel')
+local direct_value     <const> = tokens.values.direct
+
+local a_color          <const> = attributes.private('color')
+local a_transparency   <const> = attributes.private('transparency')
+local a_colormodel     <const> = attributes.private('colormodel')
 
 local floor            = math.floor
 local getrandom        = utilities.randomizer.get
 
-do
-
-    local function unsupported() end
-
-    ruleactions.mp     = unsupported
-    ruleactions.fill   = unsupported
-    ruleactions.draw   = unsupported
-    ruleactions.stroke = unsupported
-    ruleactions.box    = unsupported
-
-end
+updaters.register("backends.injections.latebindings",function()
+    local codeinjections = backends.codeinjections
+    ruleactions.mp       = codeinjections.ruleactionmp
+    ruleactions.fill     = codeinjections.ruleactionfill
+    ruleactions.draw     = codeinjections.ruleactiondraw
+    ruleactions.stroke   = codeinjections.ruleactionstroke
+    ruleactions.box      = codeinjections.ruleactionbox
+end)
 
 interfaces.implement {
     name      = "frule",
+    public    = true,
+    protected = true,
     arguments = { {
         { "width",  "dimension" },
         { "height", "dimension" },
@@ -64,34 +65,56 @@ interfaces.implement {
         else
             setattrlist(rule,true)
         end
-        context(tonode(rule)) -- will become context.nodes.flush
+        context(tonode(rule))
     end
 }
 
 interfaces.implement {
-    name      = "outlinerule",
-    public    = true,
+    name      = "roundedoutline",
     protected = true,
-    arguments = { {
-        { "width",  "dimension" },
-        { "height", "dimension" },
-        { "depth",  "dimension" },
-        { "line",   "dimension" },
-    } } ,
-    actions = function(t)
-        local rule = outlinerule(t.width,t.height,t.depth,t.line)
+    arguments = { "dimension", "dimension", "dimension", "dimension", "dimension", "string" },
+    actions   = function(w,h,d,l,r,c)
+        local rule = userrule {
+            width  = w,
+            height = h,
+            depth  = d,
+            line   = l,
+            radius = r,
+            corner = c,
+        }
         setattrlist(rule,true)
-        context(tonode(rule)) -- will become context.nodes.flush
+        context(tonode(rule))
+    end
+}
+
+interfaces.implement {
+    name      = "roundedfill",
+    protected = true,
+    arguments = { "dimension", "dimension", "dimension", "dimension", "dimension", "string" },
+    actions   = function(w,h,d,l,r,c)
+        local rule = userrule {
+            type   = "fill",
+            width  = w,
+            height = h,
+            depth  = d,
+            line   = l,
+            radius = r,
+            corner = c,
+        }
+        setattrlist(rule,true)
+        context(tonode(rule))
     end
 }
 
 interfaces.implement {
     name      = "framedoutline",
+ -- public    = true,
+ -- protected = true,
     arguments = { "dimension", "dimension", "dimension", "dimension" },
     actions   = function(w,h,d,l)
         local rule = outlinerule(w,h,d,l)
         setattrlist(rule,true)
-        context(tonode(rule)) -- will become context.nodes.flush
+        context(tonode(rule))
     end
 }
 

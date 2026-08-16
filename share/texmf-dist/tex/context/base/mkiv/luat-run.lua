@@ -45,7 +45,6 @@ local function start_run()
     if logs.start_run then
         logs.start_run()
     end
- -- logs.report("engine","%s version %s, format id %s",LUATEXENGINE,LUATEXVERSION,LUATEXFORMATID)
     for i=1,#startactions do
         startactions[i]()
     end
@@ -106,7 +105,7 @@ local function pre_dump_actions()
     for i=1,#dumpactions do
         dumpactions[i]()
     end
-    lua.finalize(trace_lua_dump and report_lua or nil)
+    lua.finalizeinitex(trace_lua_dump and report_lua or nil)
 end
 
 local function wrapup_synctex()

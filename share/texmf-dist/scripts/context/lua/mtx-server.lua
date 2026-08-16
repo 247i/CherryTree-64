@@ -287,6 +287,7 @@ end
 
 handlers.luc  = handlers.lua
 handlers.html = handlers.htm
+handlers.pdf  = handlers.generic
 
 local indices    = { "index.htm", "index.html" }
 local portnumber = 8088
@@ -367,7 +368,7 @@ function scripts.webserver.run(configuration)
 
                 -- todo: method: POST
 
-                fullurl = url.unescapeget(fullurl)
+                fullurl = url.unescapeget(fullurl) or ""
                 report("requested url: %s",fullurl)
              -- fullurl = socket.url.unescape(fullurl) -- happens later
                 local hashed = urlhashed(fullurl)

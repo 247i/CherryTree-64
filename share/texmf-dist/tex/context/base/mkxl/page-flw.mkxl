@@ -74,7 +74,7 @@
     \fi
 \to \everydefinetextflow
 
-\newcount\b_page_textflow_box
+\newinteger\b_page_textflow_box
 
 \permanent\def\textflowcollector#1%
   {\begincsname\??textflowbox#1\endcsname}
@@ -100,7 +100,7 @@
 
 \permanent\protected\def\starttextflow[#1]%
   {\begingroup
-   \edef\currenttextflow{#1}%
+   \cdef\currenttextflow{#1}%
    \ifcsname\??textflowbox\currenttextflow\endcsname
      \b_page_textflow_box\csname\??textflowbox\currenttextflow\endcsname
      \global\setbox\b_page_textflow_box\vbox
@@ -109,7 +109,7 @@
        \ifvoid\b_page_textflow_box\else
          \unvbox\b_page_textflow_box
        \fi
-       \hsize\textflowparameter\c!width\relax
+       \hsize{\textflowparameter\c!width}%
        \usetextflowstyleandcolor\c!style\c!color
        \enforced\permanent\protected\def\stoptextflow{\endgraf\egroup\endgroup}%
    \else
@@ -120,7 +120,7 @@
 
 \permanent\protected\def\flushtextflow#1%
   {\begingroup
-   \edef\currenttextflow{#1}%
+   \cdef\currenttextflow{#1}%
    \ifcsname\??textflowbox\currenttextflow\endcsname
      \b_page_textflow_box\csname\??textflowbox\currenttextflow\endcsname
      \ifvoid\b_page_textflow_box

@@ -17,6 +17,8 @@
 \registerctxluafile{char-map}{} % maybe we will load this someplace else
 \registerctxluafile{char-tex}{autosuffix}
 \registerctxluafile{char-ent}{}
+\registerctxluafile{char-scr}{}
+%registerctxluafile{char-brl}{}
 
 \unprotect
 
@@ -39,20 +41,22 @@
 %
 % impossible in math mode so there always fallback (till we have gyre):
 %
-% use \normalUchar when possible .. the next one is nice for documents and it also accepts
+% use \tocharacter when possible .. the next one is nice for documents and it also accepts
 % 0x prefixed numbers
 
 \permanent\def\utfchar #1{\clf_utfchar {#1}} % todo: define public at lua end
 \permanent\def\safechar#1{\clf_safechar{#1}} % todo: define public at lua end
 
-\permanent\protected\def\Ux #1{\Uchar\numexpr"#1\relax} % used in xml (sometimes overloaded)
-\permanent          \def\eUx#1{\Uchar\numexpr"#1\relax} % used in xml (sometimes overloaded)
+% This actually keeps the catcode and therefore the meaning of an active character too!
+
+\permanent\protected\def\Ux #1{\tocharacter{"#1}} % used in xml (sometimes overloaded)
+\permanent          \def\eUx#1{\tocharacter{"#1}} % used in xml (sometimes overloaded)
 
 \permanent\def\expandUx{\enforced\let\Ux\eUx}
 
 \permanent          \def\checkedchar        {\relax\ifmmode\expandafter\checkedmathchar\else\expandafter\checkedtextchar\fi} % #1#2
 \permanent          \def\checkedmathchar#1#2{#2}
-\permanent\protected\def\checkedtextchar  #1{\clf_doifelsecharinfont\numexpr#1\relax{\char#1}} % {#2}
+\permanent\protected\def\checkedtextchar  #1{\clf_doifelsecharinfont{#1}{\char#1}} % {#2}
 
 \newconditional\prefermathovertextchar
 
@@ -122,5 +126,11 @@
 
 \permanent\protected\def\overloaduppercase{\clf_overloaduppercase} % todo: define public at lua end
 \permanent\protected\def\overloadlowercase{\clf_overloadlowercase} % todo: define public at lua end
+
+%D For old times sake (for now), for Thomas Schmitz (\type {\greekdasiavaria} etc):
+
+\permanent\protected\def\addcharacternames{\ctxlua{characters.addcharacternames()}} % we could be granular e.g. 'greek'
+
+% \greekdasiavaria
 
 \protect \endinput

@@ -47,12 +47,26 @@
 %
 % dtls flac :math
 
+%D The missing feature:
+%D
+%D \starttyping
+%D \ruledhbox{\char"2012}\par % figuredash
+%D \ruledhbox{0}\par
+%D \stoptyping
+
+%D We wipe math from text fonts, just to be sure, but in some cases like koeieletters and
+%D euler we can't do that, so there we have to disable it (in the typescript).
+
 \definefontfeature
   [always]
   [mode=node,    % we had 'auto', but let's try 'node' for a while and see what the impact is
    script=auto,  % on speed; 'base' just doesn't play well with dynamics; some day we can even
    autoscript=position,
    autolanguage=position,
+   wipemath=yes, % for instance needed for dejavu
+   textcontrol={collapsehyphens,replaceapostrophe},
+   compoundhyphen=yes, % default per 2025-11-01
+   checkmissing=yes,
    kern=yes,     % consider skipping the base passes when no base mode is used
    mark=yes,
    mkmk=yes,
@@ -61,14 +75,36 @@
 \definefontfeature
   [default]
   [always]
-  [liga=yes,
+  [itlc=yes, % new per 10-2023
+   liga=yes]
+
 % ccmp=yes, % maybe too
 % locl=yes, % maybe too
 % calt=yes, % maybe too
 % clig=yes, % maybe too
 % rlig=yes, % maybe too
-   tlig=yes,
-   trep=yes] % texligatures=yes,texquotes=yes
+% tlig=yes, % no longer default (texligatures=yes)
+% trep=yes, % no longer default (texquotes=yes)
+
+\definefontfeature
+   [recommended]
+   [always]
+   [itlc=yes,
+  % ccmp=yes,
+  % locl=yes,
+    rlig=yes,
+    liga=yes,
+    clig=yes,
+    calt=yes]
+
+% if needed users can add this to a local cont-loc.mkxl in texmf-local:
+
+% \definefontfeature
+%   [default]
+%   [default]
+%   [textcontrol=,
+%    tlig=yes,
+%    trep=yes]
 
 \definefontfeature
   [original] % a clone of default so we can revert
@@ -77,17 +113,13 @@
 \definefontfeature
   [smallcaps]
   [always]
-  [smcp=yes,
-   tlig=yes,
-   trep=yes] % texligatures=yes,texquotes=yes
+  [smcp=yes]
 
 \definefontfeature
   [oldstyle]
   [always]
   [onum=yes,
-   liga=yes,
-   tlig=yes,
-   trep=yes] % texligatures=yes,texquotes=yes
+   liga=yes]
 
 \definefontfeature
   [inlinenumbers]
@@ -114,9 +146,7 @@
 \definefontfeature % == default unless redefined
   [ligatures]
   [always]
-  [liga=yes,
-   tlig=yes,
-   trep=yes]
+  [liga=yes]
 
 \definefontfeature
   [letterspacing]
@@ -131,19 +161,14 @@
   [complete]
   [always]
   [compose=yes,
-   liga=yes,
-% ccmp=yes,
-% locl=yes,
-% calt=yes,
-% clig=yes,
-% rlig=yes,
-   tlig=yes,
-   trep=yes]
+   liga=yes]
 
 \definefontfeature
   [none]
   [mode=none,
    features=no]
+
+% \definefontfeature[none][none][textcontrol=collapsehyphens]
 
 \definefontfeature
   [semitic-complete]
@@ -171,7 +196,7 @@
 \definefontfeature
   [syriac]
   [arabic]
-  [fin2=yes,fin3=yes,med2=yes]
+  [fin2=yes,fin3=yes,med2=yes] % script=syrc
 
 \definefontfeature
   [reordercombining]
@@ -193,12 +218,17 @@
   [semitic-simple]
   [script=hebr]
 
-% indic
+% indic:
+%
+% conjuncts : auto | continue | quit (default)
+% movematra : auto | leftbeforebase | default
 
 \definefontfeature
   [indic-common]
   [mode=node,
    language=dflt,
+   % localized
+   indic=auto, % we need to handle fuzzy fonts
    % localized
    locl=yes,
    % positioning
@@ -334,7 +364,7 @@
    init=yes,medi=yes,fina=yes,isol=yes,
    rlig=yes,rclt=yes,calt=yes,
   %dlig=yes,cswh=yes, % optional
-   mset]
+   mset=yes]
 
 % tibetan
 
@@ -398,74 +428,29 @@
   [mathematics]
   [mode=base,
  % mode=none, % better, maybe do this last
-   kern=yes,
- % liga=yes, % makes no sense
- % tlig=yes, % makes no sense
- % trep=yes, % makes no sense
-   mathnolimitsmode={0,800}, % this looks okay on the average font
+   kern=yes,  % =force
+ % flac=yes,  % handled differently
+ % liga=yes,  % makes no sense
    mathalternates=yes,
-   mathitalics=yes, % we pass them
-   mathdimensions=all,
+ % mathitalics=yes, % we pass them
+ % mathdimensions=all,
  % mathkerns=yes,
  % staircase=yes,
    compactmath=yes,
+   flattenaccents=yes,
  % mathgaps=yes,
+   wipemath=no,
+   mathexpansion=math,
+%    checkmissing=yes,
    language=dflt,
    script=math]
 
-\definefontfeature
-  [oldmath]
-  [oldmath=yes]
+\definefontfeature[virtualmath]       [mathematics]
 
-\ifdefined\mathnolimitsmode
-    \mathnolimitsmode\plusone % font driven (only opentype)
-\fi
-
-\mathitalicsmode\plusone    % 1 : add to simple noad
-%mathitalicsmode\plusthree  % 2 : add italic kerns for diagnostics
-
-% \adaptfontfeature[*math*][mathnolimitsmode=1000] % only subscript
-
-\definefontfeature
-  [mathematics-l2r]
-  [mathematics]
-  []
-
-\definefontfeature
-  [mathematics-r2l]
-  [mathematics]
-  [rtlm=yes,
-   locl=yes]
-
-\definefontfeature[virtualmath]              [mathematics]
-\definefontfeature[virtualmath-l2r]          [mathematics-l2r]
-\definefontfeature[virtualmath-r2l]          [mathematics-r2l]
-
-\definefontfeature[math-text]                [mathematics]      [ssty=no]
-\definefontfeature[math-script]              [mathematics]      [ssty=1,mathsize=yes]
-\definefontfeature[math-scriptscript]        [mathematics]      [ssty=2,mathsize=yes]
-
-\definefontfeature[math-text-l2r]            [mathematics-l2r]  [ssty=no]
-\definefontfeature[math-script-l2r]          [mathematics-l2r]  [ssty=1,mathsize=yes]
-\definefontfeature[math-scriptscript-l2r]    [mathematics-l2r]  [ssty=2,mathsize=yes]
-
-\definefontfeature[math-text-r2l]            [mathematics-r2l]  [ssty=no]
-\definefontfeature[math-script-r2l]          [mathematics-r2l]  [ssty=1,mathsize=yes]
-\definefontfeature[math-scriptscript-r2l]    [mathematics-r2l]  [ssty=2,mathsize=yes]
-
-% this will go away: could be a mode in the engine
-
-\definefontfeature[math-nostack-text]        [math-text]        [nostackmath=yes]
-\definefontfeature[math-nostack-script]      [math-script]      [nostackmath=yes]
-\definefontfeature[math-nostack-scriptscript][math-scriptscript][nostackmath=yes]
-
-% \definefontfeature[mathtext]         [math-text]
-% \definefontfeature[mathscript]       [math-script]
-% \definefontfeature[mathscriptscript] [math-scriptscript]
-
-% \definefontfeature
-%   [missing]
-%   [missing=yes]
+\definefontfeature[math]              [mathematics] [ssty=no]
+\definefontfeature[math-text]         [mathematics] [ssty=no]
+\definefontfeature[math-script]       [mathematics] [ssty=1]
+\definefontfeature[math-scriptscript] [mathematics] [ssty=2]
 
 %D Nice to have too:
 
@@ -485,6 +470,27 @@
 % \definefontfeature
 %   [boldened]
 %   [extend=1.2]
+
+%D Tweaks:
+%D
+%D \starttyping
+%D \setupbodyfont[dejavu]
+%D
+%D \starttext
+%D     \startTEXpage[align={tolerant,stretch},offset=1ex]
+%D         {\addff{camelcasing} \samplefile{tufte}\par}
+%D         {\addff{uppercasing} \samplefile{tufte}\par}
+%D         {\addff{lowercasing} \samplefile{tufte}\par}
+%D         {\addff{primes} 123'345''\par}
+%D     \stopTEXpage
+%D \stoptext
+%D \stoptyping
+
+\definefontfeature[primes]     [primes=yes] % text
+\definefontfeature[uppercasing][uppercasing=yes]
+\definefontfeature[lowercasing][lowercasing=yes]
+\definefontfeature[camelcasing][camelcasing=yes]
+\definefontfeature[tabledigits][tabledigits=yes,tnum=yes]
 
 %D Neat:
 
@@ -513,6 +519,15 @@
 \definefontfeature
   [boldened]
   [boldened-30]
+
+%D Handy too:
+
+\definefontscriptset % just an example
+  [mixed]
+  [dflt,latn,cyrl,grek]
+
+% \definefontfeature[default][default][script=mixed]
+% \definefontfeature[default][default][kern=always]
 
 %D Emoji etc:
 
@@ -565,7 +580,12 @@
    one=f:y:t,
    mix=f:b:t]
 
-%D Now we're up to some definitions.
+%D Now we're up for some definitions.
+
+%D \starttyping
+%D \definebodyfontenvironment[pagella][default][default]
+%D \definebodyfontenvironment[pagella][default][metric]
+%D \stoptyping
 
 \definebodyfontenvironment
   [\s!default]
@@ -576,7 +596,24 @@
               \s!b=1.440,
               \s!c=1.728,
               \s!d=2.074,
-                 *=\font_currentfontscale, % wildcard
+                 *=\wildcardfontscale,
+              \s!x=0.8,
+             \s!xx=0.6,
+            \v!big=1.2,
+          \v!small=0.8,
+ \c!interlinespace=,
+             \s!em=\v!slanted]
+
+\definebodyfontenvironment
+  [metric]
+  [        \s!text=1.0,
+         \s!script=0.7,
+   \s!scriptscript=0.5,
+              \s!a=1.25,
+              \s!b=1.50,
+              \s!c=1.75,
+              \s!d=2.00,
+                 *=\wildcardfontscale,
               \s!x=0.8,
              \s!xx=0.6,
             \v!big=1.2,
@@ -863,6 +900,12 @@
 \permanent\protected\def\setsuperiors{\doaddfeature{f:superiors}}
 \permanent\protected\def\setfractions{\doaddfeature{f:fractions}}
 
+\permanent\protected\def\resetsmallcaps{\dosubtractfeature{f:smallcaps}}
+\permanent\protected\def\resetoldstyle {\dosubtractfeature{f:oldstyle}}
+\permanent\protected\def\resettabular  {\dosubtractfeature{f:tabular}}
+\permanent\protected\def\resetsuperiors{\dosubtractfeature{f:superiors}}
+\permanent\protected\def\resetfractions{\dosubtractfeature{f:fractions}}
+
 % \permanent\protected\def\frc#1#2%
 %   {\dontleavehmode
 %    \begingroup
@@ -899,15 +942,12 @@
 
 \pushoverloadmode
 
-\let\infofont         \relax
-\let\infofontbold     \relax
-\let\smallinfofont    \relax
-\let\smallinfofontbold\relax
-
-\definefont[infofont]         [file:dejavusansmono*none      at 6pt]
-\definefont[infofontbold]     [file:dejavusansmono-bold*none at 6pt]
-\definefont[smallinfofont]    [file:dejavusansmono*none      at 3pt]
-\definefont[smallinfofontbold][file:dejavusansmono-bold*none at 3pt]
+\protected\def\infofont         {\definefrozenfont[infofont]         [file:dejavusansmono*none      at 6pt]\infofont}
+\protected\def\infofontbold     {\definefrozenfont[infofontbold]     [file:dejavusansmono-bold*none at 6pt]\infofontbold}
+\protected\def\smallinfofont    {\definefrozenfont[smallinfofont]    [file:dejavusansmono*none      at 3pt]\smallinfofont}
+\protected\def\smallinfofontbold{\definefrozenfont[smallinfofontbold][file:dejavusansmono-bold*none at 3pt]\smallinfofontbold}
+\protected\def\tinyinfofont     {\definefrozenfont[tinyinfofont]     [file:dejavusansmono*none      at 2pt]\tinyinfofont}
+\protected\def\tinyinfofontbold {\definefrozenfont[tinyinfofontbold] [file:dejavusansmono-bold*none at 2pt]\tinyinfofontbold}
 
 %D Optimization (later we overload in math). Also needed in order to get \type {\ss}
 %D properly defined.
@@ -935,31 +975,6 @@
 \let\tt\normaltt
 
 \popoverloadmode
-
-% experiment:
-
-\startsetups experiment:fonts:compact
-    \settrue\c_font_compact
-
-%     \definefontfeature[virtualmath]          [mathematics]    [compactmath=yes]
-%     \definefontfeature[virtualmath-l2r]      [mathematics-l2r][compactmath=yes]
-%     \definefontfeature[virtualmath-r2l]      [mathematics-r2l][compactmath=yes]
-
-%     \definefontfeature[math-text]            [mathematics]    [compactmath=yes]
-%     \definefontfeature[math-script]          [mathematics]    [compactmath=yes]
-%     \definefontfeature[math-scriptscript]    [mathematics]    [compactmath=yes]
-%     \definefontfeature[math-text-l2r]        [mathematics-l2r][compactmath=yes]
-%     \definefontfeature[math-script-l2r]      [mathematics-l2r][compactmath=yes]
-%     \definefontfeature[math-scriptscript-l2r][mathematics-l2r][compactmath=yes]
-%     \definefontfeature[math-text-r2l]        [mathematics-r2l][compactmath=yes]
-%     \definefontfeature[math-script-r2l]      [mathematics-r2l][compactmath=yes]
-%     \definefontfeature[math-scriptscript-r2l][mathematics-r2l][compactmath=yes]
-\stopsetups
-
-\installtexexperiment
-  {fonts.compact}
-  {\directsetup{experiment:fonts:compact}}
-  {}
 
 \protect \endinput
 

@@ -30,7 +30,9 @@
 \ctxloadluafile{s-cor-00}
 
 % Constants and variables
- 
+
+\pushoverloadmode
+
 \startinterface all
   \setinterfaceconstant {whitespace}      {whitespace}
   \setinterfaceconstant {backgroundimage} {backgroundimage}
@@ -139,6 +141,8 @@
   \setinterfacevariable {framesnext}      {framesnext}
 \stopinterface
 
+\popoverloadmode
+
 % Messages
 
 \definemessageconstant {correspondence}
@@ -187,7 +191,9 @@
 
 % Environment
 
+\pushoverloadmode
 \installcommandhandler \????correspondence {correspondence} \????correspondence
+\popoverloadmode
 
 \unexpanded\def\correspondence_start[#environment]%
   {\starttext

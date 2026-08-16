@@ -20,23 +20,23 @@
 %D Some code is shared between MPLIB and MPS. The following variables are also
 %D available for introspection and other purposes.
 
-\ifdefined\MPwidth  \else \newdimen\MPwidth  \fi
-\ifdefined\MPheight \else \newdimen\MPheight \fi
+\newdimension\MPwidth
+\newdimension\MPheight
 
-\ifdefined\MPllx    \else \newdimen\MPllx    \fi
-\ifdefined\MPlly    \else \newdimen\MPlly    \fi
-\ifdefined\MPurx    \else \newdimen\MPurx    \fi
-\ifdefined\MPury    \else \newdimen\MPury    \fi
+\newdimension\MPllx
+\newdimension\MPlly
+\newdimension\MPurx
+\newdimension\MPury
 
-\ifdefined\MPbox    \else \newbox  \MPbox    \fi
+\ifdefined\MPbox\else \newbox\MPbox\fi
 
 \permanent\protected\def\setMPboundingbox#1#2#3#4% at some point we might pass them as base or scaled points
   {\global\MPllx   #1\onebasepoint
    \global\MPlly   #2\onebasepoint
    \global\MPurx   #3\onebasepoint
    \global\MPury   #4\onebasepoint
-   \global\MPwidth \dimexpr\MPurx-\MPllx\relax
-   \global\MPheight\dimexpr\MPury-\MPlly\relax}
+   \global\MPwidth {\MPurx-\MPllx}%
+   \global\MPheight{\MPury-\MPlly}}
 
 \permanent\protected\def\resetMPboundingbox
   {\global\MPwidth \zeropoint
@@ -46,7 +46,7 @@
    \global\MPurx   \zeropoint
    \global\MPury   \zeropoint}
 
-\aliased\let\popMPboundingbox\relax
+\permanent\protected\lettonothing\popMPboundingbox
 
 \permanent\protected\def\pushMPboundingbox
   {\enforced\permanent\protected\edef\popMPboundingbox
@@ -82,20 +82,33 @@
 
 \permanent\protected\def\finalizeMPbox
   {\boxxoffset\MPbox-\MPllx\relax
-   \boxyoffset\MPbox\dimexpr\boxyoffset\MPbox-\MPheight-\MPlly\relax
+   \boxyoffset\MPbox{\boxyoffset\MPbox-\MPheight-\MPlly}%
    \wd\MPbox\MPwidth
    \ht\MPbox\MPheight}
 
 % MPLIB specific:
 
-\permanent\protected\def\startMPLIBtoPDF#1#2#3#4%
+% \permanent\protected\def\startMPLIBtoPDF#1#2#3#4%
+%   {\meta_process_graphic_figure_start
+%    \dostarttaggednodetail\t!mpgraphic
+%    \naturalhpack attr \imageattribute \plusone \bgroup
+%    \dousecolorparameter\s!black\forcecolorhack
+%    \setMPboundingbox{#1}{#2}{#3}{#4}%
+%    \setbox\MPbox\vpack\bgroup
+%  % \forgetall % already done elsewhere
+%    \noindent} % forces the proper cm in the backend
+
+\permanent\protected\def\startMPLIBtoPDF#1#2#3#4#5% llx lly urx ury plugmode
   {\meta_process_graphic_figure_start
-   \dostarttagged\t!mpgraphic\empty
+  %\dostarttaggednodetail\t!mpgraphic % moved, not worth the trouble havign mixed content
    \naturalhpack attr \imageattribute \plusone \bgroup
-   \dousecolorparameter\s!black\forcecolorhack
+   \ifnum#5=\plusone
+     % We're in plugmode so we can have anythign (like color) in the
+     % metapost result.
+     \dousecolorparameter\s!black
+   \fi
    \setMPboundingbox{#1}{#2}{#3}{#4}%
    \setbox\MPbox\vpack\bgroup
- % \forgetall % already done elsewhere
    \noindent} % forces the proper cm in the backend
 
 \permanent\protected\def\stopMPLIBtoPDF
@@ -103,7 +116,7 @@
    \finalizeMPbox
    \box\MPbox
    \egroup
-   \dostoptagged
+  %\dostoptagged % moved
    \meta_process_graphic_figure_stop}
 
 %D Kind of special:
@@ -138,7 +151,7 @@
    \meta_start_current_graphic
      \forgetall
      \edef\p_extensions{\MPinstanceparameter\s!extensions}%
-     \normalexpanded{\noexpand\clf_mpgraphic
+     \expanded{\noexpand\clf_mpgraphic
          instance        {\currentMPinstance}%
          format          {\currentMPformat}%
          data            {#2;}%

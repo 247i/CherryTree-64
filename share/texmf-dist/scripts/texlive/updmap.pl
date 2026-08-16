@@ -1,43 +1,61 @@
 #!/usr/bin/env perl
-# $Id: updmap.pl 59152 2021-05-09 21:49:52Z karl $
+# $Id: updmap.pl 78104 2026-02-24 16:08:16Z karl $
 # updmap - maintain map files for outline fonts.
 # (Maintained in TeX Live:Master/texmf-dist/scripts/texlive.)
 # 
-# Copyright 2011-2021 Norbert Preining
+# Copyright 2011-2026 Norbert Preining
 # This file is licensed under the GNU General Public License version 2
 # or any later version.
 #
 # History:
-# Original shell script (C) 2002 Thomas Esser
+# Original shell script (C) 2002 Thomas Esser, released to the public domain.
 # first perl variant by Fabrice Popineau
-# later adaptions by Reinhard Kotucha and Karl Berry
-# the original versions were licensed under the following agreement:
-# Anyone may freely use, modify, and/or distribute this file, without
+# later adaptions by Reinhard Kotucha, and Karl Berry.
+# The current implementation is a complete rewrite.
 
-my $svnid = '$Id: updmap.pl 59152 2021-05-09 21:49:52Z karl $';
+my $svnid = '$Id: updmap.pl 78104 2026-02-24 16:08:16Z karl $';
+
+use strict; use warnings;
 
 my $TEXMFROOT;
 BEGIN {
   $^W = 1;
+  # make subprograms (including kpsewhich) have the right path:
+  my $bindir;
+  my $Master = __FILE__;
+  if ($^O =~ /^MSWin/i) {
+    # on w32 $0 and __FILE__ point directly to this script; they can be relative
+    $Master =~ s!\\!/!g;
+    $Master =~ s![^/]*$!../../..!
+      unless ($Master =~ s!/texmf-dist/scripts/texlive/tlmgr\.pl$!!i);
+    $bindir = "$Master/bin/windows";
+  } else {
+    $Master =~ s,/*[^/]*$,,;
+    $bindir = $Master;
+    $Master = "$Master/../..";
+  }
+  $ENV{"PATH"} = "$bindir:$ENV{PATH}";
   $TEXMFROOT = `kpsewhich -var-value=TEXMFROOT`;
-  if ($?) {
-    die "$0: kpsewhich -var-value=TEXMFROOT failed, aborting early.\n";
+  if ($? || ! $TEXMFROOT) {
+    warn "$0: kpsewhich -var-value=TEXMFROOT failed, aborting early.\n";
+    warn "$0:   got TEXMFROOT value: $TEXMFROOT" if $TEXMFROOT;
+    die  "$0:   had PATH: $ENV{PATH}\n";
   }
   chomp($TEXMFROOT);
   unshift(@INC, "$TEXMFROOT/tlpkg");
 }
 
-my $lastchdate = '$Date: 2021-05-09 23:49:52 +0200 (Sun, 09 May 2021) $';
+my $lastchdate = '$Date: 2026-02-24 17:08:16 +0100 (Tue, 24 Feb 2026) $';
 $lastchdate =~ s/^\$Date:\s*//;
 $lastchdate =~ s/ \(.*$//;
-my $svnrev = '$Revision: 59152 $';
+my $svnrev = '$Revision: 78104 $';
 $svnrev =~ s/^\$Revision:\s*//;
 $svnrev =~ s/\s*\$$//;
 my $version = "r$svnrev ($lastchdate)";
 
 use Getopt::Long qw(:config no_autoabbrev ignore_case_always);
 use strict;
-use TeXLive::TLUtils qw(mkdirhier mktexupd win32 basename dirname 
+use TeXLive::TLUtils qw(mkdirhier mktexupd wndws basename dirname 
   sort_uniq member touch);
 
 (my $prg = basename($0)) =~ s/\.pl$//;
@@ -54,7 +72,7 @@ chomp(my $TEXMFSYSCONFIG = `kpsewhich -var-value=TEXMFSYSCONFIG`);
 chomp(my $TEXMFHOME = `kpsewhich -var-value=TEXMFHOME`);
 
 # make sure that on windows *everything* is in lower case for comparison
-if (win32()) {
+if (wndws()) {
   $TEXMFDIST = lc($TEXMFDIST);
   $TEXMFVAR = lc($TEXMFVAR);
   $TEXMFSYSVAR = lc($TEXMFSYSVAR);
@@ -67,7 +85,11 @@ if (win32()) {
 my $texmfconfig = $TEXMFCONFIG;
 my $texmfvar    = $TEXMFVAR;
 
-my %opts = ( quiet => 0, nohash => 0, nomkmap => 0 );
+# warn about warnings.
+my $printed_warning = 0;
+
+# copy by default for portability.
+my %opts = ( quiet => 0, nohash => 0, nomkmap => 0, copy => 1 );
 my $alldata;
 my $updLSR;
 
@@ -76,12 +98,12 @@ my @cmdline_options = (
   "user",
   "listfiles",
   "cnffile=s@", 
-  "copy", 
+  "copy!", 
   "disable=s@",
   "dvipdfmoutputdir=s",
   "dvipdfmxoutputdir=s",
   "dvipsoutputdir=s",
-  # the following does not work, Getopt::Long looses the first
+  # the following does not work, Getopt::Long loses the first
   # entry in a multi setting, treat it separately in processOptions
   # furthermore, it is not supported by older perls, so do it differently
   #"enable=s{1,2}",
@@ -89,8 +111,8 @@ my @cmdline_options = (
   "force",
   "listavailablemaps",
   "listmaps|l",
-  "nohash",
-  "nomkmap",
+  "nohash!",
+  "nomkmap!",
   "dry-run|n",
   "outputdir=s",
   "pdftexoutputdir=s",
@@ -232,7 +254,7 @@ sub main {
       if (! -f $f) {
         die "$prg: Config file \"$f\" not found.";
       }
-      push @tmp, (win32() ? lc($f) : $f);
+      push @tmp, (wndws() ? lc($f) : $f);
     }
     @{$opts{'cnffile'}} = @tmp;
     # in case that config files are given on the command line, the first
@@ -243,12 +265,12 @@ sub main {
     chomp(@all_files);
     my @used_files;
     for my $f (@all_files) {
-      push @used_files, (win32() ? lc($f) : $f);
+      push @used_files, (wndws() ? lc($f) : $f);
     }
     #
     my $TEXMFLOCALVAR;
     my @TEXMFLOCAL;
-    if (win32()) {
+    if (wndws()) {
       chomp($TEXMFLOCALVAR =`kpsewhich --expand-path=\$TEXMFLOCAL`);
       @TEXMFLOCAL = map { lc } split(/;/ , $TEXMFLOCALVAR);
     } else {
@@ -422,7 +444,7 @@ sub main {
     # but for compatibility we'll silently keep the option.
     $cmd = 'edit';
     my $editor = $ENV{'VISUAL'} || $ENV{'EDITOR'};
-    $editor ||= (&win32 ? "notepad" : "vi");
+    $editor ||= (wndws() ? "notepad" : "vi");
     if (-r $changes_config_file) {
       &copyFile($changes_config_file, $bakFile);
     } else {
@@ -481,8 +503,13 @@ sub main {
   }
 
   if (!$opts{'nohash'}) {
-    print "$prg: Updating ls-R files.\n" if !$opts{'quiet'};
+    my $not = $opts{"dry-run"} ? " not (-n)" : "";
+    print "$prg:$not updating ls-R files.\n" if !$opts{'quiet'};
     $updLSR->{exec}() unless $opts{"dry-run"};
+  }
+
+  if ($printed_warning) {
+    print STDERR "$prg [WARNING]: please check warnings above.\n";
   }
 
   return 0;
@@ -593,7 +620,7 @@ sub setupSymlinks {
 sub SymlinkOrCopy {
   my ($dir, $src, $dest) = @_;
   return ($src, $dest) if $opts{"dry-run"};
-  if (&win32 || $opts{'copy'}) {  # always copy
+  if (wndws() || $opts{'copy'}) {  # always copy
     &copyFile("$dir/$src", "$dir/$dest");
   } else { # symlink if supported by fs, copy otherwise
     system("cd \"$dir\" && ln -s $src $dest 2>/dev/null || "
@@ -1026,7 +1053,8 @@ sub mkMaps {
   # directory unless we are going to put something there.
   setupOutputDir("pxdvi") if $pxdviUse eq "true";
 
-  print_and_log ("\n$prg is creating new map files"
+  my $not = $opts{"dry-run"} ? " not (-n)" : "";
+  print_and_log ("\n$prg is$not creating new map files"
          . "\nusing the following configuration:"
          . "\n  LW35 font names                  : "
          .      "$mode ($mode_origin)"
@@ -1248,7 +1276,7 @@ sub mkMaps {
 
   our $link = &setupSymlinks($dvipsPreferOutline, $dvipsoutputdir, $pdftexDownloadBase14, $pdftexoutputdir);
 
-  print_and_log ("\nFiles generated:\n");
+  print_and_log ("\nFiles$not generated:\n");
   sub dir {
     my ($d, $f, $target)=@_;
     our $link;
@@ -1340,6 +1368,11 @@ sub mkMaps {
 
   # all kinds of warning messages
   if ($first_time_creation_in_usermode) {
+    # Well, not technically a warning, but we want people to see it and
+    # there was a complaint that the messages are too long.
+    # https://tug.org/pipermail/tex-live/2026-February/052200.html
+    $printed_warning = 1;
+    #
     print_and_log("
 *************************************************************
 *                                                           *
@@ -1365,8 +1398,9 @@ If you want to undo this, remove the files mentioned above.
 (Run $prg --help for full documentation of updmap.)
 ");
   }
-
+  
   if (keys %mismatch) {
+    $printed_warning = 1;
     print_and_log("
 WARNING: $prg has found mismatched files!
 
@@ -1391,8 +1425,7 @@ listed below).
   }
 
   close LOG unless $opts{'dry-run'};
-  print "\nTranscript written on \"$logfile\".\n" if !$opts{'quiet'};
-
+  print "\nTranscript$not written on: $logfile\n" if !$opts{'quiet'};
 }
 
 
@@ -2216,7 +2249,7 @@ sub merge_data {
 #   and reset it to the real home dir of root.
 
 sub reset_root_home {
-  if (!win32() && ($> == 0)) {  # $> is effective uid
+  if (!wndws() && ($> == 0)) {  # $> is effective uid
     my $envhome = $ENV{'HOME'};
     # if $HOME isn't an existing directory, we don't care.
     if (defined($envhome) && (-d $envhome)) {
@@ -2243,7 +2276,10 @@ sub reset_root_home {
 }
 
 sub print_warning {
-  print STDERR "$prg [WARNING]: ", @_ if (!$opts{'quiet'}) 
+  if (!$opts{'quiet'}) {
+    print STDERR "$prg [WARNING]: ", @_;
+    $printed_warning = 1;
+  }
 }
 sub print_error {
   print STDERR "$prg [ERROR]: ", @_;
@@ -2272,6 +2308,10 @@ Among other things, these map files are used to determine which fonts
 should be used as bitmaps and which as outlines, and to determine which
 font files are included, typically subsetted, in the PDF or PostScript output.
 
+These maps are for fonts installed within the TeX hierarchy, and are not
+related to any system font lookups. They are primarily used for Type 1
+fonts, though a few OpenType and TrueType fonts are involved also.
+
 updmap-sys (or updmap -sys) is intended to affect the system-wide 
 configuration, while updmap-user (or updmap -user) affects personal
 configuration files only, overriding the system files.  
@@ -2281,7 +2321,8 @@ running updmap-sys no longer has any effect.  updmap-sys issues a
 warning about this, since it is rarely desirable.
 See https://tug.org/texlive/scripts-sys-user.html for details.
 
-By default, the TeX filename database (ls-R) is also updated.
+By default, the TeX filename database (ls-R) is also updated; use
+--nohash to skip that step.
 
 The updmap system is regrettably complicated, for both inherent and
 historical reasons.  A general overview:
@@ -2290,8 +2331,8 @@ historical reasons.  A general overview:
   font-specific .maps, in which each line gives information about a
   different TeX (.tfm) font.
 - updmap reads the updmap.cfg files and then concatenates the
-  contents of those .map files into the main output files: psfonts.map
-  for dvips and pdftex.map for pdftex and dvipdfmx.
+  contents of those .map files into the main output files, generically
+  named: psfonts.map for dvips, and pdftex.map for pdftex and dvipdfmx.
 - The updmap.cfg files themselves are created and updated at package
   installation time, by the system installer or the package manager or
   by hand, and not (by default) by updmap.
@@ -2305,7 +2346,8 @@ Options:
   --pdftexoutputdir DIR     specify output directory (pdftex syntax)
   --pxdvioutputdir DIR      specify output directory (pxdvi syntax)
   --outputdir DIR           specify output directory (for all files)
-  --copy                    cp generic files rather than using symlinks
+  --[no-]copy               create generic files as copies (default);
+                               with -no-copy, create symlinks
   --force                   recreate files even if config hasn't changed
   --nomkmap                 do not recreate map files
   --nohash                  do not run mktexlsr (a.k.a. texhash)
@@ -2524,6 +2566,7 @@ For step-by-step instructions on making new fonts known to TeX, read
 https://tug.org/fonts/fontinstall.html.  For even more terse
 instructions, read the beginning of the main updmap.cfg file.
 
+Executable location: $0
 Report bugs to: tex-live\@tug.org
 TeX Live home page: <https://tug.org/texlive/>
 EOF

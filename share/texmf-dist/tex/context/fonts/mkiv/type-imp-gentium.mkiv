@@ -1,36 +1,88 @@
 %D \module
 %D   [       file=type-gentium,
-%D        version=2013.05.02,
+%D        version=20220521,,
 %D          title=\CONTEXT\ Typescript Macros,
 %D       subtitle=Typescript file for Gentium,
-%D         author={Thomas A. Schmitz and Mojca Miklavec},
+%D         author=Hans Hagen,
 %D           date=\currentdate,
-%D      copyright={Mojca and Thomas}]
+%D      copyright={PRAGMA ADE \& \CONTEXT\ Development Team}]
 
-% One probably has to enable the 'aalt' feature too.
+% The file is derived from one by Thomas and Mojca (20130502). In December 2025 we
+% updated to the 7.000 version. We prefer otf over ttf here so we distribute those
+% in the installer.
+%
+% 7.000
+%
+% Regular   Italic
+% Medium    MediumItalic
+% SemiBold  SemiBoldItalic
+% Bold      BoldItalic
+% ExtraBold ExtraBoldItalic
 
-\starttypescript [serif] [gentium]
-    \definefontsynonym [Gentium-Roman]       [file:GentiumPlus-R]  [features=default]
-    \definefontsynonym [Gentium-Italic]      [file:GentiumPlus-I]  [features=default]
-    \definefontsynonym [Gentium-Bold]        [file:GenBasB]        [features=default]
-    \definefontsynonym [Gentium-BoldItalic]  [file:GenBasBI]       [features=default]
-    \definefontsynonym [Gentium-Slanted]     [Gentium-Italic]
-    \definefontsynonym [Gentium-BoldSlanted] [Gentium-BoldItalic]
-    \definefontsynonym [Gentium-RomanCaps]   [file:GentiumPlus-R]  [features=smallcaps]
+\usetypescriptfile[dejavu]
+
+\starttypescriptcollection[gentium]
+
+\starttypescript [serif] [gentium,gentiummedium,gentiumplus,gentiumbook,gentiumtest]
+    \definefontsynonym [Gentium-Regular]          [file:Gentium-Regular]        [features=default]        \definefontsynonym [Gentium-Italic]           [file:Gentium-Italic]         [features=default]
+    \definefontsynonym [Gentium-Medium]           [file:Gentium-Medium]         [features=default]
+    \definefontsynonym [Gentium-MediumItalic]     [file:Gentium-MediumItalic]   [features=default]
+    \definefontsynonym [Gentium-SemiBold]         [file:Gentium-SemiBold]       [features=default]
+    \definefontsynonym [Gentium-SemiBoldItalic]   [file:Gentium-SemiBoldItalic] [features=default]
+    \definefontsynonym [Gentium-Bold]             [file:Gentium-Bold]           [features=default]
+    \definefontsynonym [Gentium-BoldItalic]       [file:Gentium-BoldItalic]     [features=default]
+    \definefontsynonym [Gentium-ExtraBold]        [file:Gentium-ExtraBold]      [features=default]
+    \definefontsynonym [Gentium-ExtraBoldItalic]  [file:Gentium-ExtraBoldItalic][features=default]
+    %
+    \definefontsynonym [Gentium-Slanted]          [file:Gentium-Regular]        [features={default,slanted}]
+    \definefontsynonym [Gentium-BoldSlanted]      [file:Gentium-Bold]           [features={default,slanted}]
+    \definefontsynonym [Gentium-MediumSlanted]    [file:Gentium-Medium]         [features={default,slanted}]
+    \definefontsynonym [Gentium-MediumBoldSlanted][file:Gentium-ExtraBold]      [features={default,slanted}]
 \stoptypescript
 
-\starttypescript [serif] [gentium] [name]
-    \definefontsynonym [Serif]            [Gentium-Roman]
+\starttypescript [serif] [gentium,gentiumplus,gentiumtest] [name]
+    \definefontsynonym [Serif]            [Gentium-Regular]
     \definefontsynonym [SerifItalic]      [Gentium-Italic]
     \definefontsynonym [SerifBold]        [Gentium-Bold]
     \definefontsynonym [SerifBoldItalic]  [Gentium-BoldItalic]
     \definefontsynonym [SerifSlanted]     [Gentium-Slanted]
     \definefontsynonym [SerifBoldSlanted] [Gentium-BoldSlanted]
-    \definefontsynonym [SerifCaps]        [Serif]
-    \definefontsynonym [OldStyle]         [Serif]
-    \definefontsynonym [SerifCaps]        [Gentium-RomanCaps]
 \stoptypescript
 
-\starttypescript [gentium]
-    \definetypeface [gentium] [rm] [serif] [gentium] [default] [features=default]
+\starttypescript [serif] [gentiummedium,gentiumbook] [name]
+    \definefontsynonym [Serif]            [Gentium-Medium]
+    \definefontsynonym [SerifItalic]      [Gentium-MediumItalic]
+    \definefontsynonym [SerifBold]        [Gentium-ExtraBold]
+    \definefontsynonym [SerifBoldItalic]  [Gentium-ExtraBoldItalic]
+    \definefontsynonym [SerifSlanted]     [Gentium-Medium]
+    \definefontsynonym [SerifBoldSlanted] [Gentium-ExtraBold]
 \stoptypescript
+
+% The math font is far from finished, so let's wait a few years before we
+% enable that as option.
+
+\doifunknownfontfeature {gentium-math-bold} {\definefontfeature[gentium-math-bold][boldened]}
+
+\starttypescript [math] [gentiumtest] [name]
+    \loadfontgoodies[gentium-math]
+    \definefontsynonym [MathRoman]     [file:publiculum.ttf] [features={math\mathsizesuffix,gentium:mathextra,mathextra},goodies=gentium-math]
+    \definefontsynonym [MathRomanBold] [file:publiculum.ttf] [features={math\mathsizesuffix,gentium-math-bold,gentium:mathextra,mathextra},goodies=gentium-math]
+\stoptypescript
+
+% We probably need to rscale dejavu here .. feel free to suggest values.
+
+\starttypescript [gentium,gentiumplus,gentiummedium,gentiumbook]
+    \definetypeface [\typescriptone] [rm] [serif] [\typescriptone] [default] [features=default]
+    \definetypeface [\typescriptone] [ss] [sans]  [dejavu]         [default] [features=default]
+    \definetypeface [\typescriptone] [tt] [mono]  [dejavu]         [default] [features=default]
+    \definetypeface [\typescriptone] [mm] [math]  [dejavu]         [default]
+\stoptypescript
+
+\starttypescript [gentiumtest]
+    \definetypeface [\typescriptone] [rm] [serif] [\typescriptone] [default] [features=default]
+    \definetypeface [\typescriptone] [ss] [sans]  [dejavu]         [default] [features=default]
+    \definetypeface [\typescriptone] [tt] [mono]  [dejavu]         [default] [features=default]
+    \definetypeface [\typescriptone] [mm] [math]  [\typescriptone] [default]
+\stoptypescript
+
+\stoptypescriptcollection

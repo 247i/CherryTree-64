@@ -56,10 +56,8 @@ local trace_rejections     = false  trackers.register("fonts.rejections",     fu
 
 local report_names         = logs.reporter("fonts","names")
 
---[[ldx--
-<p>This module implements a name to filename resolver. Names are resolved
-using a table that has keys filtered from the font related files.</p>
---ldx]]--
+-- This module implements a name to filename resolver. Names are resolved using a
+-- table that has keys filtered from the font related files.
 
 fonts                      = fonts or { } -- also used elsewhere
 
@@ -87,10 +85,6 @@ local autoreload           = true
 
 directives.register("fonts.autoreload",     function(v) autoreload     = toboolean(v) end)
 directives.register("fonts.usesystemfonts", function(v) usesystemfonts = toboolean(v) end)
-
---[[ldx--
-<p>A few helpers.</p>
---ldx]]--
 
 -- -- what to do with these -- --
 --
@@ -163,6 +157,7 @@ local styles = Cs (
   + P("italic")
   + P("oblique")        / "italic"
   + P("slanted")
+  + P("slant")          / "slanted"
   + P("roman")          / "normal"
   + P("ital")           / "italic" -- might be tricky
   + P("ita")            / "italic" -- might be tricky
@@ -305,10 +300,8 @@ local function analyzespec(somename)
     end
 end
 
---[[ldx--
-<p>It would make sense to implement the filters in the related modules,
-but to keep the overview, we define them here.</p>
---ldx]]--
+-- It would make sense to implement the filters in the related modules, but to keep
+-- the overview, we define them here.
 
 filters.afm = fonts.handlers.afm.readers.getinfo
 filters.otf = fonts.handlers.otf.readers.getinfo
@@ -412,11 +405,9 @@ filters.ttc = filters.otf
 --     end
 -- end
 
---[[ldx--
-<p>The scanner loops over the filters using the information stored in
-the file databases. Watch how we check not only for the names, but also
-for combination with the weight of a font.</p>
---ldx]]--
+-- The scanner loops over the filters using the information stored in the file
+-- databases. Watch how we check not only for the names, but also for combination
+-- with the weight of a font.
 
 filters.list = {
     "otf", "ttf", "ttc", "afm", -- no longer dfont support (for now)
@@ -1163,20 +1154,25 @@ local function analyzefiles(olddata)
     -- problem .. this will not take care of duplicates
 
     local function withtree(suffix)
-        resolvers.dowithfilesintree(".*%." .. suffix .. "$", function(method,root,path,name)
-            if method == "file" or method == "tree" then
-                local completename = root .."/" .. path .. "/" .. name
-                completename = resolveprefix(completename) -- no shortcut
-                identify(completename,name,suffix,name)
-                return true
+        resolvers.dowithfilesintree(
+            ".*%." .. suffix .. "$",
+            function(method,root,path,name)
+                if method == "file" or method == "tree" then
+                    local completename = root .."/" .. path .. "/" .. name
+                    completename = resolveprefix(completename) -- no shortcut
+                    identify(completename,name,suffix,name)
+                    return true
+                end
+            end,
+            function(blobtype,blobpath,pattern)
+                blobpath = resolveprefix(blobpath) -- no shortcut
+                report_names("scanning path %a for %s files",blobpath,suffix)
+            end,
+            function(blobtype,blobpath,pattern,checked,done)
+                blobpath = resolveprefix(blobpath) -- no shortcut
+                report_names("%s %s files checked, %s okay",checked,suffix,done)
             end
-        end, function(blobtype,blobpath,pattern)
-            blobpath = resolveprefix(blobpath) -- no shortcut
-            report_names("scanning path %a for %s files",blobpath,suffix)
-        end, function(blobtype,blobpath,pattern,total,checked,done)
-            blobpath = resolveprefix(blobpath) -- no shortcut
-            report_names("%s %s files checked, %s okay",checked,suffix,done)
-        end)
+        )
     end
 
     local function withlsr(suffix) -- all trees
@@ -1280,7 +1276,18 @@ local function resetdata()
     }
 end
 
+local plugin = false
+
+if CONTEXTLMTXMODE and CONTEXTLMTXMODE > 0 then
+    function names.setplugin(f)
+        plugin = type(f) == "function" and f or false
+    end
+end
+
 function names.identify(force)
+    if plugin then
+        plugin("before")
+    end
     local starttime = os.gettimeofday() -- use elapser
     resetdata()
     analyzefiles(not force and names.readdata(names.basename))
@@ -1292,6 +1299,9 @@ function names.identify(force)
     addfilenames()
  -- sorthashes() -- will be resorted when saved
     collectstatistics(os.gettimeofday()-starttime)
+    if plugin then
+        plugin("after")
+    end
 end
 
 function names.is_permitted(name)
@@ -1402,19 +1412,33 @@ local function is_reloaded()
     end
 end
 
---[[ldx--
-<p>The resolver also checks if the cached names are loaded. Being clever
-here is for testing purposes only (it deals with names prefixed by an
-encoding name).</p>
---ldx]]--
+-- The resolver also checks if the cached names are loaded. Being clever here is for
+-- testing purposes only (it deals with names prefixed by an encoding name).
 
-local function fuzzy(mapping,sorted,name,sub)
+local function fuzzy(mapping,sorted,name,sub) -- no need for reverse sorted here
     local condensed = gsub(name,"[^%a%d]","")
+    local pattern   = condensed .. "$"
+    local matches   = false
     for k=1,#sorted do
         local v = sorted[k]
-        if find(v,condensed) then
+        if v == condensed then
             return mapping[v], v
+        elseif find(v,pattern) then
+            return mapping[v], v
+        elseif find(v,condensed) then
+            if matches then
+                matches[#matches+1] = v
+            else
+                matches = { v }
+            end
         end
+    end
+    if matches then
+        if #matches > 1 then
+            sort(matches,function(a,b) return #a < #b end)
+        end
+        matches = matches[1]
+        return mapping[matches], matches
     end
 end
 

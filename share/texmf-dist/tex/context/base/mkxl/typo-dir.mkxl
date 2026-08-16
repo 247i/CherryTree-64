@@ -18,10 +18,8 @@
 
 \unprotect
 
-\registerctxluafile{typo-dir}{optimize}
-\registerctxluafile{typo-dha}{}
-%registerctxluafile{typo-dua}{}
-%registerctxluafile{typo-dub}{}
+\registerctxluafile{typo-dir}{autosuffix}
+\registerctxluafile{typo-dha}{autosuffix}
 \registerctxluafile{typo-duc}{autosuffix}
 
 \definesystemattribute[directions][public,pickup]
@@ -33,8 +31,8 @@
 
 \installsimplecommandhandler \??directions {directions} \??directions % no \define... yet
 
-\immutable\edef\lefttorightmark{\normalUchar"200E} \aliased\let\lrm\lefttorightmark % expandable
-\immutable\edef\righttoleftmark{\normalUchar"200F} \aliased\let\rlm\righttoleftmark % expandable
+\permanent\cdef\lefttorightmark{\tocharacter"200E} \aliased\let\lrm\lefttorightmark % expandable
+\permanent\cdef\righttoleftmark{\tocharacter"200F} \aliased\let\rlm\righttoleftmark % expandable
 
 \permanent\protected\def\setdirection[#1]% todo: symbolic names
   {\clf_setdirection#1\relax}
@@ -51,8 +49,8 @@
 
 % maybe use chardefs
 
-\mutable\let\currentbidimode\empty
-\mutable\let\currentbidistamp\empty
+\mutable\lettonothing\currentbidimode
+\mutable\lettonothing\currentbidistamp
 
 \def\typo_dir_get_mode
   {\def\currentbidimode{\clf_getbidimode % test edef
@@ -87,7 +85,7 @@
 
 \appendtoks
     \edef\p_option{\directionsparameter\c!break}% name can change
-    \bitwiseflip\normalizelinemode\ifx\p_option\v!both\else-\fi\breakafterdircode
+    \bitwiseflip\normalizelinemode\ifx\p_option\v!both\else-\fi\breakafterdirnormalizecode
 \to \everysetupdirections
 
 % bidi: local=obey grouping, global=ignore grouping (unicode has no grouping)
@@ -98,11 +96,11 @@
    \c!break=\v!both, % experimental value, maybe \v!no will be default (bad name too)
    \c!fences=\v!yes]
 
-\permanent\protected\edef\bidilre{\normalUchar"202A}
-\permanent\protected\edef\bidirle{\normalUchar"202B}
-\permanent\protected\edef\bidipop{\normalUchar"202C}
-\permanent\protected\edef\bidilro{\normalUchar"202D}
-\permanent\protected\edef\bidirlo{\normalUchar"202E}
+\permanent\protected\edef\bidilre{\tocharacter"202A}
+\permanent\protected\edef\bidirle{\tocharacter"202B}
+\permanent\protected\edef\bidipop{\tocharacter"202C}
+\permanent\protected\edef\bidilro{\tocharacter"202D}
+\permanent\protected\edef\bidirlo{\tocharacter"202E}
 
 \permanent\protected\def\dirlre{\ifcase\directionsbidimode\or\bidilre\or\textdirection\directionlefttoright\fi}
 \permanent\protected\def\dirrle{\ifcase\directionsbidimode\or\bidirle\or\textdirection\directionrighttoleft\fi}
@@ -116,6 +114,13 @@
 \definecolor[bidi:right:original][b=.6]
 \definecolor[bidi:right:reversed][r=.6,g=.6]
 \definecolor[bidi:mirrored]      [r=.6,b=.6]
+
+% Bah, see bidi-001.tex
+%
+% \strc_enumerations_inject_extra_text_indeed
+
+\permanent\protected\def\foolbidimode
+  {\ifzero\currentbidimode\else\bidilre\fi}
 
 \protect \endinput
 

@@ -60,15 +60,26 @@
    \c!inbetween={\blank[\v!medium]},
    \c!after=\blank]
 
-\newcount\c_typo_items_n
-\newcount\c_typo_items_m
-\newdimen\d_typo_items_text_width
-\newdimen\d_typo_items_symbol_width
-\newdimen\d_typo_items_distance
-\newbox  \b_typo_items_symbols
-\newbox  \b_typo_items_texts
+% todo: define
 
-\permanent\tolerant\protected\def\items[#1]#:#2%
+\newinteger  \c_typo_items_n
+\newinteger  \c_typo_items_m
+\newdimension\d_typo_items_text_width
+\newdimension\d_typo_items_symbol_width
+\newdimension\d_typo_items_distance
+\newbox      \b_typo_items_symbols
+\newbox      \b_typo_items_texts
+
+\lettonothing\p_typo_items_align
+\lettonothing\p_typo_items_alternative
+\lettonothing\p_typo_items_n
+\lettonothing\p_typo_items_symbol
+\lettonothing\p_typo_items_textalign
+
+\lettonothing\m_typo_items_align
+\lettonothing\m_typo_items_symbol
+
+\permanent\tolerant\protected\def\items[#S#1]#:#2%
   {\bgroup
    \setupitems[#1]%
    \edef\p_typo_items_alternative{\itemsparameter\c!alternative}%
@@ -78,32 +89,15 @@
    \let\currentitems\p_typo_items_alternative
    \setupcurrentitems[#1]%
    %
-   \edef\p_typo_items_textwidth{\itemsparameter\c!textwidth}%
-   \ifempty\p_typo_items_textwidth
-     \d_typo_items_text_width\availablehsize
-   \else
-     \d_typo_items_text_width\p_typo_items_textwidth\relax
-   \fi
-   %
-   \edef\p_typo_items_width{\itemsparameter\c!width}%
-   \ifempty\p_typo_items_width
-     \d_typo_items_symbol_width1.5\emwidth
-   \else
-     \d_typo_items_symbol_width\p_typo_items_width\relax
-   \fi
-   %
-   \edef\p_typo_items_distance{\itemsparameter\c!distance}%
-   \ifempty\p_typo_items_distance
-     \d_typo_items_distance\zeropoint
-   \else
-     \d_typo_items_distance\p_typo_items_distance\relax
-   \fi
+   \d_typo_items_text_width  \ifchkdimexpr\itemsparameter\c!textwidth\or\lastchkdimension\else\availablehsize\fi
+   \d_typo_items_symbol_width\ifchkdimexpr\itemsparameter\c!width    \or\lastchkdimension\else1.5\emwidth    \fi
+   \d_typo_items_distance    \ifchkdimexpr\itemsparameter\c!distance \or\lastchkdimension\else\zeropoint     \fi
    %
    \edef\p_typo_items_symbol{\itemsparameter\c!symbol}%
    \ifempty\p_typo_items_symbol
      \let\m_typo_items_symbol\firstofoneargument
    \orelse\ifx\p_typo_items_symbol\v!none
-     \let\p_typo_items_symbol\empty
+     \lettonothing\p_typo_items_symbol
      \let\m_typo_items_symbol\firstofoneargument
    \else
      \doifelseconversiondefined\p_typo_items_symbol
@@ -128,7 +122,9 @@
    \dontcomplain
    %
    \itemsparameter\c!before
+   \dostarttagged\t!items\currentitems % currently alternative
    \csname\??itemsalternatives\p_typo_items_alternative\endcsname{#2}%
+   \dostoptagged
    \itemsparameter\c!after
    \egroup}
 
@@ -138,7 +134,7 @@
 \let\typo_items_make\relax
 
 \def\typo_items_item_horizontal
-  {\advance\c_typo_items_m\plusone
+  {\advanceby\c_typo_items_m\plusone
    \csname\??itemshorizontal
      \ifcsname\??itemshorizontal\p_typo_items_align\endcsname
        \p_typo_items_align
@@ -148,7 +144,7 @@
    \endcsname}
 
 \def\typo_items_item_vertical
-  {\advance\c_typo_items_m\plusone
+  {\advanceby\c_typo_items_m\plusone
    \csname\??itemsvertical
      \ifcsname\??itemsvertical\p_typo_items_align\endcsname
        \p_typo_items_align
@@ -169,35 +165,52 @@
   {\simplealignedbox\scratchwidth\m_typo_items_align}
 
 \def\typo_items_make_horizontal#1%
-  {\divide\scratchwidth\c_typo_items_n
+  {\divideby\scratchwidth\c_typo_items_n
    \hbox{#1}}
 
 \def\typo_items_make_vertical#1%
   {\vbox{#1}}
 
+\def\typo_items_item_text#1%
+  {\dostarttaggednodetail\t!itemtext
+   \typo_items_item{#1}%
+   \dostoptagged}
+
+\def\typo_items_item_symbol#1%
+  {\dostarttaggednodetail\t!itemsymbol
+   \typo_items_item{\strut\m_typo_items_symbol{#1}}%
+   \dostoptagged}
+
 \def\typo_items_construct_items_boxes#1%
-  {\setbox\b_typo_items_texts\hbox
-     {\c_typo_items_m\zerocount
-      \let\m_typo_items_align\p_typo_items_textalign
-      \scratchwidth\d_typo_items_text_width
-      \useitemsstyleandcolor\c!textstyle\c!textcolor
-      \typo_items_make{\processcommalist[#1]\typo_items_item}}%
-   \ifempty\p_typo_items_symbol
-     \setbox\b_typo_items_symbols\emptyhbox
-   \else
-     \setbox\b_typo_items_symbols\hbox
-       {\c_typo_items_m\zerocount
-        \let\m_typo_items_align\p_typo_items_align
-        \scratchwidth\d_typo_items_symbol_width
-        \useitemsstyleandcolor\c!style\c!color
-        \typo_items_make{\dorecurse\c_typo_items_n{\typo_items_item{\strut\m_typo_items_symbol\recurselevel}}}}%
-   \fi}
+  {\dostarttaggednodetail\t!itemtexts
+   \setbox\b_typo_items_texts\hbox\bgroup
+     \c_typo_items_m\zerocount
+     \let\m_typo_items_align\p_typo_items_textalign
+     \scratchwidth\d_typo_items_text_width
+     \useitemsstyleandcolor\c!textstyle\c!textcolor
+     \typo_items_make{\processcommalist[#1]\typo_items_item_text}%
+   \egroup
+   \dostoptagged
+   \dostarttaggednodetail\t!itemsymbols
+   \setbox\b_typo_items_symbols
+     \ifempty\p_typo_items_symbol
+       \emptyhbox
+     \else
+       \hbox\bgroup
+         \c_typo_items_m\zerocount
+         \let\m_typo_items_align\p_typo_items_align
+         \scratchwidth\d_typo_items_symbol_width
+         \useitemsstyleandcolor\c!style\c!color
+         \typo_items_make{\dorecurse\c_typo_items_n{\typo_items_item_symbol{##1}}}%
+       \egroup
+     \fi
+   \dostoptagged}
 
 % alternatives:
 
 \defineitems[\v!top][\c!width=\d_typo_items_text_width,\c!textalign=\itemsparameter\c!align]
 
-\setvalue{\??itemsalternatives\v!top}#1%
+\defcsname\??itemsalternatives\v!top\endcsname#1%
   {\let\typo_items_make\typo_items_make_horizontal
    \let\typo_items_item\typo_items_item_horizontal
    \typo_items_construct_items_boxes{#1}%
@@ -213,7 +226,7 @@
 
 \defineitems[\v!bottom][\c!width=\d_typo_items_text_width,\c!textalign=\itemsparameter\c!align]
 
-\setvalue{\??itemsalternatives\v!bottom}#1%
+\defcsname\??itemsalternatives\v!bottom\endcsname#1%
   {\let\typo_items_make\typo_items_make_horizontal
    \let\typo_items_item\typo_items_item_horizontal
    \typo_items_construct_items_boxes{#1}%
@@ -229,23 +242,23 @@
 
 \defineitems[\v!inmargin][\c!width=1.5\emwidth,\c!align=\v!flushright,\c!distance=\leftmargindistance]
 
-\setvalue{\??itemsalternatives\v!inmargin}#1%
+\defcsname\??itemsalternatives\v!inmargin\endcsname#1%
   {\let\typo_items_make\typo_items_make_vertical
    \let\typo_items_item\typo_items_item_vertical
    \typo_items_construct_items_boxes{#1}%
    \noindent\hbox\bgroup
      \ifvoid\b_typo_items_symbols \else
-       \llap{\box\b_typo_items_symbols\hskip\d_typo_items_distance}%
+       \llap{\box\b_typo_items_symbols\kern\d_typo_items_distance}%
      \fi
      \box\b_typo_items_texts
    \egroup}
 
 \defineitems[\v!left][\c!width=1.5\emwidth,\c!align=\v!flushleft]
 
-\setvalue{\??itemsalternatives\v!left}#1%
+\defcsname\??itemsalternatives\v!left\endcsname#1%
   {\let\typo_items_make\typo_items_make_vertical
    \let\typo_items_item\typo_items_item_vertical
-   \advance\d_typo_items_text_width-\dimexpr\d_typo_items_symbol_width+\d_typo_items_distance\relax
+   \advanceby\d_typo_items_text_width{-\d_typo_items_symbol_width-\d_typo_items_distance}%
    \typo_items_construct_items_boxes{#1}%
    \noindent\hbox\bgroup
      \ifvoid\b_typo_items_symbols \else
@@ -257,10 +270,10 @@
 
 \defineitems[\v!right][\c!width=1.5\emwidth,\c!align=\v!flushright]
 
-\setvalue{\??itemsalternatives\v!right}#1%
+\defcsname\??itemsalternatives\v!right\endcsname#1%
   {\let\typo_items_make\typo_items_make_vertical
    \let\typo_items_item\typo_items_item_vertical
-   \advance\d_typo_items_text_width-\dimexpr\d_typo_items_symbol_width+\d_typo_items_distance\relax
+   \advanceby\d_typo_items_text_width-\dimexpr\d_typo_items_symbol_width+\d_typo_items_distance\relax
    \typo_items_construct_items_boxes{#1}%
    \noindent\hbox\bgroup
      \box\b_typo_items_texts

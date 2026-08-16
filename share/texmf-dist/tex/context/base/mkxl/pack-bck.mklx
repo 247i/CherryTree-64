@@ -52,7 +52,7 @@
 
 \installframedcommandhandler \??background {background} \??background
 
-% The mode is not that public an dmostlu an initial mode:
+% The mode is not that public and mostly an initial mode:
 %
 % 0 : no split
 % 1 : no split, honoring leftskip (messy)
@@ -65,20 +65,22 @@
 \setnewconstant\backgroundsplitmode\plusthree
 
 \appendtoks
-    \frozen\setuevalue{\e!start\currentbackground}{\pack_backgrounds_start [\currentbackground]}%
-    \frozen\setuevalue{\e!stop \currentbackground}{\pack_backgrounds_stop                      }%
-    \frozen\setuevalue        {\currentbackground}{\pack_backgrounds_direct[\currentbackground]}%
+    \protected\frozen\instance\edefcsname\e!start\currentbackground\endcsname{\pack_backgrounds_start [\currentbackground]}%
+    \protected\frozen\instance\edefcsname\e!stop \currentbackground\endcsname{\pack_backgrounds_stop                      }%
+    \protected\frozen\instance\edefcsname        \currentbackground\endcsname{\pack_backgrounds_direct[\currentbackground]}%
 \to \everydefinebackground
 
 \protected\def\pack_backgrounds_start[#tag]%
   {\endgraf
    \begingroup
-   \def\currentbackground{#tag}%
-   \doifelse{\backgroundparameter\c!state}\v!start
-     \pack_backgrounds_start_indeed
-     \pack_backgrounds_start_ignore}
+   \cdef\currentbackground{#tag}%
+   \ifcstok{\backgroundparameter\c!state}\v!start
+     \expandafter\pack_backgrounds_start_indeed
+   \else
+     \expandafter\pack_backgrounds_start_ignore
+   \fi}
 
-\tolerant\def\pack_backgrounds_start_indeed[#settings]%
+\tolerant\def\pack_backgrounds_start_indeed[#S#settings]%
   {\setupcurrentbackground[#settings,\c!state=\v!start,\c!offset=\v!overlay]%
    \let\pack_backgrounds_stop\pack_backgrounds_stop_indeed
    \setbox\scratchboxone\vbox\bgroup
@@ -86,10 +88,10 @@
      \vskip-2\lineheight
      \strut
      \blank[\v!disable]
-     \leftskip \backgroundparameter\c!leftoffset
-     \rightskip\backgroundparameter\c!rightoffset}
+     \leftskip \glueexpr\backgroundparameter\c!leftoffset\relax
+     \rightskip\glueexpr\backgroundparameter\c!rightoffset\relax}
 
-\tolerant\def\pack_backgrounds_start_ignore[#settings]%
+\tolerant\def\pack_backgrounds_start_ignore[#S#settings]%
   {\let\pack_backgrounds_stop\pack_backgrounds_stop_ignore}
 
 \let\pack_backgrounds_stop\relax
@@ -101,7 +103,7 @@
    \vskip-2\lineheight
    \strut
    % safeguard added
-   \ifdim\dimexpr\pagetotal+2\lineheight\relax>\pagegoal
+   \ifdim{\pagetotal+2\lineheight}>\pagegoal
      \page
    \fi
    % till here
@@ -125,16 +127,13 @@
           \backgroundsplitmode\plusone % split to max height
         \else
           \setbox\scratchdimentwo\vbox{\backgroundparameter\c!before}%
-          \scratchdimen\dimexpr\pagegoal-\ht\scratchdimentwo-\pagetotal\relax
+          \scratchdimen{\pagegoal-\ht\scratchdimentwo-\pagetotal}%
           \backgroundsplitmode\plustwo % split to partial height
         \fi
         \ifdim\scratchdimen<\zeropoint
             \scratchdimen\pagegoal
         \fi
-        \advance\scratchdimen\dimexpr
-          -\backgroundparameter\c!topoffset
-          -\backgroundparameter\c!bottomoffset
-        \relax
+        \advanceby\scratchdimen{-\backgroundparameter\c!topoffset-\backgroundparameter\c!bottomoffset}%
         \ifdim\scratchdimen>2\lineheight\relax % reasonable, will be configurable
           \ifdim\ht\scratchboxone>\scratchdimen % larger than page
             \setbox\scratchdimentwo\vsplit\scratchboxone to \scratchdimen
@@ -143,11 +142,11 @@
             \backgroundsplitmode\zerocount % no split
           \fi
           \setbox\scratchdimentwo\vbox \ifcase\backgroundsplitmode\or to \textheight \fi % max split
-            {\vskip\backgroundparameter\c!topoffset
+            {\vskip{\backgroundparameter\c!topoffset}% or \vkern
              \unvcopy\scratchdimentwo
              \prevdepth\dp\scratchdimentwo
              \obeydepth
-             \vskip\backgroundparameter\c!bottomoffset
+             \vskip{\backgroundparameter\c!bottomoffset}% or \vkern
              \vfill}
           \backgroundparameter\c!before
           \ifcase\backgroundsplitmode\or\or % partial split
@@ -157,7 +156,7 @@
           \fi
           \startlinecorrection
             \ifnum\backgroundsplitmode=\plusthree
-              \hskip\scratchdistance % new **
+              \hskip\scratchdistance % new ** % or \hkern
             \fi
             \inheritedbackgroundframed{\box\scratchdimentwo}%
           \stoplinecorrection
@@ -182,10 +181,12 @@
 
 \protected\def\pack_backgrounds_direct[#tag]%
   {\begingroup
-   \def\currentbackground{#tag}%
-   \doifelse{\backgroundparameter\c!state}\c!start
-     \pack_backgrounds_direct_indeed
-     \pack_backgrounds_direct_ignore}
+   \cdef\currentbackground{#tag}%
+   \ifcstok{\backgroundparameter\c!state}\c!start
+     \expandafter\pack_backgrounds_direct_indeed
+   \else
+     \expandafter\pack_backgrounds_direct_ignore
+   \fi}
 
 \def\pack_backgrounds_direct_indeed
   {\dowithnextboxcs\pack_backgrounds_direct_finish\vbox}

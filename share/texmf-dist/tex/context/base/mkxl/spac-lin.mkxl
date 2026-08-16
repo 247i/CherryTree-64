@@ -59,11 +59,9 @@
    \c!space=\v!default]
 
 \appendtoks
-   \frozen\instance\setuevalue{\e!start\currentlines}{\spac_lines_start[\currentlines]}%
-   \frozen\instance\letvalue  {\e!stop \currentlines }\spac_lines_stop
+   \protected\frozen\instance\edefcsname\e!start\currentlines\endcsname{\spac_lines_start[\currentlines]}%
+   \frozen\instance\letcsname           \e!stop \currentlines\endcsname \spac_lines_stop
 \to \everydefinelines
-
-\let\p_lines_option\empty
 
 \let\spac_lines_break            \relax
 \let\spac_after_first_obeyed_line\relax
@@ -80,23 +78,25 @@
 %D \setuplines[indentlist={0pt,1em,*}]
 %D \starttyping
 
-\newcount\c_spac_lines_indent_cnt
-\newcount\c_spac_lines_indent_max
-\newdimen\d_spac_lines_indent
+\newinteger  \c_spac_lines_indent_cnt
+\newinteger  \c_spac_lines_indent_max
+\newdimension\d_spac_lines_indent
+
+\lettonothing\m_spac_lines_indentlist
 
 \def\spac_lines_indent_indeed
   {\ifnum\c_spac_lines_indent_cnt=\c_spac_lines_indent_max
      \c_spac_lines_indent_cnt\plusone
    \else
-     \advance\c_spac_lines_indent_cnt\plusone
+     \advanceby\c_spac_lines_indent_cnt\plusone
    \fi
    \getfromcommacommand[\m_spac_lines_indentlist][\c_spac_lines_indent_cnt]%
    \ifx\commalistelement\wildcardsymbol
      \hskip\d_spac_lines_indent
    \else
-     \scratchdimen\dimexpr\commalistelement\relax
+     \scratchdimen{\commalistelement}%
      \hskip
-       \ifdim\scratchdimen=\zeropoint
+       \ifzeropt\scratchdimen
          \zeropoint
        \else
          \scratchdimen
@@ -105,26 +105,44 @@
    \fi
    \relax}
 
+%D \startbuffer
+%D \startlines[keeptogether=paragraph]
+%D test test
+%D test test
+%D test test
+%D test test
+%D \stoplines
+%D \stopbuffer
+%D
+%D \start \showmakeup[vpenalty] \getbuffer \stop
+
+\newconditional \c_spac_lines_enabled
+
 \permanent\tolerant\protected\def\spac_lines_start[#1]%
   {\bgroup
-   \edef\currentlines{#1}%
+   \c_spac_lines_enabled\conditionaltrue
+   \cdef\currentlines{#1}%
    \obeylines
    \spac_lines_start_indeed}
 
-\tolerant\def\spac_lines_start_indeed[#1]% new: optional second argument (WS)
+\tolerant\def\spac_lines_start_indeed[#S#1]% new: optional second argument (WS)
   {\ifarguments\or
      \setupcurrentlines[#1]%
    \fi
-   \edef\p_lines_option{\linesparameter\c!option}%
-   \ifx\p_lines_option\v!packed
+   \ifcstok{\linesparameter\c!option}\v!packed
      \let\spac_lines_break\nobreak
+     \c_spac_lines_as_paragraph\conditionalfalse
+   \orelse\ifcstok{\linesparameter\c!keeptogether}\v!paragraph
+     \let\spac_lines_break\relax
+     \c_spac_lines_as_paragraph\conditionaltrue
    \else
      \let\spac_lines_break\relax
+     \c_spac_lines_as_paragraph\conditionalfalse
    \fi
    \linesparameter\c!before
    \push_macro_checkindentation
    \whitespace
-   \dostarttaggedchained\t!lines\currentlines\??lines
+   \dostarttaggedchained\t!lines\currentlines\currentlines\??lines
    \begingroup
    \uselinesstyleandcolor\c!style\c!color
    \useindentingparameter\linesparameter
@@ -148,9 +166,8 @@
    \glet\spac_after_first_obeyed_line\spac_lines_after_first_obeyed_line_a
    \enforced\let\obeyedline\spac_lines_obeyed_line
    \activatespacehandler{\linesparameter\c!space}%
-   \dostarttagged\t!line\empty
+   \dostarttaggednodetail\t!line
    \ignorepars}
-
 
 % we could have states instead and handle option in there
 
@@ -166,11 +183,17 @@
    \spac_lines_indent
    \linesparameter\c!left}
 
-\def\spac_lines_obeyed_line
+\newconditional \c_spac_lines_as_paragraph
+
+\def\spac_lines_obeyed_line % we get a dummy first
   {\ifdone\linesparameter\c!right\fi
    \dostoptagged % can be a dummy one as we don't look ahead
-   \par
-   \dostarttagged\t!line\empty
+   \ifconditional\c_spac_lines_as_paragraph
+     \parbreak
+   \else
+     \par
+   \fi
+   \dostarttaggednodetail\t!line
    \futurelet\nexttoken\spac_lines_between}
 
 \protected\def\spac_lines_stop

@@ -20,11 +20,11 @@ local enableaction       = nodes.tasks.enableaction
 local nodecodes          = nodes.nodecodes
 local listcodes          = nodes.listcodes
 
-local hlist_code         = nodecodes.hlist
-local vlist_code         = nodecodes.vlist
+local hlist_code         <const> = nodecodes.hlist
+local vlist_code         <const> = nodecodes.vlist
 
-local alignmentlist_code = listcodes.alignment
-local celllist_code      = listcodes.cell
+local alignmentlist_code <const> = listcodes.alignment
+local celllist_code      <const> = listcodes.cell
 
 local nuts               = nodes.nuts
 local nodepool           = nuts.pool
@@ -36,8 +36,10 @@ local getlist            = nuts.getlist
 local getattr            = nuts.getattr
 local getsubtype         = nuts.getsubtype
 local getwhd             = nuts.getwhd
+local getnaturalwhd      = nuts.getnaturalwhd
 local getwidth           = nuts.getwidth
 local getprop            = nuts.getprop
+local getoptions         = nuts.getoptions
 
 local setattr            = nuts.setattr
 local setlink            = nuts.setlink
@@ -46,27 +48,29 @@ local setattributelist   = nuts.setattributelist
 local setprop            = nuts.setprop
 
 local takebox            = nuts.takebox
-local findtail           = nuts.tail
 
 local nextnode           = nuts.traversers.node
 local nexthlist          = nuts.traversers.hlist
 local nextlist           = nuts.traversers.list
 
-local flush_node_list    = nuts.flush_list
+local flushnodelist      = nuts.flushlist
 
 local new_rule           = nodepool.rule
 local new_kern           = nodepool.kern
 local new_hlist          = nodepool.hlist
 
 local privateattributes  = attributes.private
-local unsetvalue         = attributes.unsetvalue
+
+local getvalue           = attributes.getvalue
+local hasvalues          = attributes.hasvalues
 
 local linefillers        = nodes.linefillers
 
-local a_background       = privateattributes("background")
-local a_alignbackground  = privateattributes("alignbackground")
-local a_linefiller       = privateattributes("linefiller")
-local a_ruled            = privateattributes("ruled")
+local a_background       <const> = privateattributes("background")
+local a_alignbackground  <const> = privateattributes("alignbackground")
+local a_linefiller       <const> = privateattributes("linefiller")
+----- a_ruled            <const> = privateattributes("ruled")
+local unsetvalue         <const> = attributes.unsetvalue
 
 local trace_alignment    = false
 local report_alignment   = logs.reporter("backgrounds","alignment")
@@ -85,14 +89,15 @@ trackers.register("backgrounds.alignments",function(v) trace_alignment = v end)
 local overshoot = math.floor(65781/5) -- could be an option per table (just also store it)
 
 local function colored_a(current,list,template,id)
-    local width, height, depth = getwhd(current)
+ -- local width, height, depth = getwhd(current,true)
+    local width, height, depth = getnaturalwhd(current,true)
     local total = height + depth
     if width > 0 and total > 0 then
         local rule = nil
         --
         local a = getattr(template,a_linefiller)
         if a then
-            local d = linefillers.data[a%1000]
+            local d = getvalue(a_linefiller,a)
             if d then
                 rule = linefillers.filler(template,d,width,height,depth)
             end
@@ -108,15 +113,17 @@ local function colored_a(current,list,template,id)
 end
 
 local function colored_b(current,list,template,id,indent)
-    local width, height, depth = getwhd(current)
+ -- local width, height, depth = getwhd(current)
+    local width, height, depth = getnaturalwhd(current,true)
     local total = height + depth
     if width > 0 and total > 0 then
-        local fore = (indent ~= 0) and new_kern(indent)
+        local fore = indent ~= 0 and new_kern(indent) or nil
         local rule = nil
+        local back = nil
         --
         local a = getattr(template,a_linefiller)
         if a then
-            local d = linefillers.data[a%1000]
+            local d = getvalue(a_linefiller,a)
             if d then
                 rule = linefillers.filler(template,d,width-indent,height,depth)
             end
@@ -127,12 +134,14 @@ local function colored_b(current,list,template,id,indent)
             setattributelist(rule,template)
         end
         if overshoot == 0 then
-            local back = new_kern(-((id == vlist_code and total) or width))
+            -- needs checking
+            back = new_kern(-((id == vlist_code and total) or width))
             return setlink(fore,rule,back,list)
         else
+            back = indent ~= 0 and new_kern(-indent) or nil
             rule = new_hlist(rule)
-            return setlink(fore,rule,list)
         end
+        return setlink(fore,rule,back,list)
     end
 end
 
@@ -141,27 +150,57 @@ local currentrow = 0
 local enabled    = false
 local alignments = false
 
+-- todo: more control over cell attributes
+
+-- When we split these in a_alignbackground and a_background we can optimize with
+-- tracked attributes. But first I need an extensive test.
+
+local lasttemplate1 = false
+local lasttemplate2 = 0
+
+local alignsplit_code <const> = tex.boxoptioncodes.alignsplit
+
+local function issplitline(n)
+    return (getoptions(n) & alignsplit_code) == alignsplit_code
+end
+
 local function add_alignbackgrounds(head,list)
     for current, id, subtype, list in nextlist, list do
         if list and id == hlist_code and subtype == celllist_code then
             for template in nexthlist, list do
                 local background = getattr(template,a_alignbackground)
                 if background then
-                    local list = colored_a(current,list,template)
+                    local list = colored_a(current,list,template,id)
                     if list then
                         setlist(current,list)
                     end
-                    setattr(template,a_alignbackground,unsetvalue) -- or property
+                    -- not that efficient:
+                    setattr(template,a_alignbackground,unsetvalue)
                 end
                 break
             end
         end
     end
+    -- we can store this differently now
     local template = getprop(head,"alignmentchecked")
     if template then
-        list = colored_b(head,list,template[1],hlist_code,template[2])
-        flush_node_list(template)
-        templates[currentrow] = false
+        local t1 = template[1] -- node
+        local t2 = template[2] -- indent
+        if t1 then
+            if lastttemplate1 then
+                flushnodelist(lasttemplate)
+            end
+            lasttemplate1 = t1
+            lasttemplate2 = t2
+            template[1] = false -- not needed
+            list = colored_b(head,list,lasttemplate1,hlist_code,lasttemplate2)
+            templates[currentrow] = false
+        end
+        return list
+    elseif issplitline(head) and lasttemplate1 then
+        -- the engine split .. we could also set that flag in the regular
+        -- 'p' option so that we emulate 'P'
+        list = colored_b(head,list,lasttemplate1,hlist_code,lasttemplate2)
         return list
     end
 end
@@ -190,7 +229,7 @@ local function add_backgrounds(head,id,list)
         if background then
             list = colored_a(head,list,head,id)
             -- not needed
-            setattr(head,a_background,unsetvalue) -- or property -- todo
+            setattr(head,a_background,unsetvalue) -- or property
             return list
         end
     end
@@ -206,12 +245,16 @@ function nodes.handlers.backgroundspage(head,where)
         for n in nexthlist, head do
             local p = getprop(n,"alignmentchecked")
             if not p and getsubtype(n) == alignmentlist_code then
+if issplitline(n) then
+    -- we have an engine copy
+else
                 currentrow = currentrow + 1
                 local template = templates[currentrow]
                 if trace_alignment then
                     report_alignment("%03i %s %s",currentrow,"page",template and "+" or "-")
                 end
                 setprop(n,"alignmentchecked",template)
+end
             end
         end
     end
@@ -238,15 +281,6 @@ function nodes.handlers.backgroundsvbox(head,where)
     return head
 end
 
--- interfaces.implement {
---     name      = "enablebackgroundboxes",
---     onlyonce  = true,
---     actions   = enableaction,
---     arguments = { "'shipouts'", "'nodes.handlers.backgrounds'" }
--- }
---
--- doing it in the shipout works as well but this is nicer
-
 local function enable(alignmentstoo)
     if not enabled then
         enabled = true
@@ -266,7 +300,7 @@ interfaces.implement {
 }
 
 interfaces.implement {
-    name      = "enablebackgroundalign",
+    name      = "enablebackgroundalign", --- move into next one
     onlyonce  = true,
     actions   = function()
         enable(true)
@@ -275,7 +309,7 @@ interfaces.implement {
 
 interfaces.implement {
     name      = "setbackgroundrowdata",
-    arguments = { "integer", "integer", "dimension" },
+    arguments = { "integer", "integer", "dimension" }, -- todo: "box"
     actions   = function(row,box,indent)
         row = row -1 -- better here than in tex
         if box == 0 then

@@ -45,7 +45,7 @@
 \definesystemattribute[linenumber]   [public]
 \definesystemattribute[linereference][public]
 
-\appendtoksonce
+\appendtoks
     \c_attr_linenumber\attributeunsetvalue
 \to \everyforgetall
 
@@ -56,15 +56,15 @@
 \mutable\let\linenumber\!!zerocount
 
 \newbox     \b_page_lines_scratch
-\newcount   \c_page_lines_reference
+\newinteger \c_page_lines_reference
 \newconstant\c_page_lines_nesting
 
 \newconditional\tracelinenumbering % we keep this for old times sake
 
 \installtextracker
   {lines.numbers.show}
-  {\settrue \tracelinenumbering}
-  {\setfalse\tracelinenumbering}
+  {\tracelinenumbering\conditionaltrue}
+  {\tracelinenumbering\conditionalfalse}
 
 % id nr shift width leftskip dir
 
@@ -94,9 +94,10 @@
    \glet\page_postprocessors_linenumbers_column \page_postprocessors_linenumbers_column_indeed}
 
 \def\page_lines_start_define
-  {\setxvalue{\??linenumberinginstance\currentlinenumbering}%
+  {\xdefcsname\??linenumberinginstance\currentlinenumbering\endcsname
      {\clf_registerlinenumbering
-        continue {\ifnum\c_page_lines_mode=\zerocount\v!yes\else\v!no\fi}%
+      % continue {\ifnum\c_page_lines_mode=\zerocount\v!yes\else\v!no\fi}%
+        continue {\ifzero\c_page_lines_mode\v!yes\else\v!no\fi}%
         start    \linenumberingparameter\c!start
         step     \linenumberingparameter\c!step
         method   {\linenumberingparameter\c!method}%
@@ -107,7 +108,8 @@
   {\clf_setuplinenumbering
      \csname\??linenumberinginstance\currentlinenumbering\endcsname
      {%
-        continue {\ifnum\c_page_lines_mode=\zerocount\v!yes\else\v!no\fi}%
+      % continue {\ifnum\c_page_lines_mode=\zerocount\v!yes\else\v!no\fi}%
+        continue {\ifzero\c_page_lines_mode\v!yes\else\v!no\fi}%
      }%
    \relax}
 
@@ -116,7 +118,8 @@
      \clf_setuplinenumbering
        \lastnamedcs
        {%
-            continue {\ifnum\c_page_lines_mode=\zerocount\v!yes\else\v!no\fi}%
+          % continue {\ifnum\c_page_lines_mode=\zerocount\v!yes\else\v!no\fi}%
+            continue {\ifzero\c_page_lines_mode\v!yes\else\v!no\fi}%
             start    \linenumberingparameter\c!start
             step     \linenumberingparameter\c!step
             method   {\linenumberingparameter\c!method}%
@@ -130,12 +133,12 @@
 
 \protected\def\page_lines_some_reference#1#2#3%
   {\dontleavehmode\begingroup
-   \global\advance\c_page_lines_reference\plusone
+   \global\advanceby\c_page_lines_reference\plusone
    \c_attr_linereference\c_page_lines_reference
    #3% todo: #3{#1} as there is no need to pass #1 as part of #3
    % for the moment we use a simple system i.e. no prefixes etc .. todo: store as number
    \c_strc_references_bind_state\zerocount % we don't want the prewordbreak and manage it here
-   \normalexpanded{\strc_references_set_named_reference{line}{#2}{conversion=\linenumberingparameter\c!conversion}{\the\c_page_lines_reference}}% kind labels userdata text
+   \expanded{\strc_references_set_named_reference{line}{#2}{conversion=\linenumberingparameter\c!conversion}{\the\c_page_lines_reference}}% kind labels userdata text
    \endgroup}
 
 % \def\page_lines_reference_start#1{\page_lines_some_reference{#1}{lr:b:#1}{}} % reimplemented later
@@ -155,8 +158,10 @@
 \setnewconstant\c_page_lines_location \plusone  % 0=middle, 1=left, 2=right, 3=inner, 4=outer, 5=text, 6=begin, 7=end
 \setnewconstant\c_page_lines_alignment\plusfive % 0=middle, 1=left, 2=right, 5=auto
 
-\newdimen\d_page_lines_width
-\newdimen\d_page_lines_distance
+\newdimension  \d_page_lines_width
+\newdimension  \d_page_lines_distance
+
+\newinteger    \c_pages_lines_nesting
 
 \newevery \beforeeverylinenumbering \relax
 \newevery \aftereverylinenumbering  \relax
@@ -193,12 +198,10 @@
 % \startlinenumbering[<startvalue>|continue|settings|name]
 % \startlinenumbering[name][<startvalue>|continue|settings]
 
-\newcount\c_pages_lines_nesting
-
-\permanent\tolerant\protected\def\startlinenumbering[#1]#*[#2]%
+\permanent\tolerant\protected\def\startlinenumbering[#1]#*[#S#2]%
   {\begingroup
    \page_postprocessors_linenumbers_check
-   \advance\c_pages_lines_nesting\plusone
+   \advanceby\c_pages_lines_nesting\plusone
    \ifnum\c_pages_lines_nesting>\plusone
      \expandafter\gobbletwooptionals
    \orelse\ifparameter#2\or
@@ -218,47 +221,48 @@
    \fi
    \page_lines_start_followup}
 
-\def\page_lines_start_one[#1][#2]% [continue|<number>|settings] % historic
+\def\page_lines_start_one[#S#1][#2]% [continue|<number>|settings] % historic
   {\edef\m_argument{#1}%
    \ifx\m_argument\v!continue
      \c_page_lines_mode\zerocount
-     \let\currentlinenumbering\empty
+     \lettonothing\currentlinenumbering
    \else
-     \c_page_lines_mode\plusone
      \ifx\m_argument\v!empty
-       \let\currentlinenumbering\empty
+       \lettonothing\currentlinenumbering
      \orelse\ifhastok={#1}%
-       \let\currentlinenumbering\empty
+       \lettonothing\currentlinenumbering
        \setupcurrentlinenumbering[#1]%
+     \orelse\ifchknum\m_argument\or
+       \lettonothing\currentlinenumbering
+       \letlinenumberingparameter\c!start\m_argument
      \else
-       \doifelsenumber\m_argument
-         {\let\currentlinenumbering\empty
-          \letlinenumberingparameter\c!start\m_argument}
-         {\let\currentlinenumbering\m_argument}%
+       \let\currentlinenumbering\m_argument
      \fi
-     \edef\p_continue{\linenumberingparameter\c!continue}%
-     \ifx\p_continue\v!yes
+     \ifcstok{\linenumberingparameter\c!continue}\v!yes
        \c_page_lines_mode\zerocount
+     \else
+       \c_page_lines_mode\plusone
      \fi
    \fi
    \page_lines_start_followup}
 
-\def\page_lines_start_two[#1][#2]% [tag][continue|<number>|settings]
-  {\edef\currentlinenumbering{#1}%
+\def\page_lines_start_two[#1][#S#2]% [tag][continue|<number>|settings]
+  {\cdef\currentlinenumbering{#1}%
    \edef\m_argument{#2}%
    \ifx\m_argument\v!continue
      \c_page_lines_mode\zerocount
    \else
-     \c_page_lines_mode\plusone
      \ifx\m_argument\v!empty \else
-       \doifelseassignment{#2}
-         {\setupcurrentlinenumbering[#2]}
-         {\doifnumber\m_argument
-            {\letlinenumberingparameter\c!start\m_argument}}%
+       \ifhastok={#2}%
+         \setupcurrentlinenumbering[#2]%
+       \orelse\ifchknum\m_argument\or
+         \letlinenumberingparameter\c!start\m_argument
+       \fi
      \fi
-     \edef\p_continue{\linenumberingparameter\c!continue}%
-     \ifx\p_continue\v!yes
+     \ifcstok{\linenumberingparameter\c!continue}\v!yes
        \c_page_lines_mode\zerocount
+     \else
+       \c_page_lines_mode\plusone
      \fi
    \fi
    \page_lines_start_followup}
@@ -281,28 +285,28 @@
 \def\page_lines_start_followup
   {\numberinglinestrue
    \edef\p_location{\linenumberingparameter\c!location}%
-   \setfalse\c_page_lines_auto_narrow
+   \c_page_lines_auto_narrow\conditionalfalse
    \ifhmode \else
      \ifx\p_location\v!text
        \ifdim\leftskip>\zeropoint \else
-         \advance\leftskip\linenumberingparameter\c!margin
-         \settrue\c_page_lines_auto_narrow
+         \advanceby\leftskip{\linenumberingparameter\c!margin}%
+         \c_page_lines_auto_narrow\conditionaltrue
        \fi
      \orelse\ifx\p_location\v!begin
        \ifdim\leftskip>\zeropoint \else
-         \advance\leftskip\linenumberingparameter\c!margin
-         \settrue\c_page_lines_auto_narrow
+         \advanceby\leftskip{\linenumberingparameter\c!margin}%
+         \c_page_lines_auto_narrow\conditionaltrue
        \fi
      \orelse\ifx\p_location\v!end
        \ifdim\leftskip>\zeropoint \else
-         \advance\rightskip\linenumberingparameter\c!margin
-         \settrue\c_page_lines_auto_narrow
+         \advanceby\rightskip{\linenumberingparameter\c!margin}%
+         \c_page_lines_auto_narrow\conditionaltrue
        \fi
      \fi
    \fi
-   \the\beforeeverylinenumbering
-   %\global\settrue\c_page_lines_enabled           %
-   \global\settrue\page_postprocessors_needed_box % see core-rul.mkiv
+   \expand\beforeeverylinenumbering
+   %\global\c_page_lines_enabled\conditionaltrue           %
+   \global\page_postprocessors_needed_box\conditionaltrue % see core-rul.mkiv
    \ifcase\c_page_lines_mode\relax
      \page_lines_start_update % continue
    \or
@@ -313,7 +317,7 @@
 \permanent\protected\def\stoplinenumbering
   {\ifconditional\c_pages_lines_nesting=\plusone
      \c_attr_linenumber\attributeunsetvalue
-     \the\aftereverylinenumbering
+     \expand\aftereverylinenumbering
      \ifconditional\c_page_lines_auto_narrow\par\fi
    \fi
    \endgroup}
@@ -325,7 +329,7 @@
 \newconstant   \c_page_lines_column
 \newconstant   \c_page_lines_last_column
 \newdimen      \d_page_lines_line_width
-\settrue       \c_page_lines_dir_left_to_right
+\newconditional\c_page_lines_dir_left_to_right     \c_page_lines_dir_left_to_right\conditionaltrue
 
 \installcorenamespace{linenumberinghandler}
 
@@ -344,7 +348,9 @@
 
 \def\page_lines_add_numbers_to_box#box#column#max#nesting%
   {\bgroup
-   \strc_tags_enable_indeed
+   \ifconditional\c_strc_tags_enabled
+     \strc_tags_enable_indeed
+   \fi
    \b_page_lines_number     #box\relax
    \c_page_lines_column     #column\relax
    \c_page_lines_last_column#max\relax
@@ -359,30 +365,30 @@
 
 \def\page_lines_make_number#tag#linenumber#width#dir% with hang and parindent and skips we have to compensate for \hsize
   {\setbox\scratchbox\naturalhbox to \zeropoint \bgroup
-     \edef\currentlinenumbering{#tag}%
+     \cdef\currentlinenumbering{#tag}%
      \def\linenumber{#linenumber}% unsafe
      \d_page_lines_line_width#width\scaledpoint\relax
-     \d_page_lines_distance\linenumberingparameter\c!distance\relax
+     \d_page_lines_distance{\linenumberingparameter\c!distance}%
      \edef\p_align{\linenumberingparameter\c!align}%
      \edef\p_location{\linenumberingparameter\c!location}%
      \ifcase#dir\relax
-       \settrue \c_page_lines_dir_left_to_right
+       \c_page_lines_dir_left_to_right\conditionaltrue
      \else
-       \setfalse\c_page_lines_dir_left_to_right
+       \c_page_lines_dir_left_to_right\conditionalfalse
      \fi
      %
      % maybe we also need an option to ignore columns, so that we renumber
      % once but on the other hand this assumes aligned lines
      %
      \ifcase\c_page_lines_last_column\relax
-       \settrue \c_page_lines_fake_number % why
+       \c_page_lines_fake_number\conditionaltrue % why
      \or
        % one column
      \or
        % two columns
        \ifx\p_location\v!default % or just margin
          \ifcase\c_page_lines_column\relax
-           \settrue \c_page_lines_fake_number % why
+           \c_page_lines_fake_number\conditionaltrue % why
          \or
            \let\p_location\v!left % one
          \else
@@ -408,7 +414,7 @@
    \ifx\p_width\v!margin
      \d_page_lines_width#width%
    \else
-     \d_page_lines_width\p_width
+     \d_page_lines_width{\p_width}%
    \fi
    \relax
    \ifdim\d_page_lines_width>\zeropoint
@@ -436,43 +442,84 @@
 % \def\dodorlap{\hbox to \zeropoint{\box\nextbox\normalhss}\endgroup}
 % \def\dodollap{\hbox to \zeropoint{\normalhss\box\nextbox}\endgroup}
 
-\def\page_line_handle_left#align#width#distance%
-  {\dostarttagged\t!linenumber\empty
+\def\page_line_handle_left_skip#distance%
+   {\kern{%
+      #distance+\d_page_lines_distance
+      \ifconditional\c_page_lines_dir_left_to_right\else+\d_page_lines_line_width\fi
+    }}
+
+\def\page_line_handle_right_skip#distance%
+  {\kern{%
+     #distance+\d_page_lines_distance
+     \ifconditional\c_page_lines_dir_left_to_right+\d_page_lines_line_width\fi
+   }}
+
+\def\page_line_handle_left
+  {\ifconditional\c_spac_lines_enabled
+     \expandafter\page_line_handle_left_lines
+   \else
+     \expandafter\page_line_handle_left_normal
+   \fi}
+
+\def\page_line_handle_right
+  {\ifconditional\c_spac_lines_enabled
+     \expandafter\page_line_handle_right_lines
+   \else
+     \expandafter\page_line_handle_right_normal
+   \fi}
+
+% running text, anything can be a line, no structure
+
+\def\page_line_handle_left_normal#align#width#distance%
+  {\dostarttaggednodetail\t!ignore
    \llap
      {\page_lines_number_inject#align#width%
-      \dostarttagged\t!ignore\empty
-      \kern\dimexpr
-        #distance+\d_page_lines_distance
-        \ifconditional\c_page_lines_dir_left_to_right\else+\d_page_lines_line_width\fi
-      \relax
-      \the\everylinenumber
+      \page_line_handle_left_skip{#distance}%
+      \expand\everylinenumber
+      \hss}%
+   \dostoptagged}
+
+\def\page_line_handle_right_normal#align#width#distance%
+  {\dostarttaggednodetail\t!ignore
+   \rlap
+     {\page_line_handle_right_skip{#distance}%
+      \page_lines_number_inject#align#width%
+      \expand\everylinenumber
+      \hss}%
+   \dostoptagged}
+
+% the controlled situation, so we have structure
+
+\def\page_line_handle_left_lines#align#width#distance%
+  {\dostarttaggednodetail\t!linenumber
+   \llap
+     {\page_lines_number_inject#align#width%
+      \dostarttaggednodetail\t!ignore
+      \page_line_handle_left_skip{#distance}%
+      \expand\everylinenumber
       \hss
       \dostoptagged}%
    \dostoptagged}
 
-\def\page_line_handle_right#align#width#distance%
-  {\dostarttagged\t!linenumber\empty
+\def\page_line_handle_right_lines#align#width#distance%
+  {\dostarttaggednodetail\t!linenumber
    \rlap
-     {\dostarttagged\t!ignore\empty
-      \kern\dimexpr
-        #distance+\d_page_lines_distance
-        \ifconditional\c_page_lines_dir_left_to_right+\d_page_lines_line_width\fi
-      \relax
+     {\page_line_handle_right_skip{#distance}%
       \dostoptagged
       \page_lines_number_inject#align#width%
-      \dostarttagged\t!ignore\empty
-      \the\everylinenumber
+      \dostarttaggednodetail\t!ignore
+      \expand\everylinenumber
       \hss
       \dostoptagged}%
    \dostoptagged}
 
-\setuvalue{\??linenumberinghandler\v!left}%
+\protected\defcsname\??linenumberinghandler\v!left\endcsname
   {\page_line_handle_left\p_align\leftmarginwidth\leftmargindistance}
 
-\setuvalue{\??linenumberinghandler\v!right}%
+\protected\defcsname\??linenumberinghandler\v!right\endcsname
   {\page_line_handle_right\p_align\rightmarginwidth\rightmargindistance}
 
-\setuvalue{\??linenumberinghandler\v!inner}%
+\protected\defcsname\??linenumberinghandler\v!inner\endcsname
   {\ifodd\realpageno
      \ifx\p_align\v!inner
        \page_line_handle_left\v!flushleft\leftmarginwidth\leftmargindistance
@@ -491,7 +538,7 @@
      \fi
    \fi}
 
-\setuvalue{\??linenumberinghandler\v!outer}%
+\protected\defcsname\??linenumberinghandler\v!outer\endcsname
   {\ifodd\realpageno
      \ifx\p_align\v!inner
        \page_line_handle_right\v!flushleft\leftmarginwidth\leftmargindistance
@@ -514,7 +561,7 @@
   {\rlap
      {\kern\d_page_lines_distance
       \page_lines_number_inject#align\zeropoint
-      \the\everylinenumber}}
+      \expand\everylinenumber}}
 
 \def\page_line_handle_end#align%
   {\rlap
@@ -522,7 +569,7 @@
       \llap
         {\page_lines_number_inject#align\zeropoint
          \kern\d_page_lines_distance
-         \the\everylinenumber}}}
+         \expand\everylinenumber}}}
 
 \protected\defcsname\??linenumberinghandler\v!begin\endcsname{\page_line_handle_begin\p_align}
 \protected\defcsname\??linenumberinghandler\v!end  \endcsname{\page_line_handle_end  \p_align}
@@ -572,8 +619,8 @@
 
 \permanent\def\currentreferencelinenumber{\clf_filterreference{linenumber}}
 
-\let\m_page_lines_from\empty
-\let\m_page_lines_to  \empty
+\lettonothing\m_page_lines_from
+\lettonothing\m_page_lines_to
 
 \permanent\protected\def\doifelsesamelinereference#1#2#3%
   {\doifelsereferencefound{lr:b:#1}
@@ -588,13 +635,15 @@
 \aliased\let\doifsamelinereferenceelse\doifelsesamelinereference
 
 \permanent\protected\def\inline#1[#2]%
-  {\doifelsenothing{#1}%
-     {\doifelsesamelinereference{#2}%
-        {\in{\leftlabeltext\v!line}{\rightlabeltext\v!line}[lr:b:#2]}%
-        {\in{\leftlabeltext\v!lines}{}[lr:b:#2]--\in{}{\rightlabeltext\v!lines}[lr:e:#2]}}%
-     {\doifelsesamelinereference{#2}%
-        {\in{#1}[lr:b:#2]}%
-        {\in{#1}[lr:b:#2]--\in[lr:e:#2]}}}
+  {\ifempty{#1}%
+     \doifelsesamelinereference{#2}%
+       {\in{\leftlabeltext\v!line}{\rightlabeltext\v!line}[lr:b:#2]}%
+       {\in{\leftlabeltext\v!lines}{}[lr:b:#2]--\in{}{\rightlabeltext\v!lines}[lr:e:#2]}%
+   \else
+     \doifelsesamelinereference{#2}%
+       {\in{#1}[lr:b:#2]}%
+       {\in{#1}[lr:b:#2]--\in[lr:e:#2]}%
+   \fi}
 
 \permanent\protected\def\inlinerange[#1]%
   {\doifelsesamelinereference{#1}%

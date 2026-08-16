@@ -33,7 +33,7 @@ local setters          = tokens.setters
 local setmacro         = setters.macro
 local implement        = interfaces.implement
 
-local v_no             = interfaces.variables.no
+local v_no             <const> = interfaces.variables.no
 
 local extensiondata    = metapost.extensiondata or storage.allocate { }
 metapost.extensiondata = extensiondata
@@ -99,7 +99,10 @@ end
 
 implement {
     name      = "useMPlibrary",
-    arguments = "string",
+ -- arguments = "string",
+    arguments = "optional",
+    public    = true,
+    protected = true,
     actions   = function(name)
         resolvers.uselibrary {
             name     = name,
@@ -118,15 +121,15 @@ implement {
     arguments = "string",
     actions   = function(name)
         local value = metapost.variables[name]
-        if value ~= nil then
-            local tvalue = type(value)
-            if tvalue == "table" then
-                context(concat(value," "))
-            elseif tvalue == "number" or tvalue == "boolean" then
-                context(tostring(value))
-            elseif tvalue == "string" then
-                context(value)
-            end
+        local tvalue = type(value)
+        if tvalue == "nil" then
+            context("0")
+        elseif tvalue == "table" then
+            context(concat(value," "))
+        elseif tvalue == "number" or tvalue == "boolean" then
+            context(tostring(value))
+        elseif tvalue == "string" then
+            context(value)
         end
     end
 }
@@ -223,6 +226,7 @@ implement {
             { "figure" },
             { "method" },
             { "namespace" },
+            { "filtering" },
         }
     }
 }
@@ -230,7 +234,7 @@ implement {
 implement {
     name      = "mpsetoutercolor",
     actions   = function(...) metapost.setoutercolor(...) end, -- not yet implemented
-    arguments = { "integer", "integer", "integer", "integer" }
+    arguments = "4 integers",
 }
 
 -- this has to become a codeinjection
@@ -313,6 +317,7 @@ implement {
             { "inclusions" },
             { "method" },
             { "namespace" },
+            { "filtering" },
             { "width", "dimension" },
             { "height", "dimension" },
         },
@@ -358,16 +363,6 @@ end
 function mptex.reset()
     environments = { }
 end
-
-implement {
-    name      = "mppushvariables",
-    actions   = metapost.pushvariables,
-}
-
-implement {
-    name      = "mppopvariables",
-    actions   = metapost.popvariables,
-}
 
 implement {
     name      = "mptexset",
@@ -418,3 +413,18 @@ MP = MP or { } -- user namespace
 
 table.setmetatablecall(mp,function(t,k,...) return t[k](...) end)
 table.setmetatablecall(MP,function(t,k,...) return t[k](...) end)
+
+-- A secret option:
+
+implement {
+    name      = "resetMPinstance",
+    protected = true,
+    public    = true,
+    arguments = "optional",
+    actions   = function(s)
+        if s and s ~= "" then
+            report_metapost("resetting instance %a",s)
+            metapost.reset(s)
+        end
+    end,
+}

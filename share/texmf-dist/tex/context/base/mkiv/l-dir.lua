@@ -21,7 +21,8 @@ local dir = dir
 local lfs = lfs
 
 local attributes = lfs.attributes
-local walkdir    = lfs.dir
+----- walkdir    = lfs.dir
+local scandir    = lfs.dir
 local isdir      = lfs.isdir  -- not robust, will be overloaded anyway
 local isfile     = lfs.isfile -- not robust, will be overloaded anyway
 local currentdir = lfs.currentdir
@@ -68,6 +69,20 @@ else
     lfs.isfile = isfile
 
 end
+
+-- safeguard
+
+local isreadable = file.isreadable
+
+local walkdir = function(p,...)
+    if isreadable(p.."/.") then
+        return scandir(p,...)
+    else
+        return function() end
+    end
+end
+
+lfs.walkdir = walkdir
 
 -- handy
 
@@ -120,7 +135,7 @@ local function glob_pattern_function(path,patt,recurse,action)
     end
 end
 
-local function glob_pattern_table(path,patt,recurse,result)
+local function glob_pattern_table(path,patt,recurse,result,dirresult)
     if not result then
         result = { }
     end
@@ -160,13 +175,17 @@ local function glob_pattern_table(path,patt,recurse,result)
     end
     if dirs then
         for i=1,nofdirs do
-            glob_pattern_table(dirs[i],patt,recurse,result)
+            local dir = dirs[i]
+            glob_pattern_table(dir,patt,recurse,result,dirresult)
+            if dirresult then
+                dirresult[#dirresult+1] = dir
+            end
         end
     end
-    return result
+    return result, dirresult
 end
 
-local function globpattern(path,patt,recurse,method)
+local function globpattern(path,patt,recurse,method,dirmethod)
     local kind = type(method)
     if patt and sub(patt,1,-3) == path then
         patt = false
@@ -176,8 +195,11 @@ local function globpattern(path,patt,recurse,method)
         return okay and glob_pattern_function(path,patt,recurse,method) or { }
     elseif kind == "table" then
         return okay and glob_pattern_table(path,patt,recurse,method) or method
+    elseif okay then
+        local files, dirs = glob_pattern_table(path,patt,recurse,{ },{ })
+        return files or { }, dirs or { }
     else
-        return okay and glob_pattern_table(path,patt,recurse,{ }) or { }
+        return { }, dirmethod and { } or nil
     end
 end
 
@@ -188,31 +210,33 @@ dir.globpattern = globpattern
 local function collectpattern(path,patt,recurse,result)
     local ok, scanner
     result = result or { }
-    if path == "/" then
-        ok, scanner, first = xpcall(function() return walkdir(path..".") end, function() end) -- kepler safe
-    else
-        ok, scanner, first = xpcall(function() return walkdir(path)      end, function() end) -- kepler safe
-    end
-    if ok and type(scanner) == "function" then
-        if not find(path,"/$") then
-            path = path .. '/'
+    if patt then
+        if path == "/" then
+            ok, scanner, first = xpcall(function() return walkdir(path..".") end, function() end) -- kepler safe
+        else
+            ok, scanner, first = xpcall(function() return walkdir(path)      end, function() end) -- kepler safe
         end
-        for name in scanner, first do -- cna be optimized
-            if name == "." then
-                -- skip
-            elseif name == ".." then
-                -- skip
-            else
-                local full = path .. name
-                local attr = attributes(full)
-                local mode = attr.mode
-                if mode == 'file' then
-                    if find(full,patt) then
+        if ok and type(scanner) == "function" then
+            if not find(path,"/$") then
+                path = path .. '/'
+            end
+            for name in scanner, first do -- can be optimized
+                if name == "." then
+                    -- skip
+                elseif name == ".." then
+                    -- skip
+                else
+                    local full = path .. name
+                    local attr = attributes(full)
+                    local mode = attr.mode
+                    if mode == 'file' then
+                        if find(full,patt) then
+                            result[name] = attr
+                        end
+                    elseif recurse and mode == "directory" then
+                        attr.list = collectpattern(full,patt,recurse)
                         result[name] = attr
                     end
-                elseif recurse and mode == "directory" then
-                    attr.list = collectpattern(full,patt,recurse)
-                    result[name] = attr
                 end
             end
         end
@@ -230,18 +254,18 @@ if onwindows then -- we could sanitize here
 
 --     pattern = Ct {
     pattern = {
-        [1] = (Cs(P(".") + slash^1) + Cs(R("az","AZ") * P(":") * slash^0) + Cc("./")) * V(2) * V(3),
-        [2] = Cs(((1-S("*?/\\"))^0 * slash)^0),
-        [3] = Cs(P(1)^0)
+        (Cs(P(".") + slash^1) + Cs(R("az","AZ") * P(":") * slash^0) + Cc("./")) * V(2) * V(3),
+        Cs(((1-S("*?/\\"))^0 * slash)^0),
+        Cs(P(1)^0)
     }
 
 else -- assume unix
 
 --     pattern = Ct {
     pattern = {
-        [1] = (C(P(".") + P("/")^1) + Cc("./")) * V(2) * V(3),
-        [2] = C(((1-S("*?/"))^0 * P("/"))^0),
-        [3] = C(P(1)^0)
+        (C(P(".") + P("/")^1) + Cc("./")) * V(2) * V(3),
+        C(((1-S("*?/"))^0 * P("/"))^0),
+        C(P(1)^0)
     }
 
 end
@@ -256,7 +280,7 @@ local filter = Cs ( (
     P(1)
 )^0 )
 
-local function glob(str,t)
+local function glob(str,t,dirstoo)
     if type(t) == "function" then
         if type(str) == "table" then
             for s=1,#str do
@@ -273,30 +297,28 @@ local function glob(str,t)
                 globpattern(start,result,recurse,t)
             end
         end
-    else
-        if type(str) == "table" then
-            local t = t or { }
-            for s=1,#str do
-                glob(str[s],t)
-            end
+    elseif type(str) == "table" then
+        local t = t or { }
+        for s=1,#str do
+            glob(str[s],t)
+        end
+        return t
+    elseif isfile(str) then
+        if t then
+            t[#t+1] = str
             return t
-        elseif isfile(str) then
-            if t then
-                t[#t+1] = str
-                return t
-            else
-                return { str }
-            end
         else
-            local root, path, base = lpegmatch(pattern,str) -- we could use the file splitter
-            if root and path and base then
-                local recurse = find(base,"**",1,true) -- find(base,"%*%*")
-                local start   = root .. path
-                local result  = lpegmatch(filter,start .. base)
-                return globpattern(start,result,recurse,t)
-            else
-                return { }
-            end
+            return { str }
+        end
+    else
+        local root, path, base = lpegmatch(pattern,str) -- we could use the file splitter
+        if root and path and base then
+            local recurse = find(base,"**",1,true) -- find(base,"%*%*")
+            local start   = root .. path
+            local result  = lpegmatch(filter,start .. base)
+            return globpattern(start,result,recurse,t,dirstoo)
+        else
+            return { }, dirstoo and { } or nil
         end
     end
 end
@@ -379,7 +401,8 @@ end
 
 dir.globdirs = globdirs
 
--- inspect(globdirs("e:/tmp"))
+-- inspect(globfiles("t:/sources"))
+-- inspect(globdirs("t:/sources"))
 
 -- t = dir.glob("c:/data/develop/context/sources/**/????-*.tex")
 -- t = dir.glob("c:/data/develop/tex/texmf/**/*.tex")
@@ -389,7 +412,7 @@ dir.globdirs = globdirs
 -- print(dir.ls("*.tex"))
 
 function dir.ls(pattern)
-    return concat(glob(pattern),"\n")
+    return concat(glob(pattern or ""),"\n")
 end
 
 -- mkdirs("temp")
@@ -594,6 +617,27 @@ do
             return str
         end
 
+    end
+
+    -- This go there anc check works okay in tricky situation as we encounter
+    -- on osx, where tex installations use rather complex chains of links.
+
+    function dir.expandlink(dir,report)
+        local curdir = currentdir()
+        local trace  = type(report) == "function"
+        if chdir(dir) then
+            local newdir = currentdir()
+            if newdir ~= dir and trace then
+                report("following symlink %a to %a",dir,newdir)
+            end
+            chdir(curdir)
+            return newdir
+        else
+            if trace then
+                report("unable to check path %a",dir)
+            end
+            return dir
+        end
     end
 
 end

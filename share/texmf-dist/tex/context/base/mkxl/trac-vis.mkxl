@@ -30,22 +30,33 @@
 %D
 %D In due time some special visualzation of math will move here as well.
 
-\writestatus{loading}{ConTeXt Tracing Macros / Visualization}
+% special case:
+%
+% \disabledirectives[backend.cleanup.flatten]
+% \bitwiseflip \normalizelinemode -\flattendiscretionariesnormalizecode
+% \showmakeup[discretionary]
 
-\registerctxluafile{trac-vis}{autosuffix,optimize}
+\writestatus{loading}{ConTeXt Tracing Macros / Visualization}
 
 \unprotect
 
 \newconstant\c_syst_visualizers_state
 \newtoks    \t_syst_visualizers_optimize
 
+\registerctxluafile{trac-vis}{autosuffix}
+
 % \definesystemattribute[visual][public,global] % already defined
 
-% no, but can become an option:
-%
-% \appendtoks
-%     \c_attr_visual\attributeunsetvalue
-% \to \everybeforepagebody
+\newconditional\c_visual_local
+
+\permanent\protected\def\setlocalshowmakeup  {\c_visual_local\conditionaltrue}
+\permanent\protected\def\resetlocalshowmakeup{\c_visual_local\conditionalfalse}
+
+\appendtoks
+    \ifconditional\c_visual_local
+      \c_attr_visual\attributeunsetvalue
+    \fi
+\to \everybeforepagebody
 
 %D We only provide box visualizers as they can come in handy for testing
 %D macros. In due time we will move some of the m-visual code here too.
@@ -53,19 +64,36 @@
 \aliased\let\syst_visualizers_hbox   \hbox
 \aliased\let\syst_visualizers_vbox   \vbox
 \aliased\let\syst_visualizers_vtop   \vtop
+\aliased\let\syst_visualizers_dbox   \dbox
 \aliased\let\syst_visualizers_vcenter\vcenter
 \aliased\let\syst_visualizers_hpack  \hpack
 \aliased\let\syst_visualizers_vpack  \vpack
 \aliased\let\syst_visualizers_tpack  \tpack
+\aliased\let\syst_visualizers_dpack  \dpack
+\aliased\let\syst_visualizers_vsplit \vsplit
+\aliased\let\syst_visualizers_tsplit \tsplit
+\aliased\let\syst_visualizers_dsplit \dsplit
 
-\permanent\protected\def\ruledhbox   {\syst_visualizers_hbox    attr \visualattribute \clf_getvisual{simplehbox} }
-\permanent\protected\def\ruledhpack  {\syst_visualizers_hpack   attr \visualattribute \clf_getvisual{simplehbox} }
-\permanent\protected\def\ruledvbox   {\syst_visualizers_vbox    attr \visualattribute \clf_getvisual{simplevbox} }
-\permanent\protected\def\ruledvpack  {\syst_visualizers_vpack   attr \visualattribute \clf_getvisual{simplevbox} }
-\permanent\protected\def\ruledvtop   {\syst_visualizers_vtop    attr \visualattribute \clf_getvisual{simplevtop} }
-\permanent\protected\def\ruledtpack  {\syst_visualizers_tpack   attr \visualattribute \clf_getvisual{simplevtop} }
-\permanent\protected\def\ruledvcenter{\syst_visualizers_vcenter attr \visualattribute \clf_getvisual{simplevbox} }
+\permanent\protected\def\ruledhbox   {\syst_visualizers_hbox    \s!attr \visualattribute \clf_getvisual{simplehbox} }
+\permanent\protected\def\ruledhpack  {\syst_visualizers_hpack   \s!attr \visualattribute \clf_getvisual{simplehbox} }
+\permanent\protected\def\ruledvbox   {\syst_visualizers_vbox    \s!attr \visualattribute \clf_getvisual{simplevbox} }
+\permanent\protected\def\ruledvpack  {\syst_visualizers_vpack   \s!attr \visualattribute \clf_getvisual{simplevbox} }
+\permanent\protected\def\ruledvtop   {\syst_visualizers_vtop    \s!attr \visualattribute \clf_getvisual{simplevtop} }
+\permanent\protected\def\ruledtpack  {\syst_visualizers_tpack   \s!attr \visualattribute \clf_getvisual{simplevtop} }
+\permanent\protected\def\ruleddbox   {\syst_visualizers_dbox    \s!attr \visualattribute \clf_getvisual{simplevtop} }
+\permanent\protected\def\ruleddpack  {\syst_visualizers_dpack   \s!attr \visualattribute \clf_getvisual{simplevtop} }
+\permanent\protected\def\ruledvcenter{\syst_visualizers_vcenter \s!attr \visualattribute \clf_getvisual{simplevbox} }
 \permanent\protected\def\ruledmbox #1{\ruledhbox{\startimath#1\stopimath}}
+
+\mutable\integerdef\c_syst_visualizer\zerocount
+
+\permanent\protected\def\ruledvsplit{\afterassignment\syst_visualizers_v_split\integerdef\c_syst_visualizer}
+\permanent\protected\def\ruledtsplit{\afterassignment\syst_visualizers_t_split\integerdef\c_syst_visualizer}
+\permanent\protected\def\ruleddsplit{\afterassignment\syst_visualizers_d_split\integerdef\c_syst_visualizer}
+
+\permanent\protected\def\syst_visualizers_v_split{\syst_visualizers_vsplit\c_syst_visualizer \s!attr \visualattribute \clf_getvisual {simplevbox}}
+\permanent\protected\def\syst_visualizers_t_split{\syst_visualizers_tsplit\c_syst_visualizer \s!attr \visualattribute \clf_getvisual {simplevtop}}
+\permanent\protected\def\syst_visualizers_d_split{\syst_visualizers_dsplit\c_syst_visualizer \s!attr \visualattribute \clf_getvisual {simplevtop}}
 
 \appendtoks
     \ifcase\c_syst_visualizers_state\else
@@ -78,9 +106,9 @@
     \global\t_syst_visualizers_optimize\emptytoks
 \to \t_syst_visualizers_optimize
 
-\def\syst_visualizers_speedup{\the\t_syst_visualizers_optimize}
+\def\syst_visualizers_speedup{\expand\t_syst_visualizers_optimize}
 
-\appendtoks
+% \appendtoks
 %     \enforced\global\protected\edef\ruledhbox   {\syst_visualizers_hbox    attr \visualattribute \number\clf_getvisual{simplehbox} }
 %     \enforced\global\protected\edef\ruledhpack  {\syst_visualizers_hpack   attr \visualattribute \number\clf_getvisual{simplehbox} }
 %     \enforced\global\protected\edef\ruledvbox   {\syst_visualizers_vbox    attr \visualattribute \number\clf_getvisual{simplevbox} }
@@ -88,7 +116,7 @@
 %     \enforced\global\protected\edef\ruledvtop   {\syst_visualizers_vtop    attr \visualattribute \number\clf_getvisual{simplevtop} }
 %     \enforced\global\protected\edef\ruledtpack  {\syst_visualizers_tpack   attr \visualattribute \number\clf_getvisual{simplevtop} }
 %     \enforced\global\protected\edef\ruledvcenter{\syst_visualizers_vcenter attr \visualattribute \number\clf_getvisual{simplevbox} }
-\to \t_syst_visualizers_optimize
+% \to \t_syst_visualizers_optimize
 
 \permanent\tolerant\protected\def\showmakeup[#1]%
   {\ifarguments
@@ -105,15 +133,35 @@
 \permanent\protected\def\showglyphdata    {\showglyphs\showfontkerns\showfontitalics}
 \permanent\protected\def\showfontexpansion{\clf_setvisual{expansion}}
 
+% lmmonoltcond10regular 4pt
+
+\newbox\visualizerbox
+
+\mutable\lettonothing\visualizerfont
+
 \permanent\tolerant\protected\def\setvisualizerfont[#1]% somename at 4pt
   {\begingroup
-   \iftok{#1}\emptytoks
+   \ifempty{#1}%
      \definedfont[Mono at 4pt]%
    \else
      \definedfont[#1]%
    \fi
    \clf_setvisualfont\fontid\font
    \endgroup}
+
+% \def\syst_v_p_indeed#1%
+%   {\setbox\visualizerbox\hpack{\visualizerfont#1}}
+
+\def\syst_v_p_indeed#1%
+  {\begingroup
+   \c_attr_visual\attributeunsetvalue
+   \global\setbox\visualizerbox\hpack{\visualizerfont#1}%
+   \endgroup}
+
+\def\syst_v_p
+  {\definefrozenfont[visualizerfont][lmmonoltcond10regular @ 4pt]%
+   \let\syst_v_p\syst_v_p_indeed
+   \syst_v_p_indeed}
 
 \permanent\protected\def\resetvisualizers
   {\c_attr_visual\attributeunsetvalue}
@@ -142,7 +190,7 @@
   {\hbox attr \visualattribute \clf_getvisual{strut} }
 
 \appendtoks
-    \normalexpanded{\protected\xdef\spac_struts_vide_hbox\expandafter{\spac_struts_vide_hbox}}%
+    \expanded{\protected\xdef\spac_struts_vide_hbox\expandafter{\spac_struts_vide_hbox}}%
 \to \t_syst_visualizers_optimize
 
 %D For manuals:
@@ -186,12 +234,12 @@
 \permanent\protected\def\dontinterfere
   {\reseteverypar
    \parindent\zeropoint
-   \parskip  \zeropoint
-   \leftskip \zeropoint
-   \rightskip\zeropoint
+   \parskip  \zeroskip
+   \leftskip \zeroskip
+   \rightskip\zeroskip
    \relax}
 
-%D We keep these for a while:
+%D We kept these for a while:
 
 % \aliased\let\ruledhss       \hss
 % \aliased\let\ruledhfil      \hfil

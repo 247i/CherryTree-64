@@ -14,9 +14,19 @@ end
 
 if not math.round then
 
-    local floor = math.floor
+    if xmath then
 
-    function math.round(x) return floor(x + 0.5) end
+        math.round = xmath.round
+
+    else
+
+        local floor = math.floor
+
+        function math.round(x)
+            return x < 0 and -floor(-x + 0.5) or floor(x + 0.5)
+        end
+
+    end
 
 end
 
@@ -141,9 +151,41 @@ if not math.ult then
 
     local floor = math.floor
 
-    function math.tointeger(m,n)
+    function math.ult(m,n)
         -- not ok but i'm not motivated to look into it now
         return floor(m) < floor(n) -- unsigned comparison needed
+    end
+
+end
+
+if setinspector and vector then
+
+    local inspect  = inspect
+
+    local isvector = vector.isvector
+    local totable  = vector.totable
+
+    setinspector("vector",function(v)
+        if isvector(v) then
+            inspect(totable(v))
+            return true
+        end
+    end)
+
+    local mesh = vector.mesh
+
+    if mesh then
+
+        local ismesh  = mesh.ismesh
+        local totable = mesh.totable
+
+        setinspector("mesh",function(v)
+            if ismesh(v) then
+                inspect(totable(v))
+                return true
+            end
+        end)
+
     end
 
 end

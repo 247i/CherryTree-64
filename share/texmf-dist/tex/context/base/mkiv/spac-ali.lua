@@ -58,8 +58,8 @@ typesetters            = typesetters or { }
 local alignments       = { }
 typesetters.alignments = alignments
 
-local report_realign   = logs.reporter("typesetters","margindata")
-local trace_realign    = trackers.register("typesetters.margindata", function(v) trace_margindata = v end)
+local report_realign   = logs.reporter("typesetters","realign")
+local trace_realign    = trackers.register("typesetters.realign", function(v) trace_realign = v end)
 
 local nofrealigned     = 0
 
@@ -68,7 +68,7 @@ local nofrealigned     = 0
 -- raggedright     0           0         fil
 -- raggedcenter    0 +         0 +        -
 
-local function handler(head,leftpage,realpageno) -- traverse_list
+local function handler(head,leftpage,realpageno) -- traverselist
     local current = head
     while current do
         local id = getid(current)

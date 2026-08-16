@@ -6,20 +6,15 @@ if not modules then modules = { } end modules ['data-tmp'] = {
     license   = "see context related readme files"
 }
 
---[[ldx--
-<p>This module deals with caching data. It sets up the paths and implements
-loaders and savers for tables. Best is to set the following variable. When not
-set, the usual paths will be checked. Personally I prefer the (users) temporary
-path.</p>
-
-</code>
-TEXMFCACHE=$TMP;$TEMP;$TMPDIR;$TEMPDIR;$HOME;$TEXMFVAR;$VARTEXMF;.
-</code>
-
-<p>Currently we do no locking when we write files. This is no real problem
-because most caching involves fonts and the chance of them being written at the
-same time is small. We also need to extend luatools with a recache feature.</p>
---ldx]]--
+-- This module deals with caching data. It sets up the paths and implements loaders
+-- and savers for tables. Best is to set the following variable. When not set, the
+-- usual paths will be checked. Personally I prefer the (users) temporary path.
+--
+--   TEXMFCACHE=$TMP;$TEMP;$TMPDIR;$TEMPDIR;$HOME;$TEXMFVAR;$VARTEXMF;.
+--
+-- Currently we do no locking when we write files. This is no real problem because
+-- most caching involves fonts and the chance of them being written at the same time
+-- is small. We also need to extend luatools with a recache feature.
 
 local next, type = next, type
 local pcall, loadfile, collectgarbage = pcall, loadfile, collectgarbage
@@ -74,7 +69,7 @@ local usedreadables = { }
 local compilelua    = luautilities.compile
 local luasuffixes   = luautilities.suffixes
 
-caches.base         = caches.base or "luatex-cache"  -- can be local
+caches.base         = caches.base or (LUATEXENGINE and LUATEXENGINE .. "-cache") or "luatex-cache"  -- can be local
 caches.more         = caches.more or "context"       -- can be local
 caches.defaults     = { "TMPDIR", "TEMPDIR", "TMP", "TEMP", "HOME", "HOMEPATH" }
 
@@ -235,7 +230,7 @@ end
 local r_cache = { }
 local w_cache = { }
 
-local function getreadablepaths(...)
+local function getreadablepaths(...) -- ... | tags
     local tags = { ... }
     local hash = concat(tags,"/")
     local done = r_cache[hash]
@@ -254,7 +249,7 @@ local function getreadablepaths(...)
     return done
 end
 
-local function getwritablepath(...)
+local function getwritablepath(...) -- ... | tags
     local tags = { ... }
     local hash = concat(tags,"/")
     local done = w_cache[hash]
@@ -402,15 +397,25 @@ function caches.loadcontent(cachename,dataname,filename)
         filename = joinfile(path,name)
     end
     local state, blob = pcall(loadfile,addsuffix(filename,luasuffixes.luc))
+    if trace_cache and blob then
+        report_caches("getting %s lua content from path %a","regular",filename)
+    end
     if not blob then
         state, blob = pcall(loadfile,addsuffix(filename,luasuffixes.lua))
+        if trace_cache and blob then
+            report_caches("getting %s lua content from path %a","bytecode",filename)
+        end
     end
     if blob then
         local data = blob()
         if data and data.content then
             if data.type == dataname then
                 if data.version == resolvers.cacheversion then
-                    content_state[#content_state+1] = data.uuid
+                    local uuid = data.uuid
+                    content_state[#content_state+1] = uuid
+                    if trace_cache then
+                        report_caches("registering content uuid %a for %a",uuid,filename)
+                    end
                     if trace_locating then
                         report_resolvers("loading %a for %a from %a",dataname,cachename,filename)
                     end
@@ -448,6 +453,7 @@ function caches.savecontent(cachename,dataname,content,filename)
     if trace_locating then
         report_resolvers("preparing %a for %a",dataname,cachename)
     end
+    local uuid = osuuid()
     local data = {
         type    = dataname,
         root    = cachename,
@@ -455,9 +461,12 @@ function caches.savecontent(cachename,dataname,content,filename)
         date    = osdate("%Y-%m-%d"),
         time    = osdate("%H:%M:%S"),
         content = content,
-        uuid    = osuuid(),
+        uuid    = uuid,
     }
     local ok = savedata(luaname,serialize(data,true))
+    if trace_cache then
+        report_caches("saving %a with uuid %a",luaname,uuid)
+    end
     if ok then
         if trace_locating then
             report_resolvers("category %a, cachename %a saved in %a",dataname,cachename,luaname)

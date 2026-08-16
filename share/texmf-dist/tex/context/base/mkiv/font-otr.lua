@@ -66,6 +66,7 @@ if not modules then modules = { } end modules ['font-otr'] = {
 --     require("char-ini")
 -- end
 
+local number = number
 local next, type, tonumber, rawget = next, type, tonumber, rawget
 local byte, lower, char, gsub = string.byte, string.lower, string.char, string.gsub
 local fullstrip = string.fullstrip
@@ -682,15 +683,15 @@ local weights = {
 }
 
 local widths = {
-    [1] = "ultracondensed",
-    [2] = "extracondensed",
-    [3] = "condensed",
-    [4] = "semicondensed",
-    [5] = "normal",
-    [6] = "semiexpanded",
-    [7] = "expanded",
-    [8] = "extraexpanded",
-    [9] = "ultraexpanded",
+    "ultracondensed",
+    "extracondensed",
+    "condensed",
+    "semicondensed",
+    "normal",
+    "semiexpanded",
+    "expanded",
+    "extraexpanded",
+    "ultraexpanded",
 }
 
 setmetatableindex(weights, function(t,k)
@@ -703,31 +704,31 @@ setmetatableindex(widths,function(t,k)
     return "normal"
 end)
 
-local panoseweights = {
-    [ 0] = "normal",
-    [ 1] = "normal",
-    [ 2] = "verylight",
-    [ 3] = "light",
-    [ 4] = "thin",
-    [ 5] = "book",
-    [ 6] = "medium",
-    [ 7] = "demi",
-    [ 8] = "bold",
-    [ 9] = "heavy",
-    [10] = "black",
+local panoseweights = { [0] =
+    "normal",
+    "normal",
+    "verylight",
+    "light",
+    "thin",
+    "book",
+    "medium",
+    "demi",
+    "bold",
+    "heavy",
+    "black",
 }
 
-local panosewidths = {
-    [ 0] = "normal",
-    [ 1] = "normal",
-    [ 2] = "normal",
-    [ 3] = "normal",
-    [ 4] = "normal",
-    [ 5] = "expanded",
-    [ 6] = "condensed",
-    [ 7] = "veryexpanded",
-    [ 8] = "verycondensed",
-    [ 9] = "monospaced",
+local panosewidths = { [0] =
+    "normal",
+    "normal",
+    "normal",
+    "normal",
+    "normal",
+    "expanded",
+    "condensed",
+    "veryexpanded",
+    "verycondensed",
+    "monospaced",
 }
 
 -- We implement a reader per table.
@@ -1183,21 +1184,26 @@ readers.hmtx = function(f,fontdata,specification)
             local glyph     = glyphs[i]
             width           = readshort(f) -- readushort
             leftsidebearing = readshort(f)
-            if width ~= 0 then
-                glyph.width = width
-            end
-         -- if leftsidebearing ~= 0 then
-         --     glyph.lsb = leftsidebearing
-         -- end
+            glyph.width     = width        -- zero is okay
+         -- glyph.lsb       = leftsidebearing
         end
         -- The next can happen in for instance a monospace font or in a cjk font
         -- with fixed widths.
-        for i=nofmetrics,nofglyphs-1 do
+--         for i=nofmetrics,nofglyphs-1 do
+--             local glyph = glyphs[i]
+--             if width ~= 0 then
+--                 glyph.width = width
+--             end
+--          -- if leftsidebearing ~= 0 then
+--          --     glyph.lsb = leftsidebearing
+--          -- end
+--         end
+        for i=0,nofglyphs-1 do
             local glyph = glyphs[i]
-            if width ~= 0 then
+            if not glyph.width then
                 glyph.width = width
             end
-         -- if leftsidebearing ~= 0 then
+         -- if not glyph.lsb and leftsidebearing ~= 0 then
          --     glyph.lsb = leftsidebearing
          -- end
         end
@@ -1250,7 +1256,7 @@ readers.post = function(f,fontdata,specification)
         local version = readulong(f)
         fontdata.postscript = {
             version            = version,
-            italicangle        = round(1000*readfixed(f))/1000,
+            italicangle        = readfixed(f),
             underlineposition  = readfword(f),
             underlinethickness = readfword(f),
             monospaced         = readulong(f),
@@ -1292,8 +1298,8 @@ readers.post = function(f,fontdata,specification)
                     if length > 0 then
                         glyphs[mapping].name = readstring(f,length)
                     else
-                        report("quit post name fetching at %a of %a: %s",i,maxnames,"overflow")
-                        break
+                     -- report("quit post name fetching at %a of %a: %s",i,maxnames,"overflow")
+                     -- break
                     end
                 end
             end
@@ -1683,7 +1689,7 @@ end
 function readers.cmap(f,fontdata,specification)
     local tableoffset = gotodatatable(f,fontdata,"cmap",specification.glyphs)
     if tableoffset then
-        local version      = readushort(f)
+        local version      = readushort(f) -- check later versions
         local noftables    = readushort(f)
         local records      = { }
         local unicodecid   = false
@@ -1962,9 +1968,10 @@ local function getinfo(maindata,sub,platformnames,rawfamilynames,metricstoo,inst
             weight         = weight and lower(weight),
             width          = width and lower(width),
             pfmweight      = metrics.weightclass or 400, -- will become weightclass
-            pfmwidth       = metrics.widthclass or 5,    -- will become widthclass
+            pfmwidth       = metrics.widthclass or 5, -- will become widthclass
             panosewidth    = metrics.panosewidth,
             panoseweight   = metrics.panoseweight,
+            fstype         = metrics.fstype or 0, -- embedding, subsetting and editing
             italicangle    = postscript.italicangle or 0,
             units          = fontheader.units or 0,
             designsize     = fontdata.designsize,
@@ -1977,11 +1984,14 @@ local function getinfo(maindata,sub,platformnames,rawfamilynames,metricstoo,inst
             capheight      = metrics.capheight or fontdata.maxy, -- can be missing
             ascender       = metrics.typoascender,
             descender      = metrics.typodescender,
+            ascent         = metrics.winascent,  -- these might be more reliable
+            descent        = metrics.windescent, -- these might be more reliable
             platformnames  = platformnames or nil,
             instancenames  = instancenames or nil,
             tableoffsets   = fontdata.tableoffsets,
             defaultvheight = (verticalheader.ascender or 0) - (verticalheader.descender or 0)
         }
+      -- print(fontname,fontheader.macstyle) : maybe for italic
         if metricstoo then
             local keys = {
                 "version",
@@ -2229,6 +2239,7 @@ local function readdata(f,offset,specification)
             rangeshift    = fontdata.rangeshift,
         })
     end
+
     return fontdata
 end
 
@@ -2424,25 +2435,29 @@ function readers.loadfont(filename,n,instance)
                 nofsubfonts   = fontdata.subfonts and #fontdata.subfonts or nil,
             },
             resources     = {
-             -- filename      = fontdata.filename,
-                filename      = filename,
-                private       = privateoffset,
-                duplicates    = fontdata.duplicates  or { },
-                features      = fontdata.features    or { }, -- we need to add these in the loader
-                sublookups    = fontdata.sublookups  or { }, -- we need to add these in the loader
-                marks         = fontdata.marks       or { }, -- we need to add these in the loader
-                markclasses   = fontdata.markclasses or { }, -- we need to add these in the loader
-                marksets      = fontdata.marksets    or { }, -- we need to add these in the loader
-                sequences     = fontdata.sequences   or { }, -- we need to add these in the loader
-                variants      = fontdata.variants, -- variant -> unicode -> glyph
-                version       = getname(fontdata,"version"),
-                cidinfo       = fontdata.cidinfo,
-                mathconstants = fontdata.mathconstants,
-                colorpalettes = fontdata.colorpalettes,
-                svgshapes     = fontdata.svgshapes,
-                pngshapes     = fontdata.pngshapes,
-                variabledata  = fontdata.variabledata,
-                foundtables   = fontdata.foundtables,
+             -- filename        = fontdata.filename,
+                filename        = filename,
+                private         = privateoffset,
+                duplicates      = fontdata.duplicates  or { },
+                features        = fontdata.features    or { }, -- we need to add these in the loader
+                sublookups      = fontdata.sublookups  or { }, -- we need to add these in the loader
+                marks           = fontdata.marks       or { }, -- we need to add these in the loader
+                markclasses     = fontdata.markclasses or { }, -- we need to add these in the loader
+                marksets        = fontdata.marksets    or { }, -- we need to add these in the loader
+                sequences       = fontdata.sequences   or { }, -- we need to add these in the loader
+                variants        = fontdata.variants, -- variant -> unicode -> glyph
+                version         = getname(fontdata,"version"),
+                cidinfo         = fontdata.cidinfo,
+                mathconstants   = fontdata.mathconstants,
+                colorpalettes   = fontdata.colorpalettes,
+                colorpaintdata  = fontdata.colorpaintdata,
+                colorpaintlist  = fontdata.colorpaintlist,
+                colorlinesdata  = fontdata.colorlinesdata,
+                coloraffinedata = fontdata.coloraffinedata,
+                svgshapes       = fontdata.svgshapes,
+                pngshapes       = fontdata.pngshapes,
+                variabledata    = fontdata.variabledata,
+                foundtables     = fontdata.foundtables,
             },
         }
     end
@@ -2498,15 +2513,15 @@ function readers.getinfo(filename,specification) -- string, nil|number|table
     end
 end
 
-function readers.rehash(fontdata,hashmethod)
+function readers.rehash() -- fontdata,hashmethod
     report("the %a helper is not yet implemented","rehash")
 end
 
-function readers.checkhash(fontdata)
+function readers.checkhash() --fontdata
     report("the %a helper is not yet implemented","checkhash")
 end
 
-function readers.pack(fontdata,hashmethod)
+function readers.pack() -- fontdata,hashmethod
     report("the %a helper is not yet implemented","pack")
 end
 
@@ -2520,6 +2535,10 @@ end
 
 function readers.compact(fontdata)
     report("the %a helper is not yet implemented","compact")
+end
+
+function readers.condense(fontdata)
+    report("the %a helper is not yet implemented","condense")
 end
 
 -- plug in

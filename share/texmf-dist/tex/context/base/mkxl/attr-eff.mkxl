@@ -13,7 +13,7 @@
 
 \writestatus{loading}{ConTeXt Attribute Macros / Effects}
 
-\registerctxluafile{attr-eff}{}
+\registerctxluafile{attr-eff}{autosuffix}
 
 \unprotect
 
@@ -22,14 +22,13 @@
 \installcommandhandler \??effect {effect} \??effect
 
 \setupeffect
-  [\c!method=\v!none,
+  [\c!method=\v!none, % should become command or define or so
    \c!stretch=\zerocount,
    \c!rulethickness=\zeropoint,
    \c!alternative=\v!normal]
 
 \appendtoks
-    \edef\p_method{\effectparameter\c!method}%
-    \ifx\p_method\v!command
+    \ifcstok{\effectparameter\c!method}\v!command
         \frozen\protected\xdefcsname\e!start\currenteffect\endcsname{\starteffect[#1]}%
         \frozen\protected\xdefcsname\e!stop \currenteffect\endcsname{\stopeffect}%
     \fi
@@ -38,8 +37,8 @@
 \permanent\protected\def\starteffect[#1]%
   {\clf_seteffect
      alternative   {\namedeffectparameter{#1}\c!alternative}
-     stretch       \numexpr\namedeffectparameter{#1}\c!stretch\relax
-     rulethickness \dimexpr\namedeffectparameter{#1}\c!rulethickness\relax
+     stretch       {\namedeffectparameter{#1}\c!stretch}% no longer needed
+     rulethickness {\namedeffectparameter{#1}\c!rulethickness}%
    \relax}
 
 \permanent\protected\def\stopeffect % can be special
@@ -55,6 +54,7 @@
 \defineeffect [\v!both]    [\c!alternative=\v!both, \c!rulethickness=.25pt]
 \defineeffect [\v!normal]  [\c!alternative=\v!normal]
 \defineeffect [\v!hidden]  [\c!alternative=\v!hidden]
+\defineeffect [\v!clip]    [\c!alternative=\v!clip]
 \defineeffect [\v!stretch] [\c!alternative=\v!stretch,\c!stretch=1]
 
 \protect \endinput

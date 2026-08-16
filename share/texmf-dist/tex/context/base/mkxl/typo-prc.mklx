@@ -16,8 +16,8 @@
 %D For the moment manipulators are loaded here too, as they're in the same category
 %D as processors. This might change. (They are used in publications.)
 
-\registerctxluafile{typo-prc}{}
-\registerctxluafile{typo-man}{}
+\registerctxluafile{typo-prc}{autosuffix}
+\registerctxluafile{typo-man}{autosuffix}
 
 \unprotect
 
@@ -54,6 +54,8 @@
 
 \installcommandhandler \??processor {processor} \??processor
 
+\mutable\let\currentprocessor\empty % weird that this is needed
+
 \appendtoks
     \letcsname\??processorcheck\currentprocessor\endcsname\relax
     \clf_registerstructureprocessor{\currentprocessor}% global, but it permits using processor that are yet undefined
@@ -64,7 +66,7 @@
 %D \LUA\ end we do check for a processor being registered anyway.
 
 \permanent\protected\def\applyprocessor#tag%
-  {\def\currentprocessor{#tag}%
+  {\cdef\currentprocessor{#tag}%
    \ifcsname\??processorcheck\currentprocessor\endcsname
      \expandafter\typo_processor_apply
    \else
@@ -72,8 +74,7 @@
    \fi}
 
 \def\typo_processor_apply
-  {\edef\p_state{\processorparameter\c!state}%
-   \ifx\p_state\v!stop
+  {\ifcstok{\processorparameter\c!state}\v!stop
      \expandafter\firstofoneargument
    \else
      \expandafter\typo_processor_apply_indeed

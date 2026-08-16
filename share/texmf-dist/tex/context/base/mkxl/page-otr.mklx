@@ -38,16 +38,18 @@
 \protected\def\page_otr_commands_define#name%
   {\ifcsname#name\endcsname \else
      \letcsname#name\endcsname\relax
-     \normalexpanded{\t_page_otr_commands{\the\t_page_otr_commands\noexpand\page_otr_commands_process{#name}}}%
+     \expanded{\t_page_otr_commands{\the\t_page_otr_commands\noexpand\page_otr_commands_process{#name}}}%
    \fi}
 
 \let\page_otr_commands_process\gobbleoneargument
 
 \appendtoks
     \let\page_otr_commands_process\page_otr_specifics_preset
-    \the\t_page_otr_commands
+    \expand\t_page_otr_commands
     \let\page_otr_commands_process\gobbleoneargument
 \to \everyswitchoutputroutine
+
+% use \csstring
 
 \protected\def\page_otr_specifics_preset#name%
   {\edef\page_otr_specifics_command{\directoutputroutineparameter{#name}}% no inheritance of commands
@@ -80,24 +82,23 @@
 \let\page_otr_specifics_preset\page_otr_specifics_preset_normal
 
 \permanent\protected\def\traceoutputroutines
-  {\the\t_page_otr_tracers}
+  {\expand\t_page_otr_tracers}
 
 \appendtoks
     \let\page_otr_specifics_preset\page_otr_specifics_preset_traced
 \to \t_page_otr_tracers
 
-%D We have a couple of output routines and the default one is
-%D the single column routine. Then there is a multicolumn variant
-%D that can be used mixed, and a columnset variant that is more
-%D exclusive.
+%D We have a couple of output routines and the default one is the single column
+%D routine. Then there is a multicolumn variant that can be used mixed, and a
+%D columnset variant that is more exclusive.
 
 \installcorenamespace{otrtriggers}
 
 \newconstant\c_page_otr_eject_penalty   \c_page_otr_eject_penalty   -\plustenthousand
 \newconstant\c_page_otr_super_penalty   \c_page_otr_super_penalty   -\plustwentythousand
-\newcount   \c_page_otr_trigger_penalty \c_page_otr_trigger_penalty -100010
+\newinteger \c_page_otr_trigger_penalty \c_page_otr_trigger_penalty -100010
 
-\newcount   \c_page_otr_columns % we will share this one
+\newinteger \c_page_otr_columns % we will share this one
 
 \newif      \ifinotr % we keep this (name) for old times sake
 
@@ -115,18 +116,19 @@
 \protected\def\page_otr_message_s#sign#what%
   {\writestatus
     \currentoutputroutine
-    {#sign\space          \space
-     #what\space          \space
-     p:\the\outputpenalty,\space
-     r:\the\realpageno   ,\space
-     c:\number\mofcolumns,\space
-     v:\the\vsize        ,\space
-     g:\the\pagegoal     ,\space
-     t:\the\pagetotal    ,\space
+    {#sign\space           \space
+     #what\space           \space
+     p:\the\outputpenalty ,\space
+     r:\the\realpageno    ,\space
+     c:\number\mofcolumns ,\space
+     v:\the\vsize         ,\space
+     g:\the\pagegoal      ,\space
+     t:\the\pagetotal     ,\space
+     h:\the\pagelastheight,\space
      i:\the\insertheights
      \ifdim\pagetotal>\pagegoal
        ,\space
-       d:\the\dimexpr\pagetotal-\pagegoal\relax
+       d:\todimension{\pagetotal-\pagegoal}%
      \fi}}
 
 \protected\def\page_otr_trigger#penalty%
@@ -136,9 +138,9 @@
    \endgroup}
 
 \permanent\protected\def\installoutputroutine#invoke#action% \invoke \action
-  {\global\advance\c_page_otr_trigger_penalty\minusone
-   \frozen\protected\edef#invoke{\page_otr_trigger{\number\c_page_otr_trigger_penalty}}%
-   \setvalue{\??otrtriggers\number\c_page_otr_trigger_penalty}{#action}}
+  {\global\advanceby\c_page_otr_trigger_penalty\minusone
+   \frozen\protected\edef#invoke{\page_otr_trigger{\the\c_page_otr_trigger_penalty}}%
+   \defcsname\??otrtriggers\the\c_page_otr_trigger_penalty\endcsname{#action}}
 
 \protected\def\page_otr_triggered_output_routine_traced
   {\ifcsname\??otrtriggers\the\outputpenalty\endcsname
@@ -172,29 +174,9 @@
 \def\page_otr_set_engine_output_routine#content%
   {\global\output
      {\inotrtrue
-      \the\everybeforeoutput
+      \expand\everybeforeoutput
       #content\relax
-      \the\everyafteroutput}}
-
-% Just as fuzzy (and in 'one' we are okay with \aftergroup anyway):
-%
-% \ifdefined\everybeforeoutputgroup \else \newtoks\everybeforeoutputgroup \fi
-% \ifdefined\everyafteroutputgroup  \else \newtoks\everyafteroutputgroup  \fi
-%
-% \def\page_otr_set_engine_output_routine#content%
-%   {\the\everybeforeoutputgroup
-%    \global\output
-%      {\inotrtrue
-%       \the\everybeforeoutput
-%       #content\relax
-%       \the\everyafteroutput
-%       \aftergroup\the\aftergroup\everyafteroutputgroup}}
-%
-% \appendtoks
-%     \ifnum\c_page_postponed_mode=\plusone
-%         \page_postponed_blocks_flush % and then not in \page_otr_construct_and_shipout
-%     \fi
-% \to \everyafteroutputgroup
+      \expand\everyafteroutput}}
 
 \page_otr_set_engine_output_routine\page_otr_triggered_output_routine
 
@@ -224,11 +206,49 @@
    \fi
    \resetpagebreak}
 
+% In case \pagetotal is ahead of \pagegoal (\pagelastheight is the real one) we
+% need to make sure that we flush but we don't do that in a ragged situation where
+% we have safeguards.
+
+% \setuplayout[limitstretch=yes] % border case 1
+% \setupalign[depth]
+%
+% \starttext
+%     \startitemize
+%         \dorecurse{24}{\startitem test \stopitem}
+%         \dorecurse{3}{\startitem test \stopitem}
+%         \startitem test \stopitem % border case 2
+%     \stopitemize
+% \stoptext
+
+% \def\page_otr_fill_page_unchecked
+%   {\ifdim\pagetotal>\pagegoal \else
+%      \vfil
+%    \fi}
+
+\def\page_otr_fill_page_unchecked
+  {% \writestatus{!!!!!}{h=\the\pagelastheight,t=\the\pagetotal,g=\the\pagegoal}%
+   \ifdim\pagetotal>\pagegoal
+     % we're probably okay and are not too flexible
+   \orelse\ifnum\bottomraggednessmode>\plusone
+     % we actualy want to be flexible
+   \else
+     % we have to make sure that we don't stretch
+     \vfil
+   \fi}
+
+\def\page_otr_fill_page_checked
+  {\ifdim{\pagelastheight+\c_page_scale_lines\lineheight+\pageexcess}>\pagegoal\else
+     \vfil
+   \fi}
+
 \def\page_otr_eject_page
   {\par
    \ifvmode
-     \ifdim\pagetotal>\pagegoal \else
-       \normalvfil
+     \ifcase\c_page_scale_lines
+       \page_otr_fill_page_unchecked
+     \else
+       \page_otr_fill_page_checked
      \fi
      \penalty\c_page_otr_eject_penalty
    \fi
@@ -237,20 +257,23 @@
 \def\page_otr_eject_page_and_flush_inserts % can be an installed one
   {\par
    \ifvmode
-     \ifdim\pagetotal>\pagegoal \else
-       \normalvfil
+     \ifcase\c_page_scale_lines
+       \page_otr_fill_page_unchecked
+     \else
+       \page_otr_fill_page_checked
      \fi
      \penalty\c_page_otr_super_penalty
    \fi
    \resetpagebreak}
 
 \def\page_otr_check_for_pending_inserts
-  {\ifnum\outputpenalty>\c_page_otr_super_penalty \else
-     \ifnum\insertpenalties>\zerocount
-       % something is being held over so we force a new page
-       \page_otr_force_another_page
-     \fi
+  {\ifnum\outputpenalty>\c_page_otr_super_penalty
+   \orelse\ifnum\insertpenalties>\zerocount
+     % something is being held over so we force a new page
+     \page_otr_force_another_page
    \fi}
+
+%D So far.
 
 \def\page_otr_force_another_page
   {% we should actually remove the dummy line in the otr
@@ -261,16 +284,14 @@
    \penalty\c_page_otr_super_penalty
    \resetpagebreak}
 
-%D For those who've read the plain \TEX\ book, we provide the next
-%D macro:
+%D For those who've read the plain \TEX\ book, we provide the next macro:
 
 \permanent\protected\def\bye
   {\writestatus\m!system{Sorry, you're not done yet, so no goodbye!}}
 
-%D We define a few constants because that (1) provides some checking
-%D and (2) is handier when aligning definitions (checks nicer). Most
-%D routines will use ard codes names but sometimes we want to adapt,
-%D which is why we have these:
+%D We define a few constants because that (1) provides some checking and (2) is
+%D handier when aligning definitions (checks nicer). Most routines will use ard
+%D codes names but sometimes we want to adapt, which is why we have these:
 
 \definesystemconstant{page_otr_command_routine}
 \definesystemconstant{page_otr_command_package_contents}
@@ -294,7 +315,6 @@
 \definesystemconstant{page_otr_command_flush_all_floats}
 \definesystemconstant{page_otr_command_flush_margin_blocks}
 \definesystemconstant{page_otr_command_test_column}
-\definesystemconstant{page_otr_command_flush_facing_floats}
 
 \definesystemconstant{singlecolumn}
 \definesystemconstant{multicolumn}   % will move
@@ -323,8 +343,7 @@
    \s!page_otr_command_flush_saved_floats,
    \s!page_otr_command_flush_all_floats,
    \s!page_otr_command_flush_margin_blocks,
-   \s!page_otr_command_test_column,
-   \s!page_otr_command_flush_facing_floats]
+   \s!page_otr_command_test_column]
 
 \appendtoks
     \setupoutputroutine[\s!singlecolumn]%

@@ -11,7 +11,7 @@ if not modules then modules = { } end modules ['back-exp-imp-tag'] = {
 
 local tonumber = tonumber
 local todimen = number.todimen
-local sortedhash, setmetatableindex, concat, insert = table.sortedhash, table.setmetatableindex, table.concat, table.insert
+local sortedkeys, sortedhash, setmetatableindex, concat, insert = table.sortedkeys, table.sortedhash, table.setmetatableindex, table.concat, table.insert
 local settings_to_hash = utilities.parsers.settings_to_hash
 local lpegmatch = lpeg.match
 local formatters = string.formatters
@@ -42,12 +42,17 @@ do
 
     local itemgroups = { }
 
-    local function setitemgroup(packed,level,symbol)
+    local function setitemgroup(packed,continue,level,symbol)
         itemgroups[locatedtag("itemgroup")] = {
-            packed = packed,
-            symbol = symbol,
-            level  = level,
+            packed   = packed,
+            continue = continue,
+            symbol   = symbol,
+            level    = level,
         }
+    end
+
+    local function getitemgroup(fulltag)
+        return itemgroups[fulltag]
     end
 
     local function setitem(kind)
@@ -60,6 +65,7 @@ do
         local hash = itemgroups[fulltag]
         if hash then
             setattribute(di,"packed",hash.packed and "yes" or nil)
+            setattribute(di,"continue",hash.continue and "yes" or nil)
             setattribute(di,"symbol",hash.symbol)
             setattribute(di,"level",hash.level)
         end
@@ -78,7 +84,7 @@ do
     implement {
         name      = "settagitemgroup",
         actions   = setitemgroup,
-        arguments = { "boolean", "integer", "string" }
+        arguments = { "boolean", "boolean", "integer", "string" }
     }
 
     implement {
@@ -88,6 +94,7 @@ do
     }
 
     structurestags.setitemgroup = setitemgroup
+    structurestags.getitemgroup = getitemgroup
     structurestags.setitem      = setitem
 
 end
@@ -169,9 +176,10 @@ do
 
     local registered = { }
 
-    local function setformulacontent(n)
+    local function setformulacontent(n,image)
         registered[locatedtag("formulacontent")] = {
-            n = n,
+            n     = n,
+            image = image,
         }
     end
 
@@ -179,13 +187,17 @@ do
         local r = registered[fulltag]
         if r then
             setattribute(di,"n",r.n)
+            if tonumber(r.image) ~= 0 then
+                -- image is the export index
+                setattribute(di,"image",tex.jobname .. "-image-exported-" .. r.image)
+            end
         end
     end
 
     implement {
         name      = "settagformulacontent",
         actions   = setformulacontent,
-        arguments = "integer",
+        arguments = "2 strings",
     }
 
     structurestags.setformulacontent = setformulacontent
@@ -249,6 +261,8 @@ end
 
 do
 
+    -- todo: register prerolled alt
+
     local synonyms = { }
     local sortings = { }
 
@@ -289,6 +303,9 @@ do
     structurestags.setsynonym = setsynonym
     structurestags.setsorting = setsorting
 
+    structurestags.getsynonym = function(fulltag) return synonyms[fulltag] end
+    structurestags.getsorting = function(fulltag) return sortings[fulltag] end
+
 end
 
 do
@@ -296,8 +313,24 @@ do
     local descriptions = { }
     local symbols      = { }
     local linked       = { }
+    local listindices  = { }
 
     -- we could move the notation itself to the first reference (can be an option)
+
+    -- this is not ok ...
+
+    local function setdescriptionindex(n,l)
+        local fulltag = locatedtag("description")
+        if fulltag then
+            -- why not in ... we are not to much off here
+         -- local spec = specifications[fulltag]
+            listindices[fulltag] = {
+                noteindex = n,
+                listindex = l,
+            }
+        else
+        end
+    end
 
     local function setnotation(tag,n) -- needs checking (is tag needed)
         -- we can also use the internals hash or list
@@ -343,6 +376,12 @@ do
     end
 
     implement {
+        name      = "settagdescriptionindex",
+        actions   = setdescriptionindex,
+        arguments = "2 integers",
+    }
+
+    implement {
         name      = "settagnotation",
         actions   = setnotation,
         arguments = { "string", "integer" }
@@ -354,8 +393,13 @@ do
         arguments = { "string", "integer" }
     }
 
-    structurestags.setnotation       = setnotation
-    structurestags.setnotationsymbol = setnotationsymbol
+    structurestags.setdescriptionindex = setdescriptionindex
+    structurestags.setnotation         = setnotation
+    structurestags.setnotationsymbol   = setnotationsymbol
+
+    function structurestags.getdescriptionindex(fulltag)
+        return listindices[fulltag]
+    end
 
 end
 
@@ -409,61 +453,159 @@ end
 
 do
 
-    local f_id       = formatters["%s-%s"]
-    local image      = { }
-    usedimages.image = image
+    local image          = { }
+    local mpgraphic      = { }
+    local nofimages      = 0
+    local nofmpgraphics  = 0
+    usedimages.image     = image
+    usedimages.mpgraphic = mpgraphic
 
-    structurestags.usewithcare.images = image
+    structurestags.usewithcare.image     = image
+    structurestags.usewithcare.mpgraphic = mpgraphic
 
-    local function setfigure(name,used,page,width,height,label)
-        local fulltag = locatedtag("image")
+    local function setfigure(
+        name,used,page,
+        width,height,depth,label,
+        category,exported,
+        descriptiontext,alternativetext
+    )
+        local fulltag = locatedtag("image") -- we actually can be deeper
         local spec    = specifications[fulltag]
         if spec then
+            local id
+            if tonumber(exported) then
+                id = tex.jobname .. "-image-exported-" .. exported
+            else
+                nofimages = nofimages + 1
+                id = tex.jobname .. "-image-" .. nofimages
+            end
             local page = tonumber(page)
+            --
+            -- This is rather ugly but very much a side effect of MS wanting to be able to tag
+            -- them as figure so these /Alt's are mandate then .. sigh:
+            --
+            -- \startimage[alternativetext=outer] \startMPcode
+            -- \startimage                        \startMPcode[alternativetext=inner wins]
+            -- \startMPcode[alternativetext=inner wins]
+            -- \startimage                        \startMPcode
+            -- \startMPcode
+            --
+            -- which gets processed (set) in the reverse order but so be it.
+            --
+            local found = image[fulltag]
+            if found then
+                if descriptiontext == "" then descriptiontext = found.descriptiontext or descriptiontext end
+                if alternativetext == "" then alternativetext = found.alternativetext or alternativetext end
+            end
+            --
             image[fulltag] = {
-                id     = f_id(spec.tagname,spec.tagindex),
-                name   = name,
-                used   = used,
-                page   = page and page > 1 and page or nil,
-                width  = todimen(width, "cm","%0.3F%s"),
-                height = todimen(height,"cm","%0.3F%s"),
-                label  = label,
+                exported        = exported,
+                id              = id,
+                image           = id,
+                name            = name,
+                used            = used,
+                page            = page and page > 1 and page or nil,
+                width           = todimen(width,"pt","%0.3F%s"),
+                height          = todimen(height+depth,"pt","%0.3F%s"),
+                drop            = depth ~= 0 and todimen(depth,"pt","%0.3F%s") or nil,
+                label           = label,
+                category        = category,
+                descriptiontext = descriptiontext,
+                alternativetext = alternativetext,
             }
         else
             -- we ignore images in layers in the background / pagebody
         end
     end
 
+    local function setmpgraphic(
+        descriptiontext,alternativetext
+    )
+        local fulltag = locatedtag("mpgraphic")
+        local spec    = specifications[fulltag]
+        if spec then
+            mpgraphic[fulltag] = {
+                descriptiontext = descriptiontext,
+                alternativetext = alternativetext,
+            }
+        end
+    end
+
     function extras.image(di,element,n,fulltag)
         local data = image[fulltag]
         if data then
+            local id = data.id
+            -- can be less
             setattribute(di,"name",data.name)
             setattribute(di,"page",data.page)
-            setattribute(di,"id",data.id)
+            setattribute(di,"exported",data.exported) -- can be nil
+            setattribute(di,"id",id)
+            setattribute(di,"image",id)
             setattribute(di,"width",data.width)
             setattribute(di,"height",data.height)
-            setattribute(di,"label",data.height)
+            setattribute(di,"drop",data.drop)
+            setattribute(di,"label",data.label)
+            setattribute(di,"descriptiontext",data.descriptiontext)
+            setattribute(di,"alternativetext",data.alternativetext)
+            setattribute(di,"category",data.category)
+        end
+    end
+
+    function extras.mpgraphic(di,element,n,fulltag)
+        local data = image[fulltag]
+        if data then
+            setattribute(di,"descriptiontext",data.descriptiontext)
+            setattribute(di,"alternativetext",data.alternativetext)
         end
     end
 
     implement {
         name      = "settagfigure",
         actions   = setfigure,
-        arguments = { "string", "string", "string", "dimen", "dimen", "string" }
+        arguments = {
+            "string",    -- name
+            "string",    -- used
+            "string",    -- page
+            "dimension", -- width
+            "dimension", -- height
+            "dimension", -- depth
+            "string",    -- label
+            "string",    -- category
+            "string",    -- exported
+            "string",    -- descriptiontext
+            "string",    -- alternativetext
+        }
     }
 
-    structurestags.setfigure = setfigure
+   implement {
+        name      = "settagmpgraphic",
+        actions   = setmpgraphic,
+        arguments = {
+            "string",    -- descriptiontext
+            "string",    -- alternativetext
+        }
+    }
+
+    structurestags.setfigure    = setfigure
+    structurestags.setmpgraphic = setmpgraphic
 
 end
 
 do
 
-    local combinations = { }
+    local combinations     = { }
+    local combinationpairs = { }
 
     local function setcombination(nx,ny)
         combinations[locatedtag("combination")] = {
             nx = nx,
             ny = ny,
+        }
+    end
+    local function setcombinationpair(x,y)
+        combinationpairs[locatedtag("combinationpair")] = {
+            x = x,
+            y = y,
         }
     end
 
@@ -474,14 +616,27 @@ do
             setattribute(di,"ny",data.ny)
         end
     end
+    function extras.combinationpair(di,element,n,fulltag)
+        local data = combinationpairs[fulltag]
+        if data then
+            setattribute(di,"x",data.x)
+            setattribute(di,"y",data.y)
+        end
+    end
 
     implement {
         name      = "settagcombination",
         actions   = setcombination,
         arguments = { "integer", "integer" }
     }
+    implement {
+        name      = "settagcombinationpair",
+        actions   = setcombinationpair,
+        arguments = { "integer", "integer" }
+    }
 
-    structurestags.setcombination = setcombination
+    structurestags.setcombination     = setcombination
+    structurestags.setcombinationpair = setcombinationpair
 
 end
 
@@ -690,10 +845,24 @@ do
     implement {
         name      = "settaglist",
         actions   = setlist,
-        arguments = "integer"
+        arguments = "integer",
     }
 
-    structurestags.setlist = setlist
+end
+
+do
+
+    local list = { }
+
+    function structurestags.gettagreferencedescription(id)
+        return list[id]
+    end
+
+    implement {
+        name      = "settagsetreferencedescription",
+        actions   = function(id,str) list[id] = str end,
+        arguments = { "integer", "string" },
+    }
 
 end
 
@@ -844,3 +1013,31 @@ do
 
 end
 
+
+do
+
+    local usedcodepoints = { }
+
+    local function checkcodepoint(di,element,n,fulltag)
+        local unicode = usedcodepoints[fulltag]
+        if unicode then
+            setattribute(di,"codepoint",unicode)
+        end
+    end
+
+    local function setcodepoint(tag,unicode)
+        usedcodepoints[locatedtag(tag)] = unicode
+        if not extras[tag] then
+            extras[tag] = checkcodepoint
+        end
+    end
+
+    implement {
+        name      = "settagcodepoint",
+        actions   = setcodepoint,
+        arguments = { "argument", "integer" },
+    }
+
+    structurestags.setcodepoint = setcodepoint
+
+end

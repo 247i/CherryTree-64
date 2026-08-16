@@ -12,7 +12,8 @@ if not modules then modules = { } end modules ['toks-scn'] = {
 
 -- todo: more \let's at the tex end
 
-local type, next, tostring, tonumber = type, next, tostring, tonumber
+local type, next, tostring, tonumber, load = type, next, tostring, tonumber, load
+local dump = string.dump
 
 local formatters          = string.formatters
 local concat              = table.concat
@@ -29,6 +30,8 @@ local scantoks            = scanners.toks
 local scaninteger         = scanners.integer
 local scancardinal        = scanners.cardinal
 local scannumber          = scanners.number
+local scanfloat           = scanners.float
+local scanposit           = scanners.posit
 local scankeyword         = scanners.keyword
 local scankeywordcs       = scanners.keywordcs
 local scanword            = scanners.word
@@ -36,13 +39,12 @@ local scanletters         = scanners.letters
 local scankey             = scanners.key
 local scancode            = scanners.code
 local scanboolean         = scanners.boolean
-local scandimen           = scanners.dimen
+local scandimension       = scanners.dimension
 local scanglue            = scanners.glue
 local scangluevalues      = scanners.gluevalues
 local scangluespec        = scanners.gluespec
 local scancsname          = scanners.csname
-local scanintegerargument = scanners.integerargument
-local scandimenargument   = scanners.dimenargument
+local scandetokened       = scanners.detokened
 
 local todimen             = number.todimen
 local toboolean           = toboolean
@@ -60,7 +62,7 @@ local close               = tokenbits.close
 local function scanopen()
     while true do
         local c = scancode(open)
-        if c == 123 then
+        if c == 123 then -- {
             return true
      -- elseif c ~= 32 then
         elseif not c then
@@ -72,7 +74,7 @@ end
 local function scanclose()
     while true do
         local c = scancode(close)
-        if c == 125 then
+        if c == 125 then -- }
             return true
      -- elseif c ~= 32 then
         elseif not c then
@@ -160,11 +162,11 @@ function scanners.whd()
     local width, height, depth
     while true do
         if scankeyword("width") then
-            width = scandimen()
+            width = scandimension()
         elseif scankeyword("height") then
-            height = scandimen()
+            height = scandimension()
         elseif scankeyword("depth") then
-            depth = scandimen()
+            depth = scandimension()
         else
             break
         end
@@ -202,10 +204,26 @@ local function scanargumentasis()
     return scanargument(false)
 end
 
-scanners.bracketed     = scanbracketed
-scanners.optional      = scanoptional
-scanners.bracketedasis = scanbracketedasis
-scanners.argumentasis  = scanargumentasis
+local function scancsnameunchecked()
+    return scancsname(true)
+end
+
+scanners.bracketed       = scanbracketed
+scanners.optional        = scanoptional
+scanners.bracketedasis   = scanbracketedasis
+scanners.argumentasis    = scanargumentasis
+scanners.csnameunchecked = scancsnameunchecked
+
+local scanlua = function()
+    local s = load("return " .. scanstring())
+    if s then
+        return s()
+    end
+end
+
+scanners.lua = scanlua
+
+--------.detokenize      = function() return scanners.tokenstring(false) end -- needs testing
 
 local shortcuts = {
     tokens              = tokens,
@@ -215,12 +233,16 @@ local shortcuts = {
     scanners            = scanners,
     scanstring          = scanstring,
     scanargument        = scanargument,
+    scantokenstring     = scanners.tokenstring,
+ -- scandetokenize      = scanners.detokenize,
     scanverbatim        = scanverbatim,
     scantokenlist       = scantokenlist,
     scantoks            = scantoks,
     scaninteger         = scaninteger,
     scancardinal        = scancardinal,
     scannumber          = scannumber,
+    scanfloat           = scanfloat,
+    scanposit           = scanposit,
     scantable           = scantable, -- not directly useable
     scankeyword         = scankeyword,
     scankeywordcs       = scankeywordcs,
@@ -232,8 +254,7 @@ local shortcuts = {
     scanglue            = scanglue, -- list
     scangluespec        = scangluespec,
     scangluevalues      = scangluevalues,
-    scandimen           = scandimen,
-    scandimension       = scandimen,
+    scandimension       = scandimension,
     scanbox             = scanners.box,
     scanhbox            = scanners.hbox,
     scanvbox            = scanners.vbox,
@@ -243,25 +264,30 @@ local shortcuts = {
     scanclose           = scanclose,
     scanlist            = scanlist,
     scancsname          = scancsname,
+    scancsnameunchecked = scancsnameunchecked,
     scandelimited       = scandelimited, -- not directly useable
     scanbracketed       = scanbracketed,
     scanoptional        = scanoptional,
     scanbracketedasis   = scanbracketedasis,
     scanargumentasis    = scanargumentasis,
-    scanintegerargument = scanintegerargument,
-    scandimenargument   = scandimenargument,
+    scandetokened       = scandetokened,
+    scanlua             = scanlua,
     todimen             = todimen,
     tonumber            = tonumber,
     tostring            = tostring,
     toboolean           = toboolean,
     inspect             = inspect,
     report              = report_scan,
+    posit               = posit,
+
+    -- obsolete:
+
+    scandimen             = scandimension,
+    scanintegerargument   = scanners.integerargument,
+    scandimensionargument = scanners.dimensionargument,
 }
 
 tokens.shortcuts = shortcuts
-
-local load = load
-local dump = string.dump
 
 local function loadstripped(code)
      return load(code,nil,nil,shortcuts)
@@ -287,43 +313,43 @@ tokens.converters = {
 -- the gain is only some 10 percent but if we don't have keywords with numbers it might
 -- make sense in the end, some day.
 
-local f_if       = formatters[    "  if scankeywordcs('%s') then data['%s'] = scan%s()"]
-local f_elseif   = formatters["  elseif scankeywordcs('%s') then data['%s'] = scan%s()"]
+local f_if           = formatters[    "  if scankeywordcs('%s') then data['%s'] = scan%s()"]
+local f_elseif       = formatters["  elseif scankeywordcs('%s') then data['%s'] = scan%s()"]
 
------ f_if_x     = formatters[    "  if not data['%s'] and scankeywordcs('%s') then data['%s'] = scan%s()"]
------ f_elseif_x = formatters["  elseif not data['%s'] and scankeywordcs('%s') then data['%s'] = scan%s()"]
+----- f_if_x         = formatters[    "  if not data['%s'] and scankeywordcs('%s') then data['%s'] = scan%s()"]
+----- f_elseif_x     = formatters["  elseif not data['%s'] and scankeywordcs('%s') then data['%s'] = scan%s()"]
 
------ f_if       = formatters["  local key = scanletters() if key == '' then break elseif key == '%s' then data['%s'] = scan%s()"]
------ f_elseif   = formatters["  elseif key == '%s' then data['%s'] = scan%s()"]
+----- f_if           = formatters["  local key = scanletters() if key == '' then break elseif key == '%s' then data['%s'] = scan%s()"]
+----- f_elseif       = formatters["  elseif key == '%s' then data['%s'] = scan%s()"]
 
-local f_local    = formatters["local scan%s = scanners.%s"]
-local f_scan     = formatters["scan%s()"]
-local f_shortcut = formatters["local %s = scanners.converters.%s"]
+local f_local        = formatters["local scan%s = scanners.%s"]
+local f_scan         = formatters["scan%s()"]
+local f_shortcut     = formatters["local %s = scanners.converters.%s"]
 
-local f_if_c     = formatters[    "  if scankeywordcs('%s') then data['%s'] = %s(scan%s())"]
-local f_elseif_c = formatters["  elseif scankeywordcs('%s') then data['%s'] = %s(scan%s())"]
-local f_scan_c   = formatters["%s(scan%s())"]
+local f_if_c         = formatters[    "  if scankeywordcs('%s') then data['%s'] = %s(scan%s())"]
+local f_elseif_c     = formatters["  elseif scankeywordcs('%s') then data['%s'] = %s(scan%s())"]
+local f_scan_c       = formatters["%s(scan%s())"]
 
 -- see above
 
------ f_if_c     = formatters["  local key = scanletters() if key == '' then break elseif key == '%s' then data['%s'] = %s(scan%s())"]
------ f_elseif_c = formatters["  elseif k == '%s' then data['%s'] = %s(scan%s())"]
+----- f_if_c         = formatters["  local key = scanletters() if key == '' then break elseif key == '%s' then data['%s'] = %s(scan%s())"]
+----- f_elseif_c     = formatters["  elseif k == '%s' then data['%s'] = %s(scan%s())"]
 
-local f_any      = formatters["  else local key = scanword(true) if key then data[key] = scan%s() else break end end"]
-local f_any_c    = formatters["  else local key = scanword(true) if key then data[key] = %s(scan%s()) else break end end"]
-local s_done     = "  else break end"
+local f_any          = formatters["  else local key = scanword(true) if key then data[key] = scan%s() else break end end"]
+local f_any_c        = formatters["  else local key = scanword(true) if key then data[key] = %s(scan%s()) else break end end"]
+local s_done         <const> = "  else break end"
 
-local f_any_all  = formatters["  local key = scanword(true) if key then data[key] = scan%s() else break end"]
-local f_any_all_c= formatters["  local key = scanword(true) if key then data[key] = %s(scan%s()) else break end"]
+local f_any_all      = formatters["  local key = scanword(true) if key then data[key] = scan%s() else break end"]
+local f_any_all_c    = formatters["  local key = scanword(true) if key then data[key] = %s(scan%s()) else break end"]
 
-local f_table    = formatters["%\nt\nreturn function()\n  local data = { }\n%s\n  return %s\nend\n"]
-local f_sequence = formatters["%\nt\n%\nt\n%\nt\nreturn function()\n    return %s\nend\n"]
-local f_singular = formatters["%\nt\n%\nt\n\nreturn function(%s)\n    return %s\nend\n"]
-local f_simple   = formatters["%\nt\nreturn function()\n    return %s\nend\n"]
-local f_string   = formatters["%q"]
-local f_action_f = formatters["action%s(%s)"]
-local f_action_s = formatters["local action%s = tokens._action[%s]"]
-local f_nested   = formatters["local function scan%s()\n  local data = { }\n%s\n  return data\nend\n"]
+local f_table        = formatters["%\nt\nreturn function()\n  local data = { }\n%s\n  return %s\nend\n"]
+local f_sequence     = formatters["%\nt\n%\nt\n%\nt\nreturn function()\n    return %s\nend\n"]
+local f_singular     = formatters["%\nt\n%\nt\n\nreturn function(%s)\n    return %s\nend\n"]
+local f_simple       = formatters["%\nt\nreturn function()\n    return %s\nend\n"]
+local f_string       = formatters["%q"]
+local f_action_f     = formatters["action%s(%s)"]
+local f_action_s     = formatters["local action%s = tokens._action[%s]"]
+local f_nested       = formatters["local function scan%s()\n  local data = { }\n%s\n  return data\nend\n"]
 
 local f_check = formatters[ [[
   local wrapped = scanopen()
@@ -352,6 +378,16 @@ local presets = {
     ["2 arguments"] = { "argument", "argument" },
     ["3 arguments"] = { "argument", "argument", "argument" },
     ["4 arguments"] = { "argument", "argument", "argument", "argument" },
+
+    ["1 integer"]  = { "integer" },
+    ["2 integers"] = { "integer", "integer" },
+    ["3 integers"] = { "integer", "integer", "integer" },
+    ["4 integers"] = { "integer", "integer", "integer", "integer" },
+
+    ["1 optional"]  = { "optional" },
+    ["2 optionals"] = { "optional", "optional" },
+    ["3 optionals"] = { "optional", "optional", "optional" },
+    ["4 optionals"] = { "optional", "optional", "optional", "optional" },
 }
 
 tokens.presets = presets

@@ -6,17 +6,11 @@ if not modules then modules = { } end modules ['file-mod'] = {
     license   = "see context related readme files"
 }
 
--- This module will be redone! For instance, the prefixes will move to data-*
--- as they arr sort of generic along with home:// etc/.
-
--- context is not defined yet! todo! (we need to load tupp-fil after cld)
--- todo: move startreadingfile to lua and push regime there
-
---[[ldx--
-<p>It's more convenient to manipulate filenames (paths) in
-<l n='lua'/> than in <l n='tex'/>. These methods have counterparts
-at the <l n='tex'/> side.</p>
---ldx]]--
+-- This module will be redone! For instance, the prefixes will move to data-* as
+-- they are sort of generic along with home:// etc/.
+--
+-- It is more convenient to manipulate filenames (paths) in Lua than in TeX. The
+-- methods below have counterparts at the TeX end.
 
 local format, find, concat, tonumber = string.format, string.find, table.concat, tonumber
 local sortedhash = table.sortedhash
@@ -47,18 +41,7 @@ local prefixes = {
 
 -- the order might change and how about cld
 
-local suffixes = CONTEXTLMTXMODE > 0 and
-{
-    "mklx", -- preprocessed mkiv lmtx files
-    "mkxl", -- mkiv lmtx files
-    "mkvi", -- preprocessed mkiv files
-    "mkiv", -- mkiv files
-    "tex",  -- normally source code files
-    "cld",  -- context lua documents (often stand alone)
-    "lua",  -- lua files
-}
-    or
-{
+local suffixes = {
     "mkvi",
     "mkiv",
     "tex",
@@ -201,7 +184,7 @@ end)
 logs.registerfinalactions(function()
     logs.startfilelogging(report,"used modules")
     for k, v in sortedhash(modstatus) do
-        report(v == 0 and "missing: %s" or "loaded : %s",basename(k))
+        report(v == 0 and "  missing: %s" or "  loaded : %s",basename(k))
     end
     logs.stopfilelogging()
     if missing and logs.loggingerrors() then

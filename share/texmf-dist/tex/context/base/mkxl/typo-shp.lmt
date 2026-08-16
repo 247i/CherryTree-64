@@ -14,7 +14,7 @@ local texset       = tex.set
 local texgetcount  = tex.getcount
 local texgetglue   = tex.getglue
 
-local expandmacro  = token.expand_macro
+local expandmacro  = token.expandmacro or token.expand_macro -- todo
 
 local implement    = interfaces.implement
 
@@ -24,7 +24,7 @@ local scaninteger  = scan.integer
 local scanboolean  = scan.boolean
 local scanstring   = scan.string
 
-local bpfactor     = number.dimenfactors.bp
+local bpfactor     <const> = number.dimenfactors.bp
 
 local context      = context
 
@@ -125,11 +125,11 @@ implement {
 
 do
 
-    local scanners     = tokens.scanners
-    local scanword     = scanners.word
-    local scandimen    = scanners.dimen
-    local scanstring   = scanners.string
-    local scancardinal = scanners.cardinal
+    local scanners      = tokens.scanners
+    local scanword      = scanners.word
+    local scandimension = scanners.dimension
+    local scanstring    = scanners.string
+    local scancardinal  = scanners.cardinal
 
     implement {
         name      = "setparagraphshape",
@@ -143,20 +143,20 @@ do
                 local key = scanword()
               ::AGAIN::
                 if key == "left" then
-                    local l = scandimen()
+                    local l = scandimension()
                     key = scanword()
                     if key == "right" then
-                        n = n + 1 ; t[n] = { l, a + h - l - scandimen() }
+                        n = n + 1 ; t[n] = { l, a + h - l - scandimension() }
                     elseif key == "hsize" then
-                        n = n + 1 ; t[n] = { l, a + scandimen() }
+                        n = n + 1 ; t[n] = { l, a + scandimension() }
                     else
                         n = n + 1 ; t[n] = { l, a + h }
                         goto AGAIN
                     end
                 elseif key == "right" then
-                    n = n + 1 ; t[n] = { 0, a + h - scandimen() }
+                    n = n + 1 ; t[n] = { 0, a + h - scandimension() }
                 elseif key == "both" then
-                    local b = scandimen()
+                    local b = scandimension()
                     n = n + 1 ; t[n] = { b, a + h - b - b }
                 elseif key == "copy" then
                     local c = scancardinal()
@@ -217,6 +217,8 @@ do
                         a = l + r
                         goto AGAIN
                     end
+                elseif key == "inspect" then
+                    inspect(t)
                 else
                     logs.report("system","bad key %a in paragraphshape",key)
                     break

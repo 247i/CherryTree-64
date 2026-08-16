@@ -18,21 +18,24 @@
 % \enabletrackers[system.synctex.visualize]
 % \enabletrackers[system.synctex.xml]
 % \enabledirectives[system.synctex.details]
-% \setupsynctex[state=start]
+% \setupsynctex[state=start]  % works in most cases (old libs)
+% \setupsynctex[state=repeat] % in case the lib is new
 
 \unprotect
 
-\permanent\let\synctexsetfilename  \clf_synctexsetfilename   % can be public implementors
-\permanent\let\synctexresetfilename\clf_synctexresetfilename % idem
-\permanent\let\synctexblockfilename\clf_synctexblockfilename % idem
+% \synctexsetfilename   % defined at lua end
+% \synctexresetfilename % idem
+% \synctexblockfilename % idem
 
-\aliased\let\synctexpause   \donothing
-\aliased\let\synctexresume  \donothing
-\aliased\let\synctexpushline\donothing
-\aliased\let\synctexpopline \donothing
+\permanent\protected\lettonothing\synctexpause
+\permanent\protected\lettonothing\synctexresume
+\permanent\protected\lettonothing\synctexpushline
+\permanent\protected\lettonothing\synctexpopline
 
 \appendtoks\synctexpause \to\everybeforeoutput
 \appendtoks\synctexresume\to\everyafteroutput
+
+\lettonothing \p_state
 
 \permanent\protected\def\setupsynctex[#1]%
   {\begingroup
@@ -42,6 +45,9 @@
       state  {\p_state}%
       method {\dummyparameter\c!method}%
    \relax
+   \ifx\p_state\v!repeat
+     \let\p_state\v!start
+   \fi
    \ifx\p_state\v!start
      % when public implementor, use conditional
      \enforced\glet\synctexpause   \clf_synctexpause
@@ -54,6 +60,44 @@
 \permanent\protected\def\blocksynctexfile[#1]%
   {\processcommacommand{#1}\synctexblockfilename}
 
-\aliased\let\continuewhenlmtxmode\relax
+\permanent\protected\lettonothing\continuewhenlmtxmode
+
+\permanent\protected\def\continuewhenmkivmode
+  {\starttext
+   \startTEXpage[\c!offset=2\exheight,\c!foregroundstyle=\tttf]%
+      This file needs \LuaTeX\ and \ConTeXt\ \MKIV.%
+   \stopTEXpage
+   \stoptext
+   \endinput}
+
+%D Control (this might become nicer):
+
+\newtoks\t_syst_every_export_images
+\newtoks\t_syst_every_export_content
+
+\permanent\protected\def\exportimages {\expand\t_syst_every_export_images}
+\permanent\protected\def\exportcontent{\expand\t_syst_every_export_content}
+
+\appendtoks
+    \setupbackend[\c!export=\v!yes]%
+    \enabledirectives[export.images]%
+    \enablemode[exportimages]%
+    \collectexported
+    \usemodule[export-todo]%
+\to \t_syst_every_export_images
+
+\appendtoks
+    \setupbackend[\c!export=\v!yes]%
+    \usemodule[export-todo]%
+\to \t_syst_every_export_content
+
+% \appendtoks
+%     \ifcstok{\backendparameter\c!export}\v!yes
+%       \doifmode {exportimages} {%
+%          \enabledirectives[export.images]%
+%          \collectexported
+%       }%
+%     \fi
+% \to \everysetupbackend
 
 \protect \endinput

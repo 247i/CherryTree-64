@@ -6,15 +6,13 @@ if not modules then modules = { } end modules ['util-seq'] = {
     license   = "see context related readme files"
 }
 
---[[ldx--
-<p>Here we implement a mechanism for chaining the special functions
-that we use in <l n="context"> to deal with mode list processing. We
-assume that namespaces for the functions are used, but for speed we
-use locals to refer to them when compiling the chain.</p>
---ldx]]--
-
+-- Here we implement a mechanism for chaining the special functions that we use in
+-- ConteXt to deal with mode list processing. We assume that namespaces for the
+-- functions are used, but for speed we use locals to refer to them when compiling
+-- the chain.
+--
 -- todo: delayed: i.e. we register them in the right order already but delay usage
-
+--
 -- todo: protect groups (as in tasks)
 
 local gsub, gmatch = string.gsub, string.gmatch
@@ -83,6 +81,8 @@ function sequencers.new(t) -- was reset
         s.templates    = t.templates
         s.returnvalues = t.returnvalues
         s.results      = t.results
+s.enable = t.enable
+s.disable = t.disable
         local name     = t.name
         if name and name ~= "" then
             s.name      = name
@@ -329,6 +329,10 @@ compile = function(t,compiler,...) -- already referred to in sequencers.new
     else
         runner = compiled and load(compiled)() -- we can use loadstripped here
     end
+
+local c = t.steps == 0 and t.disable or t.enable
+if c then c(t) end
+
     t.runner = runner
     return runner
 end

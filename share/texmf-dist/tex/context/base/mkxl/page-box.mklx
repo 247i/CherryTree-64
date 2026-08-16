@@ -59,15 +59,6 @@
       \v_page_target_bottom_fill
       \v_page_target_bottom}}
 
-\def\page_boxes_apply_offset % #box
-  {\unless\ifzeropt\topoffset
-     \expandafter\page_boxes_apply_offset_indeed
-   \orelse\ifzeropt\backoffset
-     \expandafter\gobbleoneargument
-   \else
-     \expandafter\page_boxes_apply_offset_indeed
-   \fi}
-
 \def\page_boxes_apply_offset_indeed#box%
   {\scratchwidth \wd#box%
    \scratchheight\ht#box%
@@ -75,16 +66,43 @@
    \setbox#box\vpack
      {\offinterlineskip
       \vskip\topoffset
-      \hskip\doifbothsides\backoffset\backoffset{-\backoffset}%
+     %\hskip\doifbothsides\backoffset\backoffset{-\backoffset}%
+      \hskip\doifbothsides++-\backoffset
       \box#box}%
    \wd#box\scratchwidth
    \ht#box\scratchheight
    \dp#box\scratchdepth}
 
+% a variant (no gain so we stay mkiv compatible):
+%
+% \def\page_boxes_apply_offset_indeed#box% this needs testing in real situations
+%   {\boxxoffset#box{\boxxoffset#box\doifbothsides++-\backoffset}%
+%    \boxyoffset#box{\boxyoffset#box-\topoffset}}
+
+% \def\page_boxes_apply_offset % #box
+%   {\unless\ifdim\topoffset=\zeropoint
+%      \expandafter\page_boxes_apply_offset_indeed
+%    \orunless\ifdim\backoffset=\zeropoint
+%      \expandafter\page_boxes_apply_offset_indeed
+%    \else
+%      \expandafter\gobbleoneargument
+%    \fi}
+
+\def\page_boxes_apply_offset % #box
+  {\unless\ifzeropt\topoffset
+     \expandafter\page_boxes_apply_offset_indeed
+   \orunless\ifzeropt\backoffset
+     \expandafter\page_boxes_apply_offset_indeed
+   \else
+     \expandafter\gobbleoneargument
+   \fi}
+
+% \ifnum{((\layoutparameter\c!nx)>\plusone) > 1) or ((\layoutparameter\c!ny)>\plusone) > 1)}
+
 \def\page_boxes_apply_replicate
-  {\ifnum\layoutparameter\c!nx>\plusone
+  {\ifnum{\layoutparameter\c!nx}>\plusone
      \expandafter\page_boxes_apply_replicate_indeed
-   \orelse\ifnum\layoutparameter\c!ny>\plusone
+   \orelse\ifnum{\layoutparameter\c!ny}>\plusone
      \expandafter\page_boxes_apply_replicate_indeed
    \else
      \expandafter\gobbleoneargument
@@ -93,18 +111,18 @@
 \def\page_boxes_apply_replicate_indeed#box%
   {\setbox#box\vpack
      {\offinterlineskip
-      \dorecurse{\layoutparameter\c!ny}
+      \dorecurse{\layoutparameter\c!ny}%
         {\hpack{\dorecurse{\layoutparameter\c!nx}{\copy#box\kern\layoutparameter\c!dx}\unskip}%
-         \vskip\layoutparameter\c!dy}
+         \vskip{\layoutparameter\c!dy}}%
       \unskip}}
 
 \def\page_boxes_apply_orientate_paper#box%
-  {\ifnum\number\c_page_target_paper_orientation\number\c_page_target_paper_reverse>\zerocount
+  {\ifnum\the\c_page_target_paper_orientation\the\c_page_target_paper_reverse>\zerocount
      \page_boxes_apply_orientate_indeed\c_page_target_paper_orientation\c_page_target_paper_reverse{#box}%
    \fi}
 
 \def\page_boxes_apply_orientate_print#box%
-  {\ifnum\number\c_page_target_print_orientation\number\c_page_target_print_reverse>\zerocount
+  {\ifnum\the\c_page_target_print_orientation\the\c_page_target_print_reverse>\zerocount
      \page_boxes_apply_orientate_indeed\c_page_target_print_orientation\c_page_target_print_reverse{#box}%
    \fi}
 
@@ -167,7 +185,7 @@
 
 % best use private variables
 
-\newconditional\c_page_boxes_clip_print \settrue\c_page_boxes_clip_print
+\newconditional\c_page_boxes_clip_print \c_page_boxes_clip_print\conditionaltrue
 
 \def\page_boxes_apply_clip_print_left  % box
   {\ifconditional\c_page_boxes_clip_print
@@ -189,8 +207,8 @@
    \scratchheight\ht#box%
    \scratchdepth \dp#box%
    \setbox#box\hpack
-     {\advance\scratchheight\dimexpr\scratchdepth+2\scratchoffset\relax
-      \advance\scratchwidth \scratchoffset
+     {\advanceby\scratchheight{\scratchdepth+2\scratchoffset}%
+      \advanceby\scratchwidth\scratchoffset
       \ifconditional#right\relax
          \scratchdimen-\scratchoffset
          \kern\scratchdimen
@@ -209,7 +227,7 @@
    \dp#box\scratchdepth}
 
 \def\page_boxes_apply_clip_paper
-  {\scratchoffset\layoutparameter\c!clipoffset\relax
+  {\scratchoffset{\layoutparameter\c!clipoffset}%
    \ifdim\scratchoffset>\zeropoint
       \expandafter\page_boxes_apply_clip_paper_indeed
    \else
@@ -221,10 +239,10 @@
    \scratchheight\ht#box%
    \scratchdepth \dp#box%
    \setbox#box\hpack
-     {\advance\scratchheight\dimexpr\scratchdepth+2\scratchoffset\relax
-      \advance\scratchwidth \scratchoffset
+     {\advanceby\scratchheight{\scratchdepth+2\scratchoffset}%
+      \advanceby\scratchwidth\scratchoffset
       \doifbothsides
-        {\advance\scratchwidth\scratchoffset
+        {\advanceby\scratchwidth\scratchoffset
          \scratchdimen-\scratchoffset
          \kern\scratchdimen}%
         {\scratchdimen\zeropoint}
@@ -243,13 +261,33 @@
 
 % nearly always some displacement so no speedup test needed
 
+% \def\page_boxes_apply_offsets#1%
+%   {\setbox#1\vpack to \paperheight
+%      {\hsize\paperwidth
+%       \vkern\topspace
+%       \hkern\doifbothsides\backspace\backspace{\dimexpr\paperwidth-\backspace-\makeupwidth\relax}%
+%       \box#1}%
+%    \dp#1\zeropoint}
+
 \def\page_boxes_apply_offsets#1%
   {\setbox#1\vpack to \paperheight
      {\hsize\paperwidth
       \vkern\topspace
-      \hkern\doifbothsides\backspace\backspace{\dimexpr\paperwidth-\backspace-\makeupwidth\relax}%
+      \hkern{\doifbothsides\backspace\backspace{\paperwidth-\backspace-\makeupwidth}}%
+%       \hkern\doifbothsides\backspace\backspace\cutspace
+%       \page_layouts_swap_margins\v!page
+%       \hkern\backspace
       \box#1}%
    \dp#1\zeropoint}
+
+% a variant (no gain so we stay mkiv compatible):
+%
+% \def\page_boxes_apply_offsets#1%
+%   {\scratchhoffset\doifbothsides\backspace\backspace{\dimexpr\paperwidth-\backspace-\makeupwidth\relax}%
+%    \boxxoffset#1\dimexpr\boxxoffset#1+\scratchhoffset\relax
+%    \boxyoffset#1\dimexpr\boxyoffset#1-\topspace\relax
+%    \wd#1\dimexpr\paperwidth+\scratchhoffset\relax
+%    \ht#1\dimexpr\paperheight+\topspace\relax}
 
 %D This is rather specialized:
 
@@ -257,7 +295,7 @@
 \newbox        \b_page_areas_registered
 
 \permanent\protected\def\enabletextarearegistration
-  {\global\settrue\c_page_areas_enabled}
+  {\global\c_page_areas_enabled\conditionaltrue}
 
 \def\page_areas_registered_box
   {\ifconditional\c_page_areas_enabled

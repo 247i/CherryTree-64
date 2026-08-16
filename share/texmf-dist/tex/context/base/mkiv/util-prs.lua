@@ -55,9 +55,14 @@ local nobracket   = 1 - (lbracket + rbracket)
 
 local escape, left, right = P("\\"), P('{'), P('}')
 
+-- lpegpatterns.balanced = P {
+--     [1] = ((escape * (left+right)) + (1 - (left+right)) + V(2))^0,
+--     [2] = left * V(1) * right
+-- }
+
 lpegpatterns.balanced = P {
-    [1] = ((escape * (left+right)) + (1 - (left+right)) + V(2))^0,
-    [2] = left * V(1) * right
+    ((escape * (left+right)) + (1 - (left+right)) + V(2))^0,
+    left * V(1) * right
 }
 
 local nestedbraces   = P { lbrace   * (nobrace   + V(1))^0 * rbrace }
@@ -67,11 +72,12 @@ local spaces         = space^0
 local argument       = Cs((lbrace/"") * ((nobrace + nestedbraces)^0) * (rbrace/""))
 local content        = (1-endofstring)^0
 
-lpegpatterns.nestedbraces  = nestedbraces  -- no capture
-lpegpatterns.nestedparents = nestedparents -- no capture
-lpegpatterns.nested        = nestedbraces  -- no capture
-lpegpatterns.argument      = argument      -- argument after e.g. =
-lpegpatterns.content       = content       -- rest after e.g =
+lpegpatterns.nestedbraces   = nestedbraces   -- no capture
+lpegpatterns.nestedparents  = nestedparents  -- no capture
+lpegpatterns.nestedbrackets = nestedbrackets -- no capture
+lpegpatterns.nested         = nestedbraces   -- no capture
+lpegpatterns.argument       = argument       -- argument after e.g. =
+lpegpatterns.content        = content        -- rest after e.g =
 
 local value     = lbrace * C((nobrace + nestedbraces)^0) * rbrace
                 + C((nestedbraces + (1-comma))^0)
@@ -259,8 +265,13 @@ function parsers.groupedsplitat(symbol,withaction)
     if not pattern then
         local symbols   = S(symbol)
         local separator = space^0 * symbols * space^0
-        local value     = lbrace * C((nobrace + nestedbraces)^0) * rbrace
-                        + C((nestedbraces + (1-(space^0*(symbols+P(-1)))))^0)
+        local value     =
+                        lbrace
+                        * C((nobrace + nestedbraces)^0)
+                     -- * rbrace
+                        * (rbrace * (#symbols + P(-1))) -- new per 2023-03-11
+                        +
+                        C((nestedbraces + (1-(space^0*(symbols+P(-1)))))^0)
         if withaction then
             local withvalue = Carg(1) * value / function(f,s) return f(s) end
             pattern = spaces * withvalue * (separator*withvalue)^0
@@ -361,7 +372,11 @@ end
 --     end
 -- end
 
-local pattern = Cf(Ct("") * Cg(C((1-S(", "))^1) * S(", ")^0 * Cc(true))^1,rawset)
+local spacing   = whitespace^0
+----- separator = S(", ")
+local separator = P(",") * spacing + whitespace * P(-1)
+
+local pattern = spacing * Cf(Ct("") * Cg(C((1-separator)^1) * separator^0 * Cc(true))^1,rawset)
 
 function parsers.settings_to_set(str)
     return str and lpegmatch(pattern,str) or { }
@@ -373,9 +388,25 @@ hashes.settings_to_set =  table.setmetatableindex(function(t,k) -- experiment, n
     return v
 end)
 
+function parsers.settings_to_set(str)
+    return str and lpegmatch(pattern,str) or { }
+end
+
+local pattern = spacing * Ct((C((1-separator)^1) * separator^0)^1)
+
+hashes.settings_to_list =  table.setmetatableindex(function(t,k) -- experiment, not public
+    local v = k and lpegmatch(pattern,k) or { }
+    t[k] = v
+    return v
+end)
+
+-- inspect(hashes.settings_to_set["a,b, c, d"])
+-- inspect(hashes.settings_to_list["a,b, c, d"])
+
 -- as we use a next, we are not sure when the gc kicks in
 
-getmetatable(hashes.settings_to_set).__mode = "kv" -- could be an option (maybe sharing makes sense)
+getmetatable(hashes.settings_to_set ).__mode = "kv" -- could be an option (maybe sharing makes sense)
+getmetatable(hashes.settings_to_list).__mode = "kv" -- could be an option (maybe sharing makes sense)
 
 function parsers.simple_hash_to_string(h, separator)
     local t  = { }
@@ -410,6 +441,7 @@ end
 local value     = P(lbrace * C((nobrace + nestedbraces)^0) * rbrace)
                 + C(digit^1 * lparent * (noparent + nestedparents)^1 * rparent)
                 + C((nestedbraces + (1-comma))^1)
+                + Cc("") -- new
 local pattern_a = spaces * Ct(value*(separator*value)^0)
 
 local function repeater(n,str)
@@ -436,6 +468,7 @@ end
 local value     = P(lbrace * C((nobrace + nestedbraces)^0) * rbrace)
                 + (C(digit^1)/tonumber * lparent * Cs((noparent + nestedparents)^1) * rparent) / repeater
                 + C((nestedbraces + (1-comma))^1)
+                + Cc("") -- new
 local pattern_b = spaces * Ct(value*(separator*value)^0)
 
 function parsers.settings_to_array_with_repeat(str,expand) -- beware: "" =>  { }
@@ -568,9 +601,9 @@ end
 -- "1","2","3","4"
 -- "5","6","7","8"
 -- ]]
---
+
 -- local mycsvsplitter = parsers.csvsplitter { numbers = true }
---
+
 -- local list = mycsvsplitter(crap) inspect(list)
 
 -- and this is a slightly patched version of a version posted by Philipp Gesang
@@ -617,12 +650,6 @@ end
 -- local list, names = mycsvsplitter(crap,true)   inspect(list) inspect(names)
 -- local list, names = mycsvsplitter(crap)        inspect(list) inspect(names)
 
--- parsers.stepper("1,7-",9,function(i) print(">>>",i) end)
--- parsers.stepper("1-3,7,8,9")
--- parsers.stepper("1-3,6,7",function(i) print(">>>",i) end)
--- parsers.stepper(" 1 : 3, ,7 ")
--- parsers.stepper("1:4,9:13,24:*",30)
-
 local function ranger(first,last,n,action)
     if not first then
         -- forget about it
@@ -639,25 +666,40 @@ local function ranger(first,last,n,action)
     end
 end
 
-local cardinal    = lpegpatterns.cardinal / tonumber
+local cardinal    = (lpegpatterns.hexadecimal + lpegpatterns.cardinal) / tonumber
 local spacers     = lpegpatterns.spacer^0
 local endofstring = lpegpatterns.endofstring
 
 local stepper  = spacers * ( cardinal * ( spacers * S(":-") * spacers * ( cardinal + Cc(true) ) + Cc(false) )
-               * Carg(1) * Carg(2) / ranger * S(", ")^0 )^1
+               * Carg(1) * Carg(2) / ranger * separator^0 )^1
 
 local stepper  = spacers * ( cardinal * ( spacers * S(":-") * spacers * ( cardinal + (P("*") + endofstring) * Cc(true) ) + Cc(false) )
-               * Carg(1) * Carg(2) / ranger * S(", ")^0 )^1 * endofstring -- we're sort of strict (could do without endofstring)
+               * Carg(1) * Carg(2) / ranger * separator^0 )^1 * endofstring -- we're sort of strict (could do without endofstring)
 
 function parsers.stepper(str,n,action)
+    local ts = type(str)
     if type(n) == "function" then
-        lpegmatch(stepper,str,1,false,n or print)
-    else
+        if ts == "number" then
+            n(str)
+        elseif ts == "table" then
+            for i=1,#str do
+                n(str[i])
+            end
+        else
+            lpegmatch(stepper,str,1,false,n or print)
+        end
+    elseif ts == "string" then
         lpegmatch(stepper,str,1,n,action or print)
     end
 end
 
---
+-- parsers.stepper("1,7-",9,function(i) print(">>>",i) end)
+-- parsers.stepper("1-3,7,8,9")
+-- parsers.stepper("1-3,6,7",function(i) print(">>>",i) end)
+-- parsers.stepper(" 1 : 3, ,7 ")
+-- parsers.stepper("1:4,9:13,24:*",30)
+-- parsers.stepper(1,print)
+-- parsers.stepper({1,3,4},print)
 
 local pattern_math = Cs((P("%")/"\\percent " +  P("^")           * Cc("{") * lpegpatterns.integer * Cc("}") + anything)^0)
 local pattern_text = Cs((P("%")/"\\percent " + (P("^")/"\\high") * Cc("{") * lpegpatterns.integer * Cc("}") + anything)^0)
@@ -681,7 +723,7 @@ local spaces  = lpegpatterns.space^0
 local dummy   = function() end
 
 setmetatableindex(cache,function(t,k)
-    local separator = P(k)
+    local separator = S(k) -- was P
     local value     = (1-separator)^0
     local pattern   = spaces * C(value) * separator^0 * Cp()
     t[k] = pattern
@@ -737,8 +779,8 @@ local function process(result,more)
     return result
 end
 
-local name   = C((1-S(", "))^1)
-local parser = (Carg(1) * name / initialize) * (S(", ")^1 * (Carg(1) * name / fetch))^0
+local name   = C((1-separator)^1)
+local parser = (Carg(1) * name / initialize) * (separator^1 * (Carg(1) * name / fetch))^0
 local merge  = Cf(parser,process)
 
 function parsers.mergehashes(hash,list)
@@ -801,11 +843,20 @@ local pattern = Cf( Ct("") *
         (              Cg(Cc("day")   * cardinal)
           *  S("-/") * Cg(Cc("month") * cardinal)
           *  S("-/") * Cg(Cc("year")  * p_year)
+        ) +
+        (              Cg(Cc("year")  * p_year)
+          *  S("-/") * Cg(Cc("month") * cardinal)
+        ) +
+        (              Cg(Cc("month")  * cardinal)
+          *  S("-/") * Cg(Cc("year")   * p_year)
         )
     )
-      *  P(" ")  * Cg(Cc("hour")   * cardinal)
+      *  (
+         P(" ")  * Cg(Cc("hour")   * cardinal)
       *  P(":")  * Cg(Cc("min")    * cardinal)
       * (P(":")  * Cg(Cc("sec")    * cardinal))^-1
+      + P(-1) )
+
 , rawset)
 
 lpegpatterns.splittime = pattern
@@ -814,6 +865,8 @@ function parsers.totime(str)
     return lpegmatch(pattern,str)
 end
 
+-- inspect(parsers.totime("2019-03-05"))
+-- inspect(parsers.totime("2019-03-05 12:12:12"))
 -- print(os.time(parsers.totime("2019-03-05 12:12:12")))
 -- print(os.time(parsers.totime("2019/03/05 12:12:12")))
 -- print(os.time(parsers.totime("05-03-2019 12:12:12")))

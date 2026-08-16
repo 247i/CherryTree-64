@@ -456,7 +456,7 @@ function file.join(one, two, three, ...)
     if not two then
         return one == "" and one or lpegmatch(reslasher,one)
     end
-    if one == "" then
+    if not one or one == "" then
         return lpegmatch(stripper,three and concat({ two, three, ... },"/") or two)
     end
     if lpegmatch(isnetwork,one) then
@@ -683,12 +683,12 @@ end
 
 -- for myself:
 
-function file.strip(name,dir)
-    if name then
-        local b, a = match(name,"^(.-)" .. dir .. "(.*)$")
-        return a ~= "" and a or name
-    end
-end
+-- function file.strip(name,dir)
+--     if name then
+--         local b, a = match(name,"^(.-)" .. dir .. "(.*)$")
+--         return a ~= "" and a or name
+--     end
+-- end
 
 -- local debuglist = {
 --     "pathpart", "basename", "nameonly", "suffixonly", "suffix", "dirname", "extname",
@@ -718,7 +718,7 @@ function lfs.mkdirs(path)
     end
 end
 
--- here is oen i ran into when messign around with xavante code (keppler project)
+-- here is one i ran into when messing around with xavante code (keppler project)
 -- where it's called in_base .. no gain in using lpeg here
 
 function file.withinbase(path) -- don't go beyond root
@@ -741,8 +741,24 @@ end
 
 -- not used in context but was in luatex once:
 
-local symlinkattributes = lfs.symlinkattributes
+do
 
-function lfs.readlink(name)
-    return symlinkattributes(name,"target") or nil
+    local symlinktarget     = lfs.symlinktarget     -- luametatex (always returns string)
+    local symlinkattributes = lfs.symlinkattributes -- luatex     (can return nil)
+
+    if symlinktarget then
+        function lfs.readlink(name)
+            local target = symlinktarget(name)
+            return name ~= target and name or nil
+        end
+    elseif symlinkattributes then
+        function lfs.readlink(name)
+            return symlinkattributes(name,"target") or nil
+        end
+    else
+        function lfs.readlink(name)
+            return nil
+        end
+    end
+
 end

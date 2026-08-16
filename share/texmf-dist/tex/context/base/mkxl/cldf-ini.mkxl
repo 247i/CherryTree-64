@@ -1,5 +1,5 @@
 %D \module
-%D   [       file=cldf-int,
+%D   [       file=cldf-ini,
 %D        version=2019.01.01,
 %D          title=\CONTEXT\ Data Macros,
 %D       subtitle=Integer,
@@ -13,7 +13,7 @@
 
 \writestatus{loading}{ConTeXt Lua Documents / Initialization}
 
-\newcount\trialtypesettingstate % gets aliased at the Lua end
+% \newcount\trialtypesettingstate % gets aliased at the Lua end
 
 \registerctxluafile{cldf-ini}{autosuffix}
 
@@ -36,10 +36,13 @@
 
 % todo: these can become implementers
 
-\permanent\protected\def\cldprocessfile#1{\directlua{context.runfile("#1")}}
-\permanent          \def\cldloadfile   #1{\directlua{context.loadfile("#1")}}
-\permanent          \def\cldloadviafile#1{\directlua{context.loadviafile("#1")}}
-\permanent          \def\cldcontext    #1{\directlua{context(#1)}}
-\permanent          \def\cldcommand    #1{\directlua{context.#1}}
+\permanent\protected\untraced\def\cldprocessfile#1{\directlua{context.runfile("#1")}}
+\permanent          \untraced\def\cldloadfile   #1{\directlua{context.loadfile("#1")}}
+\permanent          \untraced\def\cldloadviafile#1{\directlua{context.loadviafile("#1")}}
+\permanent          \untraced\def\cldcontext    #1{\directlua{context(#1)}}
+\permanent          \untraced\def\cldcommand    #1{\directlua{context.#1}}
+
+\permanent\untraced\def\luametatexverboseversion{\cldcontext{environment.luatexverbose}}
+\permanent\untraced\def\luametatexfunctionality {\cldcontext{environment.luatexfunctionality}}
 
 \endinput

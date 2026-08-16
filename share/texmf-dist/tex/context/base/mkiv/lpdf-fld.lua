@@ -58,7 +58,7 @@ local gmatch, lower, format, formatters = string.gmatch, string.lower, string.fo
 local lpegmatch = lpeg.match
 local bpfactor, todimen = number.dimenfactors.bp, string.todimen
 local sortedhash = table.sortedhash
-local trace_fields = false  trackers.register("backends.fields", function(v) trace_fields = v end)
+local trace_fields = false  trackers.register("backend.fields", function(v) trace_fields = v end)
 
 local report_fields = logs.reporter("backend","fields")
 
@@ -97,7 +97,7 @@ local pdfcolor                = lpdf.color
 local pdfcolorvalues          = lpdf.colorvalues
 local pdflayerreference       = lpdf.layerreference
 
-local hpack_node              = node.hpack
+local hpack_node              = nodes.hpack
 
 local submitoutputformat      = 0 --  0=unknown 1=HTML 2=FDF 3=XML   => not yet used, needs to be checked
 
@@ -334,6 +334,7 @@ local function fieldsurrounding(specification)
     local fontsize        = specification.fontsize or "12pt"
     local fontstyle       = specification.fontstyle or "rm"
     local fontalternative = specification.fontalternative or "tf"
+    local fontraise       = 0
     local colorvalue      = tonumber(specification.colorvalue)
     local s = fontnames[fontstyle]
     if not s then

@@ -1,10 +1,6 @@
-#!/bin/sh
-# next line ignored by wish but not by sh \
-TK_SILENCE_DEPRECATION=1 exec wish "$0" -- "$@"
-# The above environment variable is set to suppress
-# a warning message under MacOS Catalina and Big Sur
+#!/usr/bin/env wish
 
-# Copyright 2017-2022 Siep Kroonenberg
+# Copyright 2017-2025 Siep Kroonenberg
 
 # This file is licensed under the GNU General Public License version 2
 # or any later version.
@@ -357,7 +353,9 @@ proc selective_dis_enable {} {
   }
 
   # 64-bit windows
-  if {$::tcl_platform(platform) eq "windows" && $::wprocessor eq "AMD64"} {
+  # we disable this menu, but we may possibly resurrect it later
+  # for windows on arm support; therefore 'if {0 && ...}
+  if {0 && $::tcl_platform(platform) eq "windows" && $::wprocessor eq "AMD64"} {
     dis_enable_w64
   }
 }; # selective_dis_enable
@@ -452,6 +450,31 @@ proc start_tlmgr {{args ""}} {
   set ::perlpid [pid $::tlshl]
   do_debug "done opening tlmgr"
   set ::err [open $::err_file r]
+
+  if {$::tcl_platform(platform) eq "windows"} {
+    set system_enc [encoding system]
+    if {$system_enc eq "utf-8"} {
+      # When the tclkit.exe manifest specifies 'activeCodePage' as UTF-8,
+      # [encoding system] returns 'utf-8'. However, external processes often
+      # still output in the system's original ANSI code page (e.g., CP932 for
+      # Japanese). We query the registry to get the 'true' system ANSI code
+      # page (ACP) to correctly decode piped output from these external tools.
+      package require registry
+      set regPath "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Nls\\CodePage"
+      if {![catch {registry get $regPath "ACP"} acp_num]} {
+        if {$acp_num eq "65001"} {
+          # truly utf-8
+          set system_enc "utf-8"
+        } elseif {"cp$acp_num" in [encoding names]} {
+          set system_enc "cp$acp_num"
+        } else {
+          # ACP not supported by Tcl ...what to do?
+        }
+      }
+    }
+    chan configure $::tlshl -encoding $system_enc -profile replace -translation auto
+  }
+
   chan configure $::tlshl -buffering line -blocking 0
   chan event $::tlshl readable read_line
   vwait ::done_waiting
@@ -875,7 +898,7 @@ proc splash_loading {} {
   wm title .loading [__ "Loading"]
 
   # wallpaper
-  pack [ttk::frame .loading.bg -padding 3pt] -fill both -expand 1
+  pack [ttk::frame .loading.bg -padding 3p] -fill both -expand 1
 
   set lbl [__ \
        "If loading takes too long, press Abort and choose another repository."]
@@ -939,7 +962,7 @@ proc get_packages_info_remote {} {
   unset -nocomplain ::loaded
   track_err
   set catv "rcat-version"
-  if {[dict get $::pkgs texlive.infra localrev] < 56458} { set catv "cat-version" }
+
   if [catch {run_cmd \
     "info --data name,remoterev,$catv,category,shortdesc"}] {
     do_debug [get_stacktrace]
@@ -1359,10 +1382,10 @@ proc repository_dialog {} {
   ### add/remove tlcontrib ###
   ttk::label .tlr.contribt -text [__ "tlcontrib additional repository"] \
       -font bfont
-  pack .tlr.contribt -in .tlr.bg -anchor w -padx 3pt -pady [list 10pt 3pt]
-  pack [ttk::label .tlr.contribl] -in .tlr.bg -anchor w -padx 3pt -pady 3pt
+  pack .tlr.contribt -in .tlr.bg -anchor w -padx 3p -pady [list 10p 3p]
+  pack [ttk::label .tlr.contribl] -in .tlr.bg -anchor w -padx 3p -pady 3p
   ttk::checkbutton .tlr.contribb -variable ::toggle_contrib
-  pack .tlr.contribb -in .tlr.bg -anchor w -padx 3pt -pady [list 3pt 10pt]
+  pack .tlr.contribb -in .tlr.bg -anchor w -padx 3p -pady [list 3p 10p]
   set ::toggle_contrib 0
   set has_contrib 0
   foreach nm [array names ::repos] {
@@ -1381,7 +1404,7 @@ proc repository_dialog {} {
   }
 
   # two ways to close the dialog
-  pack [ttk::frame .tlr.closebuttons] -pady [list 10pt 0pt] -in .tlr.bg -fill x
+  pack [ttk::frame .tlr.closebuttons] -pady [list 10p 0p] -in .tlr.bg -fill x
   ttk::button .tlr.save -text [__ "Save and Load"] -command save_load_repo
   ppack .tlr.save -in .tlr.closebuttons -side right
   dis_enable_reposave
@@ -2193,6 +2216,7 @@ proc mark_displayed {} {
 proc do_package_popup_menu {x y X Y} {
   # as focused item, the identity of the clicked item will be
   # globally available:
+  if {[.pkglist identify region $x $y] ne "cell"} {return}
   .pkglist focus [.pkglist identify item $x $y]
   # recreate menu with only applicable items
   set lr [dict get $::pkgs [.pkglist focus] "localrev"]
@@ -2216,6 +2240,9 @@ proc do_package_popup_menu {x y X Y} {
     .pkg_popup add command -label [__ "Remove"] -command {
       remove_pkgs "focus"
     }
+  }
+  .pkg_popup add command -label [__ "Reporting bugs"] -command {
+    run_cmd "bug [.pkglist focus]" 1; vwait ::done_waiting
   }
   .pkg_popup post [expr {$X - 2}] [expr {$Y - 2}]
   focus .pkg_popup
@@ -2285,7 +2312,7 @@ proc run_external {cmd {mess ""}} {
 }
 
 proc about_cmd {} {
-  set msg "\u00a9 2017-2022 Siep Kroonenberg\n\n"
+  set msg "\u00a9 2017-2025 Siep Kroonenberg\n\n"
   append msg [__ "GUI interface for TeX Live Manager\nImplemented in Tcl/Tk"]
   tk_messageBox -message $msg
 }
@@ -2350,6 +2377,7 @@ Please configure a valid repository" $::repos(main)]
 # with 'unzip -T', but this can only be done AFTER downloading.
 # See also tcl commands 'file mtime', and 'clock scan'
 
+if 0 {
 # $::wprocessor will later decide whether a w64 menu will be created.
 if {$::tcl_platform(platform) eq "windows"} {
   set ::wprocessor $::env(PROCESSOR_ARCHITECTURE)
@@ -2630,7 +2658,7 @@ proc add_or_update_w64 {lr} {
   update idletasks
   return 1
 }
-
+}; # if 0
 ##### main window #####################################################
 
 proc populate_main {} {
@@ -2710,7 +2738,7 @@ proc populate_main {} {
     .mn.opt add command -label "[__ "Platforms"] ..." -command platforms_select
   }
 
-  if {$::tcl_platform(platform) eq "windows" && $::wprocessor eq "AMD64"} {
+  if {0 && $::tcl_platform(platform) eq "windows" && $::wprocessor eq "AMD64"} {
     .mn add cascade -label "64-bit Windows" -menu .mn.w64
     menu .mn.w64
     set inx -1
@@ -2785,7 +2813,7 @@ proc populate_main {} {
   # with the default ttk::frame color, which seems to work
   # everywhere.
   pack [ttk::frame .bg] -expand 1 -fill both
-  .bg configure -padding 5pt
+  .bg configure -padding 5p
 
   # bottom of main window
   pack [ttk::frame .endbuttons] -in .bg -side bottom -fill x
@@ -2818,7 +2846,7 @@ proc populate_main {} {
   pack [ttk::frame .toprepo] -in .topfl -side top -anchor w
 
   # various info (left frame)
-  pack [ttk::frame .topfll] -in .topfl -side top -anchor nw -pady {6pt 0pt}
+  pack [ttk::frame .topfll] -in .topfl -side top -anchor nw -pady {6p 0p}
   ttk::label .topfll.lluptodate -text [__ "TL Manager up to date?"] -anchor w
   pgrid .topfll.lluptodate -row 2 -column 0 -sticky w
   ttk::label .topfll.luptodate -text [__ "Unknown"] -anchor w
@@ -2842,7 +2870,7 @@ proc populate_main {} {
   pack [ttk::label .topfr.lshell] -side top -anchor e
 
   pack [ttk::separator .sp -orient horizontal] \
-      -in .bg -side top -fill x -pady 3pt
+      -in .bg -side top -fill x -pady 3p
 
   # controls frame, between info frame and package list
   pack [ttk::frame .middle] -in .bg -side top -fill x
@@ -2852,17 +2880,17 @@ proc populate_main {} {
   # package list display options
   ttk::label .lpack -text [string toupper [__ "Package list"]] \
       -font hfont
-  pack .lpack -in .pkcontrol -side top -padx 3pt -pady {6pt 6pt} -anchor w
+  pack .lpack -in .pkcontrol -side top -padx 3p -pady {6p 6p} -anchor w
 
-  pack [ttk::frame .pkfilter -relief groove -borderwidth 2 -padding 3pt] \
+  pack [ttk::frame .pkfilter -relief groove -borderwidth 2 -padding 3p] \
     -in .pkcontrol -side top -anchor nw
   # on my current linux, groove works only with a dimensionless borderwidth
 
   # separator columns
-  grid columnconfigure .pkfilter 1 -minsize 20pt
+  grid columnconfigure .pkfilter 1 -minsize 20p
   grid [ttk::separator .pkfilter.sep1 -orient vertical] \
     -column 1 -row 0 -rowspan 5 -sticky ns
-  grid columnconfigure .pkfilter 3 -minsize 20pt
+  grid columnconfigure .pkfilter 3 -minsize 20p
   grid [ttk::separator .pkfilter.sep3 -orient vertical] \
     -column 3 -row 0 -rowspan 5 -sticky ns
 
@@ -2885,7 +2913,7 @@ proc populate_main {} {
         if {! $::have_remote} get_packages_info_remote
         collect_and_display_filtered
       }
-  grid  .pkfilter.lstat  -column 0 -row 0 -sticky w -padx {3pt 50pt}
+  grid  .pkfilter.lstat  -column 0 -row 0 -sticky w -padx {3p 50p}
   pgrid .pkfilter.inst   -column 0 -row 1 -sticky w
   pgrid .pkfilter.notins -column 0 -row 2 -sticky w
   pgrid .pkfilter.alls   -column 0 -row 3 -sticky w
@@ -2945,14 +2973,14 @@ proc populate_main {} {
 
   # marking all/none
   pack [ttk::frame .pksel] \
-      -in .bg -pady 6pt -side top -fill x
+      -in .bg -pady 6p -side top -fill x
   pack [ttk::button .mrk_all -text [__ "Mark all displayed"] \
        -command mark_displayed] -in .pksel -side left
   pack [ttk::button .mrk_none -text [__ "Mark none"] -command unmark_all] \
-      -in .pksel -padx 6pt -side left
+      -in .pksel -padx 6p -side left
   ttk::label .binwarn \
     -text [__ "Only packages for installed platforms are displayed"]
-  pack .binwarn -in .pksel -padx 3pt -side right -anchor s
+  pack .binwarn -in .pksel -padx 3p -side right -anchor s
 
   # packages list itself
   pack [ttk::frame .fpkg] -in .bg -side top -fill both -expand 1

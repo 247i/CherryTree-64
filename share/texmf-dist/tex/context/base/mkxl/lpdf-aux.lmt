@@ -6,12 +6,12 @@ if not modules then modules = { } end modules ['lpdf-aux'] = {
     license   = "see context related readme files"
 }
 
-local tonumber = tonumber
 local format, concat = string.format, table.concat
 local utfchar, utfbyte, char = utf.char, utf.byte, string.char
 local lpegmatch, lpegpatterns = lpeg.match, lpeg.patterns
 local P, C, R, S, Cc, Cs, V = lpeg.P, lpeg.C, lpeg.R, lpeg.S, lpeg.Cc, lpeg.Cs, lpeg.V
-local rshift = bit32.rshift
+----- rshift = bit32.rshift
+local hextointeger, octtointeger = string.hextointeger,string.octtointeger
 
 lpdf = lpdf or { }
 
@@ -23,7 +23,8 @@ local cache = table.setmetatableindex(function(t,k) -- can be made weak
         v = format("%04x",v)
     else
         v = v - 0x10000
-        v = format("%04x%04x",rshift(v,10)+0xD800,v%1024+0xDC00)
+     -- v = format("%04x%04x",rshift(v,10)+0xD800,v%1024+0xDC00)
+        v = format("%04x%04x",(v >> 10) + 0xD800,v%1024+0xDC00)
     end
     t[k] = v
     return v
@@ -53,12 +54,12 @@ end
 --               * Cs( (
 --                     zero  / ""
 --                   + two   / function(a,b)
---                                 a = (tonumber(a,16) - 0xD800) * 1024
---                                 b = (tonumber(b,16) - 0xDC00)
+--                                 a = (hextointeger(a) - 0xD800) * 1024
+--                                 b = (hextointeger(b) - 0xDC00)
 --                                 return utfchar(a+b)
 --                             end
 --                   + one   / function(a)
---                                 return utfchar(tonumber(a,16))
+--                                 return utfchar(hextointeger(a))
 --                             end
 --                 )^1 ) * P(-1)
 -- }
@@ -70,7 +71,7 @@ end
 local more = 0
 
 local pattern = C(4) / function(s) -- needs checking !
-    local now = tonumber(s,16)
+    local now = hextointeger(s)
     if more > 0 then
         now = (more-0xD800)*0x400 + (now-0xDC00) + 0x10000
         more = 0
@@ -98,7 +99,7 @@ end
 local b_pattern = Cs((P("\\")/"" * (
     S("()")
   + S("nrtbf")/ { n = "\n", r = "\r", t = "\t", b = "\b", f = "\f" }
-  + lpegpatterns.octdigit^-3 / function(s) return char(tonumber(s,8)) end)
+  + lpegpatterns.octdigit^-3 / function(s) return char(octtointeger(s)) end)
 + P(1))^0)
 
 local u_pattern = lpegpatterns.utfbom_16_be * lpegpatterns.utf16_to_utf8_be -- official
@@ -118,17 +119,17 @@ local x_pattern = P { "start",
               * Cs( (
                     zero  / ""
                   + two   / function(a,b)
-                                a = (tonumber(a,16) - 0xD800) * 1024
-                                b = (tonumber(b,16) - 0xDC00)
+                                a = (hextointeger(a) - 0xD800) * 1024
+                                b = (hextointeger(b) - 0xDC00)
                                 return utfchar(a+b)
                             end
                   + one   / function(a)
-                                return utfchar(tonumber(a,16))
+                                return utfchar(hextointeger(a))
                             end
                 )^1 ) * P(-1)
 }
 
-function lpdf.frombytes(s,hex)
+function lpdf.frombytes(s,hex,utf)
     if not s or s == "" then
         return ""
     end

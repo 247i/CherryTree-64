@@ -1,4 +1,4 @@
-% {\tt\catcode`\$=12 $Id: modes.mf,v 1.29 2020/09/08 22:12:43 karl Exp $ }
+% {\tt\catcode`\$=12 $Id: modes.mf,v 1.32 2026/01/03 18:54:07 karl Exp $ }
 %%\font\tenlogosl=logosl10
 %%\def\logofont{\ifdim\fontdimen1\font>0pt \tenlogosl\else\tenlogo\fi}
 %%\def\MF{{\logofont META}\-{\logofont FONT}}
@@ -24,11 +24,14 @@
 % be used freely.  You can retrieve the latest version from {\tt
 % https://ctan.org/pkg/modes}, among other places.
 %
+% For bug reports, discussion, or to submit a new |mode_def|, please
+% send it to {\tt tex-k@tug.org} (explanations below).
+%
+% For general discussion about \MF, the mailing list {\tt
+% tex-fonts@math.utah.edu} is a good place.
+%
 % Feel free to change the definitions of |localfont|, |screen_cols|,
 % and |screen_rows| at the end of file (see explanations below).
-%
-% If you make a new |mode_def|, please send it to
-% {\tt tex-fonts@math.utah.edu} (explanations below also).
 %
 % The mode definitions start at `Here are the modes', several hundred
 % lines down.  The companion files {\tt modelist.txt} and {\tt
@@ -39,7 +42,7 @@
 % |dpdfezzz| mode is an 8000$\,$dpi mode with canonical parameter values,
 % intended for this purpose.  (Running {\tt dvips -Ppdf} will use this.)
 % If you want a lower resolution, similar canonical modes are |supre|
-% at 2400$\,$dpi mode and |ultre| at 1200$\,$dpi.
+% at 2400$\,$dpi and |ultre| at 1200$\,$dpi.
 %
 % This file can be run through {\tt mft} and \TeX\ to produce a nice
 % pretty-printed listing; the resulting {\tt modes.pdf} file is included
@@ -48,11 +51,11 @@
 %%\begingroup \tt \catcode`\{=12 \catcode`\}=12 \obeyspaces
 % @mffile{
 %   author = "The Metafont community",
-%   version = "4.2",
-%   date = "Tue Sep  8 15:13:58 PDT 2020"
+%   version = "4.4",
+%   date = "Sat Jan  3 10:55:17 PST 2026"
 %   filename = "modes.mf",
-%   email = "tex-fonts@math.utah.edu"
-%   checksum = "2662 13333 97582",
+%   email = "tex-k@tug.org"
+%   checksum = "2675 13398 98050",
 %   codetable = "ISO/ASCII",
 %   supported = "yes",
 %   docstring = "
@@ -431,10 +434,10 @@
 
 % Don't let ourselves be processed twice.
 if known modes_mf: endinput; fi;
-modes_mf := 4.2;
+modes_mf := 4.4;
 
 % Identify ourselves in the format file.
-base_version := base_version & "/modes 4.2";
+base_version := base_version & "/modes 4.4";
 
 % Here are useful macros (also called definitions) we use throughout.
 
@@ -1028,6 +1031,7 @@ mode_def dpdfezzz =                 %\[ dvips -Ppdf (8000dpi)
   mode_param (o_correction, 1);
   mode_common_setup_;
 enddef;
+pdf := dpdfezzz; % mentioned in 2026 mf.man, for simplicity
 
 % {\tt ghibo@galileo.polito.it}, for the Amiga ShowDVI previewer.
 mode_def eighthre =                 %\[ EightThree (83dpi)
@@ -2222,6 +2226,15 @@ mode_def pixpt =                    %\[ one pixel per point (72.27dpi)
   mode_param (fillin, 0);
   mode_param (o_correction, 1);
   mode_common_setup_;
+enddef;
+
+% For Hans Hagen and Mikael Sundqvist's use of bitmaps, December 2023.
+mode_def potrace =                  %\[ potrace use in LMTX
+     mode_param (pixels_per_inch, 2 * 3600);
+     mode_param (blacker, 0);
+     mode_param (fillin, 0);
+     mode_param (o_correction, 1);
+     mode_common_setup_;
 enddef;
 
 % This is a write-white PostScript laser-setter, made by a Xerox

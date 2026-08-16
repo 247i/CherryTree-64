@@ -22,11 +22,9 @@ local trace_scaling   = false  trackers.register("fonts.scaling",   function(v) 
 
 local report_defining = logs.reporter("fonts","defining")
 
--- watch out: no negative depths and negative eights permitted in regular fonts
-
---[[ldx--
-<p>Here we only implement a few helper functions.</p>
---ldx]]--
+-- Watch out: no negative depths and negative heights are permitted in regular
+-- fonts. Also, the code in LMTX is a bit different. Here we only implement a
+-- few helper functions.
 
 local fonts                  = fonts
 local constructors           = fonts.constructors or { }
@@ -53,11 +51,9 @@ constructors.loadedfonts    = loadedfonts
 
 ----- scalecommands         = fonts.helpers.scalecommands
 
---[[ldx--
-<p>We need to normalize the scale factor (in scaled points). This has to
-do with the fact that <l n='tex'/> uses a negative multiple of 1000 as
-a signal for a font scaled based on the design size.</p>
---ldx]]--
+-- We need to normalize the scale factor (in scaled points). This has to do with the
+-- fact that TeX uses a negative multiple of 1000 as a signal for a font scaled
+-- based on the design size.
 
 local factors = {
     pt = 65536.0,
@@ -112,33 +108,29 @@ function constructors.getmathparameter(tfmdata,name)
     end
 end
 
---[[ldx--
-<p>Beware, the boundingbox is passed as reference so we may not overwrite it
-in the process; numbers are of course copies. Here 65536 equals 1pt. (Due to
-excessive memory usage in CJK fonts, we no longer pass the boundingbox.)</p>
---ldx]]--
-
--- The scaler is only used for otf and afm and virtual fonts. If a virtual font has italic
--- correction make sure to set the hasitalics flag. Some more flags will be added in the
--- future.
-
---[[ldx--
-<p>The reason why the scaler was originally split, is that for a while we experimented
-with a helper function. However, in practice the <l n='api'/> calls are too slow to
-make this profitable and the <l n='lua'/> based variant was just faster. A days
-wasted day but an experience richer.</p>
---ldx]]--
+-- Beware, the boundingbox is passed as reference so we may not overwrite it in the
+-- process; numbers are of course copies. Here 65536 equals 1pt. (Due to excessive
+-- memory usage in CJK fonts, we no longer pass the boundingbox.)
+--
+-- The scaler is only used for OTF and AFM and virtual fonts. If a virtual font has
+-- italic correction make sure to set the hasitalics flag. Some more flags will be
+-- added in the future.
+--
+-- The reason why the scaler was originally split, is that for a while we
+-- experimented with a helper function. However, in practice the API calls are too
+-- slow to make this profitable and the Lua based variant was just faster. A days
+-- wasted day but an experience richer.
 
 -- experimental, sharing kerns (unscaled and scaled) saves memory
 -- local sharedkerns, basekerns = constructors.check_base_kerns(tfmdata)
 -- loop over descriptions (afm and otf have descriptions, tfm not)
 -- there is no need (yet) to assign a value to chr.tonunicode
-
+--
 -- constructors.prepare_base_kerns(tfmdata) -- optimalization
-
--- we have target.name=metricfile and target.fullname=RealName and target.filename=diskfilename
--- when collapsing fonts, luatex looks as both target.name and target.fullname as ttc files
--- can have multiple subfonts
+--
+-- We have target.name = metricfile and target.fullname = RealName and
+-- target.filename = diskfilename when collapsing fonts. LuaTeX looks at both
+-- target.name and target.fullname because TTC files can have multiple subfonts.
 
 function constructors.calculatescale(tfmdata,scaledpoints)
     -- implemented in font-ctx.lmt
@@ -156,22 +148,26 @@ function constructors.aftercopyingcharacters(target,original)
     -- can be used for additional tweaking
 end
 
+function constructors.beforepassingfonttotex(target,tfmdata)
+    -- can be used for additional tweaking
+end
+
 function constructors.trytosharefont(target,tfmdata)
     -- implemented in font-def.lmt
 end
 
 local synonyms = {
-    exheight      = "x_height",
-    xheight       = "x_height",
-    ex            = "x_height",
+    exheight      = "xheight",
+    xheight       = "xheight",
+    ex            = "xheight",
     emwidth       = "quad",
     em            = "quad",
-    spacestretch  = "space_stretch",
-    stretch       = "space_stretch",
-    spaceshrink   = "space_shrink",
-    shrink        = "space_shrink",
-    extraspace    = "extra_space",
-    xspace        = "extra_space",
+    spacestretch  = "spacestretch",
+    stretch       = "spacestretch",
+    spaceshrink   = "spaceshrink",
+    shrink        = "spaceshrink",
+    extraspace    = "extraspace",
+    xspace        = "extraspace",
     slantperpoint = "slant",
 }
 
@@ -188,9 +184,9 @@ function constructors.enhanceparameters(parameters)
         if k == "spacing" then
             return {
                 width   = t.space,
-                stretch = t.space_stretch,
-                shrink  = t.space_shrink,
-                extra   = t.extra_space,
+                stretch = t.spacestretch,
+                shrink  = t.spaceshrink,
+                extra   = t.extraspace,
             }
         end
         return mt and mt[k] or nil
@@ -205,9 +201,9 @@ function constructors.enhanceparameters(parameters)
         elseif k == "spacing" then
             if type(v) == "table" then
                 rawset(t,"space",v.width or 0)
-                rawset(t,"space_stretch",v.stretch or 0)
-                rawset(t,"space_shrink",v.shrink or 0)
-                rawset(t,"extra_space",v.extra or 0)
+                rawset(t,"spacestretch",v.stretch or 0)
+                rawset(t,"spaceshrink",v.shrink or 0)
+                rawset(t,"extraspace",v.extra or 0)
             end
         else
             rawset(t,k,v)
@@ -254,6 +250,35 @@ local function fixedpsname(psname,fallback)
     return usedname, psname ~= usedname
 end
 
+local function scaleparts(parts,delta)
+    local t = { }
+    for i=1,#parts do
+        local p = parts[i]
+        local s = p["start"]   or 0
+        local e = p["end"]     or 0
+        local a = p["advance"] or 0
+        t[i] = {
+            ["start"]    = s == 0 and 0 or s * delta,
+            ["end"]      = e == 0 and 0 or e * delta,
+            ["advance"]  = a == 0 and 0 or a * delta,
+            ["extender"] = p["extender"],
+            ["glyph"]    = p["glyph"],
+        }
+    end
+    return t
+end
+
+local abovebaseline_tag <const> = tex.charactertagcodes.abovebaseline
+local belowbaseline_tag <const> = tex.charactertagcodes.belowbaseline
+
+local textcontrolcodes  = tex.textcontrolcodes
+local collapse_hyphens  <const> = textcontrolcodes.collapsehyphens
+local base_ligaturing   <const> = textcontrolcodes.baseligaturing
+local base_kerning      <const> = textcontrolcodes.basekerning
+local none_protected    <const> = textcontrolcodes.noneprotected
+local has_italics       <const> = textcontrolcodes.hasitalics
+local auto_italics      <const> = textcontrolcodes.autoitalics
+
 function constructors.scale(tfmdata,specification)
     local target         = { } -- the new table
     --
@@ -298,20 +323,20 @@ function constructors.scale(tfmdata,specification)
     --
     local mathsize    = tonumber(specification.mathsize) or 0
     local textsize    = tonumber(specification.textsize) or scaledpoints
-    local forcedsize  = tonumber(parameters.mathsize   ) or 0 -- can be set by the feature "mathsize"
+ -- local forcedsize  = tonumber(parameters.mathsize   ) or 0 -- can be set by the feature "mathsize"
     local extrafactor = tonumber(specification.factor  ) or 1
-    if (mathsize == 2 or forcedsize == 2) and parameters.scriptpercentage then
-        scaledpoints = parameters.scriptpercentage * textsize / 100
-    elseif (mathsize == 3 or forcedsize == 3) and parameters.scriptscriptpercentage then
-        scaledpoints = parameters.scriptscriptpercentage * textsize / 100
-    elseif forcedsize > 1000 then -- safeguard
-        scaledpoints = forcedsize
-    else
-        -- in context x and xx also use mathsize
-    end
+ --    if (mathsize == 2 or forcedsize == 2) and parameters.scriptpercentage then
+ --        scaledpoints = parameters.scriptpercentage * textsize / 100
+ --    elseif (mathsize == 3 or forcedsize == 3) and parameters.scriptscriptpercentage then
+ --        scaledpoints = parameters.scriptscriptpercentage * textsize / 100
+ --    elseif forcedsize > 1000 then -- safeguard
+ --        scaledpoints = forcedsize
+ --    else
+ --        -- in context x and xx also use mathsize
+ --    end
     targetparameters.mathsize    = mathsize
     targetparameters.textsize    = textsize
-    targetparameters.forcedsize  = forcedsize
+ -- targetparameters.forcedsize  = forcedsize
     targetparameters.extrafactor = extrafactor
     --
     local defaultwidth  = resources.defaultwidth  or 0
@@ -334,6 +359,9 @@ function constructors.scale(tfmdata,specification)
     --
     local askedscaledpoints   = scaledpoints
     local scaledpoints, delta = constructors.calculatescale(tfmdata,scaledpoints,nil,specification) -- no shortcut, dan be redefined
+-- print("B",mathsize,askedscaledpoints,scaledpoints,delta)
+    --
+-- delta = round(delta) -- TODO
     --
     local hdelta      = delta
     local vdelta      = delta
@@ -378,39 +406,45 @@ function constructors.scale(tfmdata,specification)
         target.shrink  = expansion.shrink
         target.step    = expansion.step
     end
-    -- slanting
-    local slantfactor = parameters.slantfactor or 0
-    if slantfactor ~= 0 then
-        target.slant = slantfactor * 1000
-    else
-        target.slant = 0
-    end
-    -- widening
-    local extendfactor = parameters.extendfactor or 0
-    if extendfactor ~= 0 and extendfactor ~= 1 then
-        hdelta = hdelta * extendfactor
-        target.extend = extendfactor * 1000
-    else
-        target.extend = 1000 -- extent ?
-    end
-    -- squeezing
-    local squeezefactor = parameters.squeezefactor or 0
-    if squeezefactor ~= 0 and squeezefactor ~= 1 then
-        vdelta = vdelta * squeezefactor
-        target.squeeze = squeezefactor * 1000
-    else
-        target.squeeze = 1000 -- extent ?
-    end
-    -- effects
-    local mode = parameters.mode or 0
-    if mode ~= 0 then
-        target.mode = mode
-    end
-    local width = parameters.width or 0
-    if width ~= 0 then
-        target.width = width * delta * 1000 / 655360
+    -- The official entries are in the effects subtable. Later we will set the
+    -- values in the parameters table because the backend needs these.
+    local effect = properties.effect
+    if effect then -- units ?
+        local slant = effect.slant or 0
+        if slant ~= 0 then
+            target.slant = slant * 1000
+         -- italic : new wd = oldwd + slant * ht
+        else
+            target.slant = 0
+        end
+        local extend = effect.extend or 1
+        if extend ~= 0 and extend ~= 1 then
+            hdelta = hdelta * extend
+            target.extend = extend * 1000
+         -- target.extend = round(target.extend)
+        else
+            target.extend = 1000
+        end
+        local squeeze = effect.squeeze or 1
+        if squeeze ~= 0 and squeeze ~= 1 then
+            vdelta = vdelta * squeeze
+            target.squeeze = squeeze * 1000
+         -- target.squeeze = round(target.squeeze)
+        else
+            target.squeeze = 1000
+        end
+        local mode = effect.mode or 0
+        if mode ~= 0 then
+            target.mode = mode
+        end
+        -- target height !
+        local width = effect.width or 0
+        if width ~= 0 then
+            target.width = width * 1000
+        end
     end
     --
+    targetproperties.effect       = effect
     targetparameters.factor       = delta
     targetparameters.hfactor      = hdelta
     targetparameters.vfactor      = vdelta
@@ -422,12 +456,17 @@ function constructors.scale(tfmdata,specification)
     --
     local hasquality       = parameters.expansion or parameters.protrusion
     local hasitalics       = properties.hasitalics
-    local autoitalicamount = properties.autoitalicamount
-    local stackmath        = not properties.nostackmath
+    local useditalicangle  = properties.useditalicangle or properties.italicangle or 0
+    local usedslant        = properties.usedslant       or properties.usedslant   or 0
+ -- local stackmath        = not properties.nostackmath
     local haskerns         = properties.haskerns     or properties.mode == "base" -- we can have afm in node mode
     local hasligatures     = properties.hasligatures or properties.mode == "base" -- we can have afm in node mode
-    local realdimensions   = properties.realdimensions
     local writingmode      = properties.writingmode or "horizontal"
+    --
+    targetparameters.useditalicangle = useditalicangle
+    targetproperties.useditalicangle = useditalicangle
+    targetparameters.usedslant       = usedslant
+    targetproperties.usedslant       = usedslant
     --
     if changed and not next(changed) then
         changed = false
@@ -437,21 +476,24 @@ function constructors.scale(tfmdata,specification)
     --
     target.postprocessors = tfmdata.postprocessors
     --
-    local targetslant         = (parameters.slant         or parameters[1] or 0) * factors.pt -- per point
-    local targetspace         = (parameters.space         or parameters[2] or 0) * hdelta
-    local targetspace_stretch = (parameters.space_stretch or parameters[3] or 0) * hdelta
-    local targetspace_shrink  = (parameters.space_shrink  or parameters[4] or 0) * hdelta
-    local targetx_height      = (parameters.x_height      or parameters[5] or 0) * vdelta
-    local targetquad          = (parameters.quad          or parameters[6] or 0) * hdelta
-    local targetextra_space   = (parameters.extra_space   or parameters[7] or 0) * hdelta
+    local targetslant        = (parameters.slant        or parameters[1] or 0) * factors.pt -- per point
+    local targetspace        = (parameters.space        or parameters[2] or 0) * hdelta
+    local targetspacestretch = (parameters.spacestretch or parameters[3] or 0) * hdelta
+    local targetspaceshrink  = (parameters.spaceshrink  or parameters[4] or 0) * hdelta
+    local targetxheight      = (parameters.xheight      or parameters[5] or 0) * vdelta
+    local targetquad         = (parameters.quad         or parameters[6] or 0) * hdelta
+    local targetextraspace   = (parameters.extraspace   or parameters[7] or 0) * hdelta
     --
-    targetparameters.slant         = targetslant -- slantperpoint
-    targetparameters.space         = targetspace
-    targetparameters.space_stretch = targetspace_stretch
-    targetparameters.space_shrink  = targetspace_shrink
-    targetparameters.x_height      = targetx_height
-    targetparameters.quad          = targetquad
-    targetparameters.extra_space   = targetextra_space
+    targetparameters.expansion    = parameters.expansion
+    targetparameters.protrusion   = parameters.protrusion
+    --
+    targetparameters.slant        = targetslant -- slantperpoint
+    targetparameters.space        = targetspace
+    targetparameters.spacestretch = targetspacestretch
+    targetparameters.spaceshrink  = targetspaceshrink
+    targetparameters.xheight      = targetxheight
+    targetparameters.quad         = targetquad
+    targetparameters.extraspace   = targetextraspace
     --
     local hshift = parameters.hshift
     if hshift then
@@ -462,36 +504,60 @@ function constructors.scale(tfmdata,specification)
         targetparameters.vshift = delta * vshift
     end
     --
-    local ascender = parameters.ascender
-    if ascender then
-        targetparameters.ascender  = delta * ascender
-    end
-    local descender = parameters.descender
-    if descender then
-        targetparameters.descender = delta * descender
-    end
+    local ascender  = parameters.ascender  if ascender  then targetparameters.ascender  = vdelta * ascender  end
+    local descender = parameters.descender if descender then targetparameters.descender = vdelta * descender end
+    local capheight = parameters.capheight if capheight then targetparameters.capheight = vdelta * capheight end
+    local ascent    = parameters.ascent    if ascent    then targetparameters.ascent    = vdelta * ascent    end
+    local descent   = parameters.descent   if descent   then targetparameters.descent   = vdelta * descent   end
     --
     constructors.enhanceparameters(targetparameters) -- official copies for us, now virtual
     --
-    local scaledwidth      = defaultwidth  * hdelta
-    local scaledheight     = defaultheight * vdelta
-    local scaleddepth      = defaultdepth  * vdelta
+    local scaledwidth  = defaultwidth  * hdelta
+    local scaledheight = defaultheight * vdelta
+    local scaleddepth  = defaultdepth  * vdelta
+    --
+    local textcontrol = properties.textcontrol or 0
+    if targetproperties.mode == "base" then
+        textcontrol = textcontrol | base_ligaturing | base_kerning
+        --
+        -- the only drawback is when we add some butthat doesn't happen in base mode so
+        -- we need to test this as there can be a little gain
+        --
+     -- if haskerns then
+     --     textcontrol = textcontrol | base_kerning
+     -- end
+     -- if hasligatures then
+     --     textcontrol = textcontrol | base_ligaturing
+     -- end
+    elseif targetproperties.mode == "none" then
+        textcontrol = textcontrol | none_protected -- or just assign
+    end
+    if hasitalics then
+        textcontrol = textcontrol | has_italics
+    end
+    if useditalicangle ~= 0 or usedslant ~= 0 then
+        textcontrol = textcontrol | auto_italics
+    end
+    targetproperties.textcontrol = textcontrol
+    target.textcontrol = textcontrol
     --
     local hasmath = (properties.hasmath or next(mathparameters)) and true
     --
     if hasmath then
         constructors.assignmathparameters(target,tfmdata) -- does scaling and whatever is needed
 
-        properties.hasmath   = true
-        target.nomath        = false
+        properties.hasmath   = true  -- to be sure
+        target.nomath        = false -- hm
         target.MathConstants = target.mathparameters
 
-        properties.compactmath = true
-        target.compactmath     = true
+        local compactmath    = properties.compactmath
 
-        local textscale         = parameters.textscale         -- or 1000
-        local scriptscale       = parameters.scriptscale       -- or  700
-        local scriptscriptscale = parameters.scriptscriptscale -- or  500
+        targetproperties.compactmath = compactmath
+        target.compactmath           = compactmath
+
+        local textscale         = parameters.textscale         -- 1000
+        local scriptscale       = parameters.scriptscale       --  700
+        local scriptscriptscale = parameters.scriptscriptscale --  500
 
         parameters.textscale         = textscale
         parameters.scriptscale       = scriptscale
@@ -505,43 +571,29 @@ function constructors.scale(tfmdata,specification)
         targetparameters.scriptscale       = scriptscale
         targetparameters.scriptscriptscale = scriptscriptscale
 
-        -- todo: maybe retrofit to font-con.lua
+--         local scriptxscale       = parameters.scriptxscale
+--         local scriptyscale       = parameters.scriptyscale
+--         local scriptscriptxscale = parameters.scriptscriptxscale
+--         local scriptscriptyscale = parameters.scriptscriptyscale
 
-        local oldmath = properties.oldmath
-        targetproperties.oldmath = oldmath
-        target.oldmath = oldmath
+--         targetparameters.scriptxscale       = scriptxscale
+--         targetparameters.scriptyscale       = scriptyscale
+--         targetparameters.scriptscriptxscale = scriptscriptxscale
+--         targetparameters.scriptscriptyscale = scriptscriptyscale
 
+--         target.scriptxscale       = scriptxscale
+--         target.scriptyscale       = scriptyscale
+--         target.scriptscriptxscale = scriptscriptxscale
+--         target.scriptscriptyscale = scriptscriptyscale
+
+        local mathcontrol = properties.mathcontrol
+        targetproperties.mathcontrol = mathcontrol
+        target.mathcontrol = mathcontrol
     else
         properties.hasmath    = false
         target.nomath         = true
         target.mathparameters = nil -- nop
     end
-    --
-    -- During the transition to opentype the engine had troubles with italics so we had some
-    -- additional code for fixing that. In node mode (text) we don't care much if italics gets
-    -- passed because the engine does nothing with them then.
-    --
-    if hasmath then
-        local mathitalics = properties.mathitalics
-        if mathitalics == false then
-            if trace_defining then
-                report_defining("%s italics %s for font %a, fullname %a, filename %a","math",hasitalics and "ignored" or "disabled",name,fullname,filename)
-            end
-            hasitalics       = false
-            autoitalicamount = false
-        end
-    else
-        local textitalics = properties.textitalics
-        if textitalics == false then
-            if trace_defining then
-                report_defining("%s italics %s for font %a, fullname %a, filename %a","text",hasitalics and "ignored" or "disabled",name,fullname,filename)
-            end
-            hasitalics       = false
-            autoitalicamount = false
-        end
-    end
-    --
-    -- end of context specific trickery
     --
     if trace_defining then
         report_defining("defining tfm, name %a, fullname %a, filename %a, %spsname %a, hscale %a, vscale %a, math %a, italics %a",
@@ -557,9 +609,18 @@ function constructors.scale(tfmdata,specification)
     --
     for unicode, character in next, characters do
         local chr, description, index
+        -- todo: add description entry to char entry instead of index ... saves elsewhere too
         if changed then
             local c = changed[unicode]
             if c and c ~= unicode then
+                local cc = changed[c]
+                if cc then
+                    while cc and cc ~= unicode and c ~= cc do -- bidi symbol swap catch
+                        c = cc
+                        cc = changed[c]
+                    end
+                end
+                -- check not needed:
                 if c then
                     description = descriptions[c] or descriptions[unicode] or character
                     character   = characters[c] or character
@@ -580,32 +641,11 @@ function constructors.scale(tfmdata,specification)
         local height    = description.height
         local depth     = description.depth
         local isunicode = description.unicode
-        if realdimensions then
-            -- this is mostly for checking issues
-            if not height or height == 0 then
-                local bb = description.boundingbox
-                local ht =  bb[4]
-                if ht ~= 0 then
-                    height = ht
-                end
-                if not depth or depth == 0 then
-                    local dp = -bb[2]
-                    if dp ~= 0 then
-                        depth = dp
-                    end
-                end
-            elseif not depth or depth == 0 then
-                local dp = -description.boundingbox[2]
-                if dp ~= 0 then
-                    depth = dp
-                end
-            end
-        end
         if width  then width  = hdelta*width  else width  = scaledwidth  end
         if height then height = vdelta*height else height = scaledheight end
     --  if depth  then depth  = vdelta*depth  else depth  = scaleddepth  end
         if depth and depth ~= 0 then
-            depth = delta*depth
+            depth = vdelta*depth
             if isunicode then
                 chr = {
                     index   = index,
@@ -638,111 +678,119 @@ function constructors.scale(tfmdata,specification)
                 }
             end
         end
+        local bb = description.boundingbox
+        if bb then
+            if bb[2] > 0 then
+                chr.tag = abovebaseline_tag
+            elseif bb[4] < 0 then
+                chr.tag = belowbaseline_tag
+            end
+        end
         if hasquality then
             -- we could move these calculations elsewhere (saves calculations)
-            local ve = character.expansion_factor
+            local ve = character.expansion
             if ve then
-                chr.expansion_factor = ve*1000 -- expansionfactor, hm, can happen elsewhere
+                chr.expansion = ve*1000 -- expansionfactor, hm, can happen elsewhere
             end
-            local vl = character.left_protruding
+            local vc = character.compression
+            if vc then
+                chr.compression = vc*1000 -- expansionfactor, hm, can happen elsewhere
+            end
+            local vl = character.leftprotrusion
             if vl then
-                chr.left_protruding  = width*vl
+                chr.leftprotrusion = width*vl
             end
-            local vr = character.right_protruding
+            local vr = character.rightprotrusion
             if vr then
-                chr.right_protruding  = width*vr
+                chr.rightprotrusion = width*vr
             end
         end
         --
         if hasmath then
-            --
-            -- todo, just operate on descriptions.math
-            local vn = character.next
-            if vn then
-                chr.next = vn
-            else
-                local vv = character.vert_variants
-                if vv then
-                    local t = { }
-                    for i=1,#vv do
-                        local vvi = vv[i]
-                        local s = vvi["start"]   or 0
-                        local e = vvi["end"]     or 0
-                        local a = vvi["advance"] or 0
-                        t[i] = { -- zero check nicer for 5.3
-                            ["start"]    = s == 0 and 0 or s * vdelta,
-                            ["end"]      = e == 0 and 0 or e * vdelta,
-                            ["advance"]  = a == 0 and 0 or a * vdelta,
-                            ["extender"] = vvi["extender"],
-                            ["glyph"]    = vvi["glyph"],
-                        }
-                    end
-                    chr.vert_variants = t
-                else
-                    local hv = character.horiz_variants
-                    if hv then
-                        local t = { }
-                        for i=1,#hv do
-                            local hvi = hv[i]
-                            local s = hvi["start"]   or 0
-                            local e = hvi["end"]     or 0
-                            local a = hvi["advance"] or 0
-                            t[i] = { -- zero check nicer for 5.3
-                                ["start"]    = s == 0 and 0 or s * hdelta,
-                                ["end"]      = e == 0 and 0 or e * hdelta,
-                                ["advance"]  = a == 0 and 0 or a * hdelta,
-                                ["extender"] = hvi["extender"],
-                                ["glyph"]    = hvi["glyph"],
-                            }
-                        end
-                        chr.horiz_variants = t
-                    end
-                end
-                -- todo also check mathitalics (or that one can go away)
+            local nxt = character.next
+            if nxt then
+                chr.next = nxt
             end
-            local vi = character.vert_italic
+            local parts = character.parts
+            if parts then
+                local orientation = character.partsorientation or "vertical"
+                chr.parts = scaleparts(parts,orientation == "horizontal" and hdelta or vdelta)
+                chr.partsorientation = orientation
+            end
+            local vi = character.partsitalic
             if vi and vi ~= 0 then
-                chr.vert_italic = vi*hdelta
+                chr.partsitalic = vi*hdelta
             end
-            local va = character.accent
-            if va then
-                chr.top_accent = vdelta*va
+            local va = character.topanchor
+            if va and va ~= 0 then
+             -- chr.topanchor = va*vdelta
+                chr.topanchor = va*hdelta
             end
-            if stackmath then
-                local mk = character.mathkerns
-                if mk then
-                    local tr = mk.topright
-                    local tl = mk.topleft
-                    local br = mk.bottomright
-                    local bl = mk.bottomleft
-                    chr.mathkern = { -- singular -> should be patched in luatex !
-                        top_right    = tr and mathkerns(tr,vdelta) or nil,
-                        top_left     = tl and mathkerns(tl,vdelta) or nil,
-                        bottom_right = br and mathkerns(br,vdelta) or nil,
-                        bottom_left  = bl and mathkerns(bl,vdelta) or nil,
-                    }
-                end
+            va = character.bottomanchor
+            if va and va ~= 0 then
+             -- chr.bottomanchor = va*vdelta
+                chr.bottomanchor = va*hdelta
             end
+            --
+            local mk = character.mathkerns
+            if mk then
+                local tr = mk.topright
+                local tl = mk.topleft
+                local br = mk.bottomright
+                local bl = mk.bottomleft
+                chr.mathkerns = {
+                    topright    = tr and mathkerns(tr,vdelta) or nil,
+                    topleft     = tl and mathkerns(tl,vdelta) or nil,
+                    bottomright = br and mathkerns(br,vdelta) or nil,
+                    bottomleft  = bl and mathkerns(bl,vdelta) or nil,
+                }
+            end
+            --
             if hasitalics then
                 local vi = character.italic
                 if vi and vi ~= 0 then
                     chr.italic = vi*hdelta
                 end
             end
-        elseif autoitalicamount then -- itlc feature
-            local vi = description.italic
-            if not vi then
-                local bb = description.boundingbox
-                if bb then
-                    local vi = bb[3] - description.width + autoitalicamount
-                    if vi > 0 then -- < 0 indicates no overshoot or a very small auto italic
-                        chr.italic = vi*hdelta
-                    end
-                else
-                 -- report_defining("no boundingbox for character %C in font %a, fullname %a, filename %a",unicode,name,fullname,filename)
-                end
-            elseif vi ~= 0 then
-                chr.italic = vi*hdelta
+            --
+            -- These can never happen here as these come from tweaks but I need to check it:
+            --
+         -- local vo = character.topovershoot
+         -- if vo and vo ~= 0 then
+         --     chr.topovershoot = vo*hdelta
+         -- end
+         -- local il = character.innerlocation
+         -- if il then
+         --     chr.innerlocation = il
+         --     chr.innerxoffset  = (character.innerxoffset or 0) * hdelta
+         --     chr.inneryoffset  = (character.inneryoffset or 0) * vdelta
+         -- end
+            --
+         -- if character.extensible then
+         --     chr.extensible = true -- stretch fixed width accent
+         -- end
+         -- --
+         -- local k = character.topleft      if k and k ~= 0 then chr.topleft      = k*hdelta end
+         -- local k = character.topright     if k and k ~= 0 then chr.topright     = k*hdelta end
+         -- local k = character.bottomleft   if k and k ~= 0 then chr.bottomleft   = k*hdelta end
+         -- local k = character.bottomright  if k and k ~= 0 then chr.bottomright  = k*hdelta end
+         -- --
+         -- local m = character.leftmargin   if m and m ~= 0 then chr.leftmargin   = m*hdelta end
+         -- local m = character.rightmargin  if m and m ~= 0 then chr.rightmargin  = m*hdelta end
+         -- local m = character.topmargin    if m and m ~= 0 then chr.topmargin    = m*hdelta end
+         -- local m = character.bottommargin if m and m ~= 0 then chr.bottommargin = m*hdelta end
+            --
+            local sm = character.smaller
+            if sm then
+                chr.smaller = sm
+            end
+         -- local mi = character.mirror
+         -- if mi then
+         --     chr.mirror = mi
+         -- end
+            local fa = character.flataccent -- set here?
+            if fa then
+                chr.flataccent = fa
             end
         elseif hasitalics then -- unlikely
             local vi = character.italic
@@ -776,10 +824,29 @@ function constructors.scale(tfmdata,specification)
                 end
             end
         end
+        -- only in old school fonts (otherwise we set commands later in context)
         local vc = character.commands
         if vc then
             chr.commands = scalecommands(vc,hdelta,vdelta)
         end
+        local cb = character.callback
+        if cb then
+            chr.callback = cb
+        end
+        -- we assume that these are done in a manipulator afterwards
+        -- as it makes no sense otherwise
+     -- local vx = character.xoffset
+     -- if vx then
+     --     chr.xoffset = vx*hdelta
+     -- end
+     -- local vy = character.yoffset
+     -- if vy then
+     --     chr.yoffset = vy*vdelta
+     -- end
+     -- local va = character.advance
+     -- if va then
+     --     chr.advance = va*vdelta
+     -- end
         targetcharacters[unicode] = chr
     end
     --
@@ -789,6 +856,8 @@ function constructors.scale(tfmdata,specification)
     --
     constructors.aftercopyingcharacters(target,tfmdata)
     --
+    constructors.beforepassingfonttotex(target,tfmdata) -- mayeb move into aftercopyingcharacters
+    --
     constructors.trytosharefont(target,tfmdata)
     --
     -- catch inconsistencies (for now)
@@ -796,6 +865,10 @@ function constructors.scale(tfmdata,specification)
     local vfonts = target.fonts
     if not vfonts or #vfonts == 0 then
         target.fonts = { { id = 0 } }
+    end
+    --
+    if trace_defining then
+        report_defining("font %a, size %N, delta %N",name,scaledpoints,delta)
     end
     --
     return target
@@ -815,42 +888,41 @@ function constructors.finalize(tfmdata)
     end
     --
     local parameters = tfmdata.parameters
+    local properties = tfmdata.properties
     if not parameters then
         return nil
     end
     --
-    if not parameters.expansion then
-        parameters.expansion = {
-            stretch = tfmdata.stretch or 0,
-            shrink  = tfmdata.shrink  or 0,
-            step    = tfmdata.step    or 0,
-        }
-    end
+ -- if not parameters.expansion then
+ --     parameters.expansion = {
+ --         stretch = tfmdata.stretch or 0,
+ --         shrink  = tfmdata.shrink  or 0,
+ --         step    = tfmdata.step    or 0,
+ --     }
+ -- end
     --
     if not parameters.size then
         parameters.size = tfmdata.size
     end
     --
-    if not parameters.mode then
-        parameters.mode = 0
-    end
+    -- In the backend we need to know what effects have been applied. The font
+    -- has been scaled contrary to the effects that we apply per glyph as these
+    -- are delayed. We can actually also use the font specific effects there.
     --
-    if not parameters.width then
-        parameters.width = 0
+    local effect = properties and properties.effect
+    if effect then
+        parameters.mode          = effect.mode
+        parameters.width         = effect.width
+        parameters.slantfactor   = effect.slant
+        parameters.extendfactor  = effect.extend
+        parameters.squeezefactor = effect.squeeze
+    else
+        parameters.mode          = 0
+        parameters.width         = 0
+        parameters.slantfactor   = 0
+        parameters.extendfactor  = 1
+        parameters.squeezefactor = 1
     end
-    --
-    if not parameters.slantfactor then
-        parameters.slantfactor = (tfmdata.slant or 0)/1000
-    end
-    --
-    if not parameters.extendfactor then
-        parameters.extendfactor = (tfmdata.extend or 1000)/1000
-    end
-    --
-    if not parameters.squeezefactor then
-        parameters.squeezefactor = (tfmdata.squeeze or 1000)/1000
-    end
-    --
     local designsize = parameters.designsize
     if designsize then
         parameters.minsize = tfmdata.minsize or designsize
@@ -922,9 +994,9 @@ function constructors.finalize(tfmdata)
     tfmdata.designsize       = nil
     --
     tfmdata.size             = nil
-    tfmdata.stretch          = nil
-    tfmdata.shrink           = nil
-    tfmdata.step             = nil
+ -- tfmdata.stretch          = nil
+ -- tfmdata.shrink           = nil
+ -- tfmdata.step             = nil
     tfmdata.slant            = nil
     tfmdata.extend           = nil
     tfmdata.squeeze          = nil
@@ -939,9 +1011,7 @@ function constructors.finalize(tfmdata)
     return tfmdata
 end
 
---[[ldx--
-<p>A unique hash value is generated by:</p>
---ldx]]--
+-- A unique hash value is generated by:
 
 local hashmethods        = { }
 constructors.hashmethods = hashmethods
@@ -1000,13 +1070,11 @@ hashmethods.normal = function(list)
     end
 end
 
---[[ldx--
-<p>In principle we can share tfm tables when we are in need for a font, but then
-we need to define a font switch as an id/attr switch which is no fun, so in that
-case users can best use dynamic features ... so, we will not use that speedup. Okay,
-when we get rid of base mode we can optimize even further by sharing, but then we
-loose our testcases for <l n='luatex'/>.</p>
---ldx]]--
+-- In principle we can share tfm tables when we are in need for a font, but then we
+-- need to define a font switch as an id/attr switch which is no fun, so in that
+-- case users can best use dynamic features ... so, we will not use that speedup.
+-- Okay, when we get rid of base mode we can optimize even further by sharing, but
+-- then we loose our testcases for LuaTeX.
 
 function constructors.hashinstance(specification,force)
     -- implemented in font-ctx.lmt
@@ -1088,6 +1156,7 @@ do
         local position = source.position
         setindeed("node",source,target,group,name,position)
         setindeed("base",source,target,group,name,position)
+        setindeed("none",source,target,group,name,position)
         setindeed("plug",source,target,group,name,position)
     end
 
@@ -1155,10 +1224,10 @@ do
                 defaults     = { },
                 descriptions = tables and tables.features or { },
                 used         = statistics and statistics.usedfeatures or { },
-                initializers = { base = { }, node = { }, plug = { } },
-                processors   = { base = { }, node = { }, plug = { } },
-                manipulators = { base = { }, node = { }, plug = { } },
-                finalizers   = { base = { }, node = { }, plug = { } },
+                initializers = { base = { }, node = { }, none = { }, plug = { } },
+                processors   = { base = { }, node = { }, none = { }, plug = { } },
+                manipulators = { base = { }, node = { }, none = { }, plug = { } },
+                finalizers   = { base = { }, node = { }, none = { }, plug = { } },
             }
             features.register = function(specification) return register(features,specification) end
             handler.features = features -- will also become hidden
@@ -1337,10 +1406,7 @@ do
 
 end
 
---[[ldx--
-<p>We need to check for default features. For this we provide
-a helper function.</p>
---ldx]]--
+-- We need to check for default features. For this we provide a helper function.
 
 function constructors.checkedfeatures(what,features)
     local defaults = handlers[what].features.defaults

@@ -19,6 +19,7 @@
 \registerctxluafile{back-exp-imp-tag}{autosuffix}
 \registerctxluafile{back-exp-imp-mth}{autosuffix}
 \registerctxluafile{back-exp-imp-ref}{autosuffix}
+\registerctxluafile{back-exp-imp-fnt}{autosuffix}
 
 %D This is an experimental exporter and a logical follow up on tagging. The
 %D exporter assumes a properly tagged document. Some elements get a couple
@@ -49,42 +50,12 @@
      \expandafter\ctxcommand
    \fi}
 
-\newcount\tagparcounter
-
-\aliased\let\dotagsetparcounter\relax
-\aliased\let\doresetparcounter \relax
-
-\appendtoks
-    \doresetparcounter
-\to \everyflushatnextpar
-
-% \appendtoks
-%     \dotagsetparcounter
-% \to \everypar
-
-\prependtoks
-    \dotagsetparcounter
-\to \everypar
-
-% \appendtoks
-%     \dotagsetparcounter
-% \to \neverypar
-
-\prependtoks
-    \dotagsetparcounter
-\to \neverypar
-
-\appendtoks
-    \dotagsetparcounter
-\to \everytabulatepar % tricky, maybe this should be neverypar
+% todo: \c_strc_tags_enabled for the setters
 
 \appendtoks
     \enforced\permanent\protected\def\dotagTABLEcell
-      {\iftrialtypesetting\else
-         \clf_settagtablecell
-           \numexpr\tablecellrows\relax
-           \numexpr\tablecellcolumns\relax
-           \numexpr\raggedstatus\relax
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagtablecell{\tablecellrows}{\tablecellcolumns}{\raggedstatus}%
        \fi}%
     % brrr, we need to tag empty cells (unless we start numbering)
     \enforced\permanent\protected\def\dotagTABLEsignal
@@ -93,26 +64,30 @@
 
 \appendtoks
     \enforced\permanent\protected\def\dotagtabulatecell
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagtabulatecell\c_tabl_tabulate_align\c_tabl_tabulate_kind
        \fi}%
     \enforced\permanent\protected\def\dotagtabulatesignal
-      {\dontleavehmode\signalcharacter\ignorespaces}%
+      {\dontleavehmode\signalcharacter\ignorespaces\ignorepars}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagsynonym
-      {\iftrialtypesetting\else\clf_settagsynonym{\currentsynonymtag}\fi}%
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagsynonym{\currentsynonymtag}%
+       \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagsorting
-      {\iftrialtypesetting\else\clf_settagsorting{\currentsortingtag}\fi}%
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagsorting{\currentsortingtag}%
+       \fi}%
 \to \everyenableelements
 
 \appendtoks % frozen and assumed global per highlight class
     \enforced\permanent\protected\def\dotagconstruct
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagconstruct
            {\currentstartstop}%
            {\startstopparameter\c!style}%
@@ -124,7 +99,7 @@
 
 \appendtoks % frozen and assumed global per highlight class
     \enforced\permanent\protected\def\dotaghighlight
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settaghighlight
            {\currenthighlight}%
            {\highlightparameter\c!style}
@@ -134,101 +109,129 @@
        \fi}%
 \to \everyenableelements
 
+\mutable\lettonothing\figurecategory
+\mutable\lettonothing\figureexported
+
 \appendtoks % we can have differently scaled images
     \enforced\permanent\protected\def\dotagfigure
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagfigure
            {\figurefileoriginal}%
            {\figurefullname}%
            {\figurefilepage}%
-           \dimexpr\figurewidth\relax
-           \dimexpr\figureheight\relax
+           {\figurewidth}%
+           {\figureheight}%
+           {\figuredepth}%\relax
            {\figurelabel}%
+           {\figurecategory}%
+           {\figureexported}%
+           {\figuredescriptiontext}%
+           {\figurealternativetext}%
+       \fi}%
+\to \everyenableelements
+
+\appendtoks
+    \enforced\permanent\protected\def\dotagimage
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagimage
+           {\figurelabel}%
+           {\figuredescriptiontext}%
+           {\figurealternativetext}%
+       \fi}%
+\to \everyenableelements
+
+
+\appendtoks
+    \enforced\permanent\protected\def\dotagmpgraphic
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagmpgraphic
+           {\figuredescriptiontext}%
+           {\figurealternativetext}%
        \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagcombination
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagcombination
-            \numexpr\combinationparameter\c!nx\relax
-            \numexpr\combinationparameter\c!ny\relax
+            {\combinationparameter\c!nx}%
+            {\combinationparameter\c!ny}%
        \fi}%
-\to \everyenableelements
-
-\appendtoks
-    \enforced\permanent\protected\def\dotagsetparcounter
-      {\global\advance\tagparcounter\plusone\c_attr_taggedpar\tagparcounter}%
-    \enforced\permanent\protected\def\doresetparcounter
-      {\c_attr_taggedpar\attributeunsetvalue}%
+    \enforced\permanent\protected\def\dotagcombinationpair#1#2%
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagcombinationpair{#1}{#2}%
+       \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagsetitemgroup
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagitemgroup
-           \ifconditional\c_strc_itemgroups_pack true\else false\fi\space
-           \numexpr\currentitemlevel\relax
+           \ifconditional\c_strc_itemgroups_pack     true\else false\fi\relaxedspace
+           \ifconditional\c_strc_itemgroups_continue true\else false\fi\relaxedspace
+           {\currentitemlevel}%
            {\currentitemgroupsymbol}%
        \fi}%
     \enforced\permanent\protected\def\dotagsetitem#1%
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagitem{#1}%
        \fi}%
 \to \everyenableelements
 
-%     \appendtoks
-%         \enforced\permanent\protected\def\dotagsetdescription
-%           {\iftrialtypesetting\else
-%              \clf_settagdescription{\currentdescription}\currentdescriptionnumberentry\relax
-%            \fi}%
-%     \to \everyenableelements
+\appendtoks
+    \enforced\permanent\protected\def\dotagsetdescriptionindex#1#2%
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagdescriptionindex{#1}{#2}\relax
+       \fi}%
+\to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagsetnotation
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
         \clf_settagnotation{\currentnote}\currentnotenumber\relax
        \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagsetnotesymbol
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagnotationsymbol{\currentnote}\currentnotenumber\relax
        \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagregisterlocation
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagregister{\currentregister}\currentregisternumber\relax
        \fi}%
 \to \everyenableelements
 
+\aliased\let\dotagsetreferencedescription\gobbletwoarguments
+
 \appendtoks
-    \enforced\permanent\protected\def\dotaglistlocation
-      {\iftrialtypesetting\else
-         \clf_settaglist\currentlistindex\relax
+    \enforced\permanent\protected\def\dotagsetreferencedescription#1#2%
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagsetreferencedescription{#1}{#2}\relax
        \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagsetdelimitedsymbol#1%
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagdelimitedsymbol{#1}\relax
        \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagsetsubsentencesymbol#1%
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagsubsentencesymbol{#1}\relax
        \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagregisterfloat#1#2%
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagfloat{#1}{#2}\relax
        \fi}%
 \to \everyenableelements
@@ -241,30 +244,56 @@
 \to \everyenableelements
 
 \appendtoks
-    \enforced\permanent\protected\def\dotagregisterformula#1%
-      {\iftrialtypesetting\else
-         \clf_settagformulacontent#1\relax
+    \enforced\permanent\protected\def\dotagregisterformula#1#2%
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagformulacontent{#1}{#2}%
        \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagmarginanchor#1%
-      {\iftrialtypesetting\else\clf_settagmarginanchor#1\relax\fi}%
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagmarginanchor#1\relax
+       \fi}%
     \enforced\permanent\protected\def\dotagmargintext#1%
-      {\iftrialtypesetting\else\clf_settagmargintext#1\relax\fi}%
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagmargintext#1\relax
+       \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagpublication#1#2%
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagpublication{#1}{#2}\relax
        \fi}%
 \to \everyenableelements
 
 \appendtoks
     \enforced\permanent\protected\def\dotagparagraph#1%
-      {\iftrialtypesetting\else
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
          \clf_settagparagraph{#1}\relax
+       \fi}%
+\to \everyenableelements
+
+% bah bah bah
+
+% \lettonothing\dotagmarklist
+
+\appendtoks
+    \enforced\permanent\protected\def\dotagmarklist
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \strc_lists_add_list_description
+       \fi}%
+\to \everyenableelements
+
+% For more elements, so an extra argument:
+
+\ifdefined\dotagcodepoint \else \aliased\let\dotagcodepoint\gobbletwoarguments \fi
+
+\appendtoks
+    \enforced\permanent\protected\def\dotagcodepoint#1#2%
+      {\iftrialtypesetting\orelse\ifconditional\c_strc_tags_enabled
+         \clf_settagcodepoint{#1}#2\relax
        \fi}%
 \to \everyenableelements
 
@@ -280,7 +309,7 @@
 \installsetuphandler     \??export {export}
 
 \setupexport
-  [\c!align=\number\raggedstatus,
+  [\c!align=\number\raggedstatus, % we pass as string
    \c!bodyfont=\bodyfontsize,
    \c!width=\textwidth,
    \c!title={\directinteractionparameter\c!title},
@@ -297,26 +326,27 @@
 \resetsystemmode\v!export
 
 \permanent\protected\def\doinitializeexport
-  {\edef\p_export{\backendparameter\c!export}%
-   \ifempty\p_export \else
+  {\ifempty{\backendparameter\c!export}\else
       % yes | xml
       \setuptagging[\c!state=\v!start]%
       \clf_initializeexport
       \setsystemmode\v!export
       \exportingtrue
       \writestatus\m!backend\empty % so messages will stand out a bit
-      \the\everyinitializeexport
+      \expand\everyinitializeexport
       \writestatus\m!backend\empty % so messages will stand out a bit
       \enforced\glet\doinitializeexport\relax
    \fi}
 
 \permanent\protected\def\dostartexport
   {%\glet\dostartexport\relax
-   \let\currentexport\empty
+   \lettonothing\currentexport
    \clf_setupexport
+       % we catch up later
        align      {\exportparameter\c!align}%
-       bodyfont   \dimexpr\exportparameter\c!bodyfont\relax
-       width      \dimexpr\exportparameter\c!width\relax
+       bodyfont   {\exportparameter\c!bodyfont}%
+       width      {\exportparameter\c!width}%
+       % till here
        properties {\exportparameter\c!properties}%
        hyphen     {\exportparameter\c!hyphen}%
        title      {\exportparameter\c!title}%
@@ -327,11 +357,17 @@
        svgstyle   {\exportparameter\c!svgstyle}%
        cssfile    {\exportparameter\c!cssfile}%
        file       {\exportparameter\c!file}%
+       option     {\exportparameter\c!option}%
        export     {\backendparameter\c!export}%
    \relax}
 
 \permanent\protected\def\dostopexport
   {\enforced\glet\dostopexport\relax
+   \clf_setupexport
+       align      {\exportparameter\c!align}%
+       bodyfont   {\exportparameter\c!bodyfont}%
+       width      {\exportparameter\c!width}%
+   \relax
    \clf_finishexport}
 
 \appendtoks
@@ -357,5 +393,129 @@
         \dostartexport % in case it is done inside \starttext
     \fi
 \to \everystartdocument
+
+%D This can replace the older (rather unknown) attachment feature because it
+%D is more immediate (same run). I can also use this then for manuals.
+%D
+%D \setuptagging[state=start] % mandate here
+%D
+%D \starttyping
+%D \startmathexport % [buffer=yes]
+%D     test $ x = 1 + a $ test
+%D \stopmathexport
+%D
+%D \typebuffer
+%D
+%D \startmathexport[buffer=math]
+%D     test $ x = 1 + a^2 $ test
+%D     test $ x = 1 + a $ test
+%D     test $ x = z + \sqrt{a} $ test
+%D \stopmathexport
+%D
+%D \typebuffer[math]
+%D
+%D \startmathexport[filename=foo.xml]
+%D     test $ x = z + \sqrt{a} $ test
+%D \stopmathexport
+%D
+%D \dorecurse{\collectedmath} {\page \collectedmath #1 \page}
+%D \stoptyping
+%D
+%D This one also does buffers and files:
+%D
+%D \starttyping
+%D \startboxexport
+%D     \startparagraph
+%D         \input tufte
+%D     \stopparagraph
+%D     \startitemize
+%D         \startitem item one \stopitem
+%D         \startitem item two \stopitem
+%D     \stopitemize
+%D     \startparagraph
+%D         \input tufte
+%D     \stopparagraph
+%D \stopboxexport
+%D
+%D \typebuffer
+%D \stoptyping
+
+\installcorenamespace {boxexport}
+\installcorenamespace {mathexport}
+
+\installsetuponlycommandhandler \??boxexport  {boxexport}
+\installsetuponlycommandhandler \??mathexport {mathexport}
+
+\permanent\tolerant\protected\def\startboxexport[#S#1]%
+  {\begingroup
+   \ifempty{#1}%
+      \letboxexportparameter\c!buffer\v!yes
+   \orelse\ifhastok={#1}\relax
+      \setupboxexport[#1]%
+   \else
+      \setboxexportparameter\c!buffer{#1}%
+   \fi
+   \setbox\nextbox\vbox\bgroup}
+
+\permanent\protected\def\stopboxexport
+  {\egroup
+   \clf_exportbox \nextbox
+     {\boxexportparameter\c!file}%
+     {\boxexportparameter\c!buffer}%
+   \endgroup}
+
+\permanent\tolerant\protected\def\startmathexport[#S#1]%
+  {\begingroup
+   \ifempty{#1}%
+      \letmathexportparameter\c!buffer\v!yes
+   \orelse\ifhastok={#1}\relax
+      \setupmathexport[#1]%
+   \else
+      \setmathexportparameter\c!buffer{#1}%
+   \fi
+   \clf_startcollectingmath}
+
+\permanent\protected\def\stopmathexport
+  {\clf_stopcollectingmath
+   \clf_processcollectedmath
+     {\mathexportparameter\c!file}%
+     {\mathexportparameter\c!buffer}%
+     {\mathexportparameter\c!n}%
+     {\mathexportparameter\c!option}%
+   \endgroup}
+
+\permanent\tolerant\protected\def\savemathexport[#S#1]%
+  {\begingroup
+   \setupmathexport[#1]%
+   \clf_processcollectedmath
+     {\mathexportparameter\c!file}%
+     {\mathexportparameter\c!buffer}%
+     {\mathexportparameter\c!n}%
+     {\mathexportparameter\c!option}%
+   \endgroup}
+
+% Defined at the \LUA\ end:
+%
+% \the\collectedmath : number of snippets
+% \collectedmath n   : specific snippet
+
+% \startluacode
+%     function commands.doifelsesimplecollectedmath()
+%         commands.doifelse(string.find(
+%             buffers.getcontent("test"),
+%             "<math.->%s*<m[nio]>[^<>]+</m[nio]>%s*</math>")
+%         )
+%     end
+% \stopluacode
+%
+% \dorecurse {\collectedmath} {
+%     \savemathexport[buffer=test,n=#1]
+%     \ctxlua{commands.doifelsesimplecollectedmath()} {
+%     } {
+%         \startsubsubsubject[title={math blob #1}]
+%             \typebuffer[test]
+%         \stopsubsubsubject
+%     }
+% }
 
 \protect \endinput

@@ -34,8 +34,8 @@
 
 \appendtoks
     \clf_definestructureblock{\currentblock}%
-    \frozen\setuevalue{\e!begin\currentblock}{\strc_blocks_begin{\currentblock}}%
-    \frozen\letvalue  {\e!end  \currentblock}\donothing
+    \frozen\protected\edefcsname\e!begin\currentblock\endcsname{\strc_blocks_begin{\currentblock}}%
+    \frozen          \letcsname \e!end  \currentblock\endcsname\donothing
 \to \everydefineblock
 
 % We need to prevent too much lookahead which will gobble newlines that are needed
@@ -43,15 +43,12 @@
 
 % maybe: systemmode "block:<name>"
 
-\let\m_block   \empty
-\let\m_subblock\empty
-
 \protected\def\strc_blocks_begin#1%
-  {\edef\m_block   {#1}%
-   \let \m_subblock\empty
+  {\edef\m_block{#1}%
+   \lettonothing\m_subblock
    \doifelsenextoptionalcs\strc_blocks_begin_yes\strc_blocks_begin_nop}
 
-\protected\def\strc_blocks_begin_yes[#1]%
+\protected\def\strc_blocks_begin_yes[#S#1]%
   {\doifelseassignmentcs{#1}%
      \strc_blocks_begin_indeed
      \strc_blocks_begin_tagged
@@ -61,17 +58,41 @@
   {\edef\m_subblock{#1}%
    \doifelsenextoptionalcs\strc_blocks_begin_yes_yes\strc_blocks_begin_nop}
 
-\protected\def\strc_blocks_begin_yes_yes[#1]%
+\protected\def\strc_blocks_begin_yes_yes[#S#1]%
   {\strc_blocks_begin_indeed{#1}}
 
 \protected\def\strc_blocks_begin_nop
   {\strc_blocks_begin_indeed{}}
 
 \protected\def\strc_blocks_begin_indeed#1%
-  {\normalexpanded{\buff_pickup{\??block}{\e!begin\m_block}{\e!end\m_block}}%
+  {\expanded{\buff_pickup{\??block}{\e!begin\m_block}{\e!end\m_block}}%
      {}%
      {\clf_savestructureblock{\m_block}{\m_subblock}{#1}{\??block}}%
      \plusone}
+
+% \tolerant\protected\def\strc_blocks_begin#1#*[#2]#*[#3]% #:#/% get rid of spaces and pars
+%   {\edef\m_block{#1}%
+%    \lettonothing\m_subblock
+%    \ifhastok={#2}%
+%      \expandafter\strc_blocks_begin_a % [settings]
+%    \orelse\ifparameter#2\or
+%      \expandafter\strc_blocks_begin_b % [tag] [settings]
+%    \else
+%      \expandafter\strc_blocks_begin_c %
+%    \fi{#2}{#3}}% #4}
+%
+% \protected\def\strc_blocks_begin_a#1#2% settings dummy
+%   {\expanded{\buff_pickup{\??block}{\e!begin\m_block}{\e!end\m_block}}%
+%      {}%
+%      {\clf_savestructureblock{\m_block}{\m_subblock}{#1}{\??block}}%
+%      \plusone}
+%
+% \protected\def\strc_blocks_begin_b#1#2% tag settings
+%   {\edef\m_subblock{#1}%
+%    \strc_blocks_begin_a{#2}{}}
+%
+% \protected\def\strc_blocks_begin_c#1#2%
+%   {\strc_blocks_begin_a{}{}}
 
 \let\strc_blocks_setup\relax
 
@@ -99,15 +120,15 @@
    \endgroup}
 
 \def\strc_start_block#1#2%
-  {\edef\currentblock{#2}%
+  {\cdef\currentblock{#2}%
    \c_strc_blocks_index#1\relax
    \strc_blocks_setup
    \let\strc_blocks_setup\relax
    \edef\p_alternative{\blockparameter\c!alternative}%
    \ifx\p_alternative\v!text
-      \setfalse\c_strc_blocks_display
+      \c_strc_blocks_display\conditionalfalse
    \else
-      \settrue\c_strc_blocks_display
+      \c_strc_blocks_display\conditionaltrue
    \fi
    \ifconditional\c_strc_blocks_display
       \blockparameter\c!before
@@ -140,16 +161,16 @@
 \tolerant\def\strc_blocks_set_state[#1]#*[#2]#*[#3]% state name tag % todo: we could use the lua one directly
   {\clf_setstructureblockstate{#1}{#2}{#3}}
 
-\tolerant\def\strc_blocks_select[#1]#*[#2]#*[#3]#*[#4]% state name tag setups
+\tolerant\def\strc_blocks_select[#1]#*[#2]#*[#S#3]#*[#S#4]% state name tag setups
   {\begingroup
    \ifhastok={#3}%
      \getparameters[\??blocktemp][\c!criterium=\v!text,#3]%
      \def\strc_blocks_setup{\setupcurrentblock[#3]}%
-     \clf_selectstructureblock{#1}{#2}{}{\csname\??blocktemp\c!criterium\endcsname}%
+     \clf_selectstructureblock{#1}{#2}{}{\begincsname\??blocktemp\c!criterium\endcsname}%
    \else
      \getparameters[\??blocktemp][\c!criterium=\v!text,#4]%
      \def\strc_blocks_setup{\setupcurrentblock[#4]}%
-     \clf_selectstructureblock{#1}{#2}{#3}{\csname\??blocktemp\c!criterium\endcsname}%
+     \clf_selectstructureblock{#1}{#2}{#3}{\begincsname\??blocktemp\c!criterium\endcsname}%
    \fi
    \endgroup}
 
@@ -167,5 +188,7 @@
 \permanent\protected\def\useblocks    {\strc_blocks_select   [use]}
 \permanent\protected\def\processblocks{\strc_blocks_select   [process]}
 \permanent\protected\def\selectblocks {\strc_blocks_select   [use]}
+
+\permanent\protected\def\doifelseblocksempty{\clf_doifelsestructureblocksempty} % {name}{tag}{criterium}
 
 \protect \endinput

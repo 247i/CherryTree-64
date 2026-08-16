@@ -452,13 +452,19 @@ local short_units = { -- I'm not sure about casing
     s  = "second",
     g  = "gram",
     n  = "newton",
-    v  = "volt",
+    V  = "volt",
     t  = "tonne",
     l  = "liter",
  -- w  = "watt",
     W  = "watt",
  -- a  = "ampere",
     A  = "ampere",
+
+    Ω  = "ohm",
+
+--  C  = "coulomb", -- needs checking with (c)enti
+--  K  = "kelvin",  -- needs checking with (k)ilo
+--  N  = "newton",  -- needs checking with (n)ewton
 
     min = "minute",
 
@@ -1008,7 +1014,7 @@ implement {
     protected = true,
     arguments = { "optional", "string" },
     actions   = function(filler, digits)
-        digits = gsub(digits,"(%d)","%1\\digitsbreak")
+        digits = gsub(digits,"(%d)","%1\\digitsbreak ") -- space needed for following letters
         digits = gsub(digits,"\\-$",filler)
         context(digits)
     end

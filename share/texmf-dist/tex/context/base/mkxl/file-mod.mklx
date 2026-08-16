@@ -29,39 +29,49 @@
 %D More information on the specific modules can be found in their dedicated manuals.
 %D We use \type {\next} so that we can \type {\end} in modules.
 
+% \enabledirectives[logs.errors=*]
+% \enabledirectives[logs.errors=missing modules]
+%
+% \usemodule[letsquit]
+%
+% \starttext
+%     test
+% \stoptext
+
 \installcorenamespace{module}
 
-\mutable\let\currentmodule          \s!unknown
-\mutable\let\currentmodulecategory  \empty
-\mutable\let\currentmoduleparameters\empty
+\mutable\let\currentmodule\s!unknown
+
+\mutable\lettonothing\currentmodulecategory
+\mutable\lettonothing\currentmoduleparameters
 
 \installmacrostack\currentmodule
 \installmacrostack\currentmodulecategory
 \installmacrostack\currentmoduleparameters
 
-\permanent\tolerant\protected\def\usemodules[#category]#spacer[#name]#spacer[#parameters]% category=t|m|x|p|...
+\permanent\tolerant\protected\def\usemodules[#category]#spacer[#S#name]#spacer[#S#parameters]% category=t|m|x|p|...
   {\push_macro_currentmodule
    \push_macro_currentmodulecategory
    \push_macro_currentmoduleparameters
    \ifparameters
-     \let\currentmodule\empty
+     \lettonothing\currentmodule
    \or
-     \let \currentmodulecategory  \empty
-     \edef\currentmodule          {#category}%
-     \let \currentmoduleparameters\empty
+     \lettonothing\currentmodulecategory
+     \cdef\currentmodule{#category}%
+     \lettonothing\currentmoduleparameters
    \or
      \ifhastok={#name}%
-       \let\currentmodulecategory   \empty
-       \edef\currentmodule          {#category}%
+       \lettonothing\currentmodulecategory
+       \cdef\currentmodule{#category}%
        \edef\currentmoduleparameters{#name}%
      \else
-       \edef\currentmodulecategory  {#category}%
-       \edef\currentmodule          {#name}%
-       \let \currentmoduleparameters\empty
+       \edef\currentmodulecategory{#category}%
+       \cdef\currentmodule{#name}%
+       \lettonothing\currentmoduleparameters
      \fi
    \or
      \edef\currentmodulecategory  {#category}%
-     \edef\currentmodule          {#name}%
+     \cdef\currentmodule          {#name}%
      \def \currentmoduleparameters{#parameters}%
    \fi
    \processcommacommand[\currentmodule]{\strc_modules_use\currentmodulecategory}%
@@ -72,21 +82,21 @@
 \def\strc_modules_use#category#name%
   {\ifempty\currentmoduleparameters\else
      \scratchtoks\expandafter{\currentmoduleparameters}%
-     \normalexpanded{\getparameters[\??module#name:][\the\scratchtoks]}%
+     \expanded{\getparameters[\??module#name:][\the\scratchtoks]}%
    \fi
    \clf_usemodules{#category}{#name}}
 
 \aliased\let\usemodule   \usemodules
 \aliased\let\usetexmodule\usemodules
 
-\newcount\c_syst_modules_nesting
-\newtoks \everysetupmodule
+\newinteger\c_syst_modules_nesting
+\newtoks   \everysetupmodule
 
 \permanent\tolerant\protected\def\startmodule[#1]#;#2 %
-  {\global\advance\c_syst_modules_nesting\plusone
+  {\global\advanceby\c_syst_modules_nesting\plusone
    \push_macro_currentmodule
    \push_macro_currentmoduleparameters
-   \def\currentmodule{#1#2}}
+   \cdef\currentmodule{#1#2}}
 
 \permanent\protected\def\stopmodule
   {\ifcase\c_syst_modules_nesting
@@ -94,7 +104,7 @@
    \else
      \pop_macro_currentmoduleparameters
      \pop_macro_currentmodule
-     \global\advance\c_syst_modules_nesting\minusone
+     \global\advanceby\c_syst_modules_nesting\minusone
    \fi}
 
 \permanent\protected\def\setupmodule % to be lmtx'd
@@ -104,38 +114,40 @@
       \expandafter\syst_modules_setup_yes
    \fi}
 
-\tolerant\def\syst_modules_setup_nop[#name]#spacer[#parameters]%
+\tolerant\def\syst_modules_setup_nop[#S#name]#spacer[#S#parameters]%
   {\ifarguments
      % nothing
    \or
-     \doifassignmentelse{#name}{\getparameters[\??module\currentmodule:][#name]}\donothing
-   \or
-     \getparameters[\??module#name:][#parameters]% internal (defaults)
-   \fi
-   \the\everysetupmodule}
-
-\tolerant\def\syst_modules_setup_yes[#name]#spacer[#parameters]%
-  {\scratchtoks\expandafter{\currentmoduleparameters}%
-   \ifparameters
-     \normalexpanded{\getparameters[\??module\currentmodule:][\the\scratchtoks]}%
-   \or
      \ifhastok={#name}%
-       \getparameters[\??module\currentmodule:][#name]% internal (defaults)
-       \normalexpanded{\getparameters[\??module\currentmodule:][\the\scratchtoks]}% loadtime (user)
-     \else
-       \normalexpanded{\getparameters[\??module#1:][\the\scratchtoks]}% loadtime (user)
+       \getparameters[\??module\currentmodule:][#name]%
      \fi
    \or
      \getparameters[\??module#name:][#parameters]% internal (defaults)
-     \normalexpanded{\getparameters[\??module#name:][\the\scratchtoks]}% loadtime (user)
    \fi
-   \let\currentmoduleparameters\empty
-   \the\everysetupmodule}
+   \expand\everysetupmodule}
+
+\tolerant\def\syst_modules_setup_yes[#S#name]#spacer[#S#parameters]%
+  {\scratchtoks\expandafter{\currentmoduleparameters}%
+   \ifparameters
+     \expanded{\getparameters[\??module\currentmodule:][\the\scratchtoks]}%
+   \or
+     \ifhastok={#name}%
+       \getparameters[\??module\currentmodule:][#name]% internal (defaults)
+       \expanded{\getparameters[\??module\currentmodule:][\the\scratchtoks]}% loadtime (user)
+     \else
+       \expanded{\getparameters[\??module#1:][\the\scratchtoks]}% loadtime (user)
+     \fi
+   \or
+     \getparameters[\??module#name:][#parameters]% internal (defaults)
+     \expanded{\getparameters[\??module#name:][\the\scratchtoks]}% loadtime (user)
+   \fi
+   \lettonothing\currentmoduleparameters
+   \expand\everysetupmodule}
 
 \permanent\def\moduleparameter#name#parameter% should have been \namedmoduleparameter
   {\begincsname\??module#name:#parameter\endcsname}
 
-\letvalue\??module\empty % so we default to empty as with all parameters
+\letcsname\??module\endcsname\empty % so we default to empty as with all parameters
 
 \permanent\def\currentmoduleparameter{\moduleparameter\currentmodule} % no need for inlining
 
@@ -166,12 +178,14 @@
 \permanent\protected\def\startmoduletestsection
   {\begingroup
    \setupmodule % we need to make sure that the vars are set
-   \doifelse{\currentmoduleparameter\v!test}\v!yes
-     {\endgroup
-      \writestatus\currentmodule{loading experimental code}}
-     {\endgroup
-      \writestatus\currentmodule{skipping experimental code}%
-      \gobbleuntil\stopmoduletestsection}}
+   \ifcstok{\currentmoduleparameter\v!test}\v!yes
+     \endgroup
+     \writestatus\currentmodule{loading experimental code}%
+   \else
+     \endgroup
+     \writestatus\currentmodule{skipping experimental code}%
+     \expandafter\ignoreupto\expandafter\stopmoduletestsection
+   \fi}
 
 \aliased\let\stopmoduletestsection\donothing
 
@@ -198,6 +212,9 @@
 \aliased\let\doifoldercontextelse\doifelseoldercontext
 
 %D Relatively new (no need for a speedup here). Can't this now be done nicer?
+
+\lettonothing\m_module_command_command
+\lettonothing\m_module_command_function
 
 \permanent\protected\def\syst_modules_direct_lua#1#2%
   {\edef\m_module_command_command {#1}%
@@ -226,9 +243,9 @@
    \ctxlua{\m_module_command_function(\!!bs#1\!!es,\!!bs#2\!!es)}%
    \directsetup{module:\m_module_command_command:stop}}
 
-\permanent\protected\def\installmodulecommandlua      #1#2{\enforced\permanent\protected\def#1{\normalexpanded{\syst_modules_direct_lua{\csstring#1}{#2}}}}
-\permanent\protected\def\installmodulecommandluasingle#1#2{\enforced\permanent\protected\def#1{\normalexpanded{\syst_modules_single_lua{\csstring#1}{#2}}}}
-\permanent\protected\def\installmodulecommandluadouble#1#2{\enforced\permanent\protected\def#1{\normalexpanded{\syst_modules_double_lua{\csstring#1}{#2}}}}
+\permanent\protected\def\installmodulecommandlua      #1#2{\enforced\permanent\protected\def#1{\expanded{\syst_modules_direct_lua{\csstring#1}{#2}}}}
+\permanent\protected\def\installmodulecommandluasingle#1#2{\enforced\permanent\protected\def#1{\expanded{\syst_modules_single_lua{\csstring#1}{#2}}}}
+\permanent\protected\def\installmodulecommandluadouble#1#2{\enforced\permanent\protected\def#1{\expanded{\syst_modules_double_lua{\csstring#1}{#2}}}}
 
 \protected\def\syst_modules_one_lua#1#2#3%
   {\directsetup{module:#1:start}%
@@ -240,8 +257,8 @@
    \ctxlua{#2(\!!bs#3\!!es,\!!bs#4\!!es)}%
    \directsetup{module:#1:stop}}
 
-\permanent\protected\def\installmodulecommandluaone#1#2{\enforced\permanent\protected\def#1{\normalexpanded{\syst_modules_one_lua{\csstring#1}{#2}}}}
-\permanent\protected\def\installmodulecommandluatwo#1#2{\enforced\permanent\protected\def#1{\normalexpanded{\syst_modules_two_lua{\csstring#1}{#2}}}}
+\permanent\protected\def\installmodulecommandluaone#1#2{\enforced\permanent\protected\def#1{\expanded{\syst_modules_one_lua{\csstring#1}{#2}}}}
+\permanent\protected\def\installmodulecommandluatwo#1#2{\enforced\permanent\protected\def#1{\expanded{\syst_modules_two_lua{\csstring#1}{#2}}}}
 
 %D This replaces \type {\fetchruntimecommand}:
 %D
@@ -258,5 +275,8 @@
    #1}
 
 \aliased\let\fetchruntimecommand\fetchmodulecommand % obsolete
+
+% \permanent\protected\def\moduleoverloaded
+%   {\enforced}
 
 \protect \endinput

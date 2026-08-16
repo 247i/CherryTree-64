@@ -6,15 +6,14 @@ if not modules then modules = { } end modules ['x-asciimath'] = {
     license   = "see context related readme files"
 }
 
---[[ldx--
-<p>Some backgrounds are discussed in <t>x-asciimath.mkiv</t>. This is a third version. I first
-tried a to make a proper expression parser but it's not that easy. First we have to avoid left
-recursion, which is not that trivial (maybe a future version of lpeg will provide that), and
-second there is not really a syntax but a mix of expressions and sequences with some fuzzy logic
-applied. Most problematic are fractions and we also need to handle incomplete expressions. So,
-instead we (sort of) tokenize the string and then do some passes over the result. Yes, it's real
-ugly and unsatisfying code mess down here. Don't take this as an example.</p>
---ldx]]--
+-- Some backgrounds are discussed in 'x-asciimath.mkiv'. This is a third version. I
+-- first tried a to make a proper expression parser but it's not that easy. First we
+-- have to avoid left recursion, which is not that trivial (maybe a future version
+-- of lpeg will provide that), and second there is not really a syntax but a mix of
+-- expressions and sequences with some fuzzy logic applied. Most problematic are
+-- fractions and we also need to handle incomplete expressions. So, instead we (sort
+-- of) tokenize the string and then do some passes over the result. Yes, it's real
+-- ugly and unsatisfying code mess down here. Don't take this as an example.
 
 -- todo: spaces around all elements in cleanup?
 -- todo: filter from files listed in tuc file
@@ -25,7 +24,7 @@ local trace_digits     = false  if trackers then trackers.register("modules.asci
 
 local report_asciimath = logs.reporter("mathematics","asciimath")
 
-local asciimath        = { }
+local asciimath        = asciimath or { }
 local moduledata       = moduledata or { }
 moduledata.asciimath   = asciimath
 
@@ -732,6 +731,32 @@ local reserved = {
 
 }
 
+-- This is an undocumented option for Ton (math4all):
+
+-- \startluacode
+-- if not asciimath then
+--     asciimath = {
+--         extras = {
+--             ["GTK"] = { false, "\\text{\\it GTK}" }, -- proper kerning/spacing
+--         }
+--     }
+-- end
+-- \stopluacode
+--
+-- \usemodule[asciimath]
+-- \starttext
+--    \asciimath{GTK}
+-- stoptext
+
+local extras = asciimath.extras
+if extras then
+    for k, v in next, extras do
+        if not reserved[k] then
+            reserved[k] = v
+        end
+    end
+end
+
 -- a..z A..Z : allemaal op italic alphabet
 -- en dan default naar upright "upr a"
 
@@ -951,7 +976,7 @@ end
 local collected_digits   = { }
 local collected_filename = "asciimath-digits.lua"
 
-function numbermess(s)
+local function numbermess(s)
     if splitmethod then
         local d = lpegmatch(splitmethod,s,1,digitseparator,digitsymbol)
         if not d and symbolmethod then
@@ -1403,6 +1428,7 @@ local function collapse_stupids(t)
             if type(one) == "table" then
                 one = collapse(one,level)
                 t[m] = current .. "{" .. one .. "}"
+--                 t[m] = current .. "\\begingroup" .. one .. "\\endgroup"
                 i = i + 2
             else
                 t[m] = current
@@ -1571,7 +1597,7 @@ local function collapse_infixes_1(t)
     return t
 end
 
-function collapse_limits(t)
+local function collapse_limits(t)
     local n, m, i = #t, 0, 1
     while i <= n do
         m = m + 1
@@ -1911,7 +1937,7 @@ local function wrapup(collected,indexed)
     end
 end
 
-function collect(fpattern,element,collected,indexed)
+local function collect(fpattern,element,collected,indexed)
     local element   = element or "am"
     local mpattern  = formatters["<%s>(.-)</%s>"](element,element)
     local filenames = resolvers.findtexfile(fpattern)
@@ -1945,7 +1971,7 @@ function collect(fpattern,element,collected,indexed)
     return collected, indexed
 end
 
-function filter(root,pattern,collected,indexed)
+local function filter(root,pattern,collected,indexed)
     if not pattern or pattern == "" then
         pattern = "am"
     end

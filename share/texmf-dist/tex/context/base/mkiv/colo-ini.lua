@@ -8,7 +8,7 @@ if not modules then modules = { } end modules ['colo-ini'] = {
 
 local type, tonumber, tostring = type, tonumber, tostring
 local concat, insert, remove = table.concat, table.insert, table.remove
-local format, gmatch, gsub, lower, match, find = string.format, string.gmatch, string.gsub, string.lower, string.match, string.find
+local format, gmatch, gsub, lower, match, find, char = string.format, string.gmatch, string.gsub, string.lower, string.match, string.find, string.char
 local P, R, C, Cc = lpeg.P, lpeg.R, lpeg.C, lpeg.Cc
 local lpegmatch, lpegpatterns = lpeg.match, lpeg.patterns
 local formatters = string.formatters
@@ -43,6 +43,7 @@ local texsetattribute     = tex.setattribute
 local texgetattribute     = tex.getattribute
 local texgetcount         = tex.getcount
 local texgettoks          = tex.gettoks
+local texiscount          = tex.iscount
 local texgetmacro         = tokens.getters.macro
 
 local a_color             = attributes.private('color')
@@ -82,8 +83,19 @@ local function synccolorclone(name,clone)
     valid[name] = clone
 end
 
-local function synccolorcount(name,n)
-    counts[name] = n
+local synccolorcount  if CONTEXTLMTXMODE > 0 then
+--     local prefix = texgetmacro("??colornumber")
+--     for k, v in next, counts do
+--         counts[k] = texiscount(prefix..k)
+--         print(k,v,counts[k])
+--     end
+    synccolorcount = function(name,n)
+        counts[name] = texiscount(n)
+    end
+else
+    synccolorcount = function(name,n)
+        counts[name] = n
+    end
 end
 
 local stack = { }
@@ -516,6 +528,69 @@ local function defineprocesscolor(name,str,global,freeze) -- still inconsistent 
     colorset[name] = true-- maybe we can store more
 end
 
+local function definelabcolor(name,str,global,freeze) -- still inconsistent color vs transparent
+    local settings = settings_to_hash_strict(str)
+    if settings then
+        local s
+        local a = settings.a
+        local t = settings.t
+        local l = settings.l
+        if l then
+            local c = settings.c
+            local h = settings.h
+            -- lhc
+            if c and h then
+                local r, g, b = colors.lchtorgb(tonumber(l) or 0, tonumber(c) or 0, tonumber(h) or 0)
+                definecolor(name, register_color(name,'rgb',r,g,b), global)
+                goto TRANSPARENCY
+            end
+            -- lab
+            local b = settings.b
+            if a and b then
+                local r, g, b = colors.labtorgb(tonumber(l) or 0, tonumber(a) or 0, tonumber(b) or 0)
+                definecolor(name, register_color(name,'rgb',r,g,b), global)
+                goto TRANSPARENCY
+            end
+        else
+            local x = settings.x
+            local y = settings.y
+            local z = settings.z
+            if x and y and z then
+                local r, g, b = colors.xyztorgb(tonumber(x) or 0, tonumber(y) or 0, tonumber(z) or 0)
+                definecolor(name, register_color(name,'rgb',r,g,b), global)
+                goto TRANSPARENCY
+            end
+        end
+        -- todo srgb
+        s = settings.s
+        definecolor(name, register_color(name,'gray',tonumber(s) or 0), global)
+      ::TRANSPARENCY::
+        if a and t then
+            definetransparent(name, transparencies.register(name,transparent[a] or tonumber(a) or 1,tonumber(t) or 1), global)
+        elseif colors.couple then
+        --  definetransparent(name, transparencies.register(nil, 1, 1), global) -- can be sped up
+            definetransparent(name, 0, global) -- can be sped up
+        end
+    elseif freeze then
+        local ca = attributes_list[a_color]       [str]
+        local ta = attributes_list[a_transparency][str]
+        if ca then
+            definecolor(name, ca, global)
+        end
+        if ta then
+            definetransparent(name, ta, global)
+        end
+    else
+        inheritcolor(name, str, global)
+        inherittransparent(name, str, global)
+    --  if global and str ~= "" then -- For Peter Rolf who wants access to the numbers in Lua. (Currently only global is supported.)
+    --      attributes_list[a_color]       [name] = attributes_list[a_color]       [str] or attributes.unsetvalue  -- reset
+    --      attributes_list[a_transparency][name] = attributes_list[a_transparency][str] or attributes.unsetvalue
+    --  end
+    end
+    colorset[name] = true-- maybe we can store more
+end
+
 -- You cannot overload a local color so one then has to use some prefix, like
 -- mp:red. Kind of protection.
 
@@ -650,7 +725,7 @@ local function definemixcolor(makecolor,name,fractions,cs,global,freeze)
         if not v then
             return
         end
-        values[i] = v
+        colorvalues[i] = v
     end
     if #values > 0 then
         csone = values[1][1]
@@ -877,7 +952,7 @@ local function formatcolor(ca,separator)
         end
         return concat(c,separator)
     else
-        return format("%0.3f",0)
+        return "0.000" -- format("%0.3f",0)
     end
 end
 
@@ -889,12 +964,20 @@ end
 colors.formatcolor = formatcolor
 colors.formatgray  = formatgray
 
-local f_gray         = formatters["s=%1.3f"]
-local f_rgb          = formatters["r=%1.3f%sg=%1.3f%sb=%1.3f"]
-local f_cmyk         = formatters["c=%1.3f%sm=%1.3f%sy=%1.3f%sk=%1.3f"]
+----- f_gray         = formatters["s=%1.3f"]
+----- f_rgb          = formatters["r=%1.3f%sg=%1.3f%sb=%1.3f"]
+----- f_cmyk         = formatters["c=%1.3f%sm=%1.3f%sy=%1.3f%sk=%1.3f"]
+----- f_spot_name    = formatters["p=%s"]
+----- f_spot_value   = formatters["p=%1.3f"]
+----- f_transparency = formatters["a=%1.3f%st=%1.3f"]
+----- f_both         = formatters["%s%s%s"]
+
+local f_gray         = formatters["s=%1.4f"]
+local f_rgb          = formatters["r=%1.4f%sg=%1.4f%sb=%1.4f"]
+local f_cmyk         = formatters["c=%1.4f%sm=%1.4f%sy=%1.4f%sk=%1.4f"]
 local f_spot_name    = formatters["p=%s"]
-local f_spot_value   = formatters["p=%1.3f"]
-local f_transparency = formatters["a=%1.3f%st=%1.3f"]
+local f_spot_value   = formatters["p=%1.4f"]
+local f_transparency = formatters["a=%1.4f%st=%1.4f"]
 local f_both         = formatters["%s%s%s"]
 
 local function colorcomponents(ca,separator) -- return list
@@ -1139,7 +1222,7 @@ local setcolormodel = colors.setmodel
 implement {
     name      = "synccolorcount",
     actions   = synccolorcount,
-    arguments = { "string", "integer" }
+    arguments = { "string", CONTEXTLMTXMODE > 0 and "string" or "integer" }
 }
 
 implement {
@@ -1177,6 +1260,18 @@ implement {
 implement {
     name      = "defineprocesscolorglobal",
     actions   = defineprocesscolor,
+    arguments = { "string", "string", true, "boolean" }
+}
+
+implement {
+    name      = "definelabcolorlocal",
+    actions   = definelabcolor,
+    arguments = { "string", "string", false, "boolean" }
+}
+
+implement {
+    name      = "definelabcolorglobal",
+    actions   = definelabcolor,
     arguments = { "string", "string", true, "boolean" }
 }
 
@@ -1353,3 +1448,86 @@ implement {
         context((s < 0 and 0) or (s > 1 and 1) or s)
     end
 }
+
+-- This is a playground for MS and HH:
+--
+-- Required Contrast Ratios for WCAG Conformance (how about small text)
+--
+-- Level AA  Text      4.5:1  for regular text and 3.0:1 for large text (18pt or 14pt/bold)
+-- Level AAA Text      7.0:1  for regular text and 4.5:1 for large text (18pt or 14pt/bold)
+--
+-- Level AA  Non-Text  3.0:1  for user interface components and graphics
+
+do
+
+    -- https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio
+    -- https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+
+    local function crap(v)
+        return v <= 0.03928 and v/12.92 or (v+0.055/1.055)^2.4
+    end
+
+    local function luminance(color)
+        color = colorvalues[color]
+        if color then
+            return (0.2126 * crap(color[2]) + 0.7152 * crap(color[3]) + 0.0722 * crap(color[4])) + 0.05
+        end
+    end
+
+    local function formatluminance(color)
+        local l = luminance(color)
+        if l then
+            return format("%0.3f",l)
+        end
+    end
+
+    local function formatluminanceratio(one,two)
+        local one = luminance(one)
+        local two = luminance(two)
+        if one and two then
+            return format("%0.3f",one > two and one/two or two/one)
+        end
+    end
+
+    colors.formatluminance      = formatluminance
+    colors.formatluminanceratio = formatluminanceratio
+
+    implement {
+        name      = "formatluminance",
+     -- protected = true,
+        arguments = "integer",
+        actions   = { formatluminance, context },
+    }
+
+    implement {
+        name      = "formatluminanceratio",
+     -- protected = true,
+        arguments = { "integer", "integer" },
+        actions   = { formatluminanceratio, context },
+    }
+
+end
+
+-- This might move to l-number:
+
+local round = math.round
+
+function number.fractiontobyte(f)
+    local b = round(f * 255)
+    if b > 255 then
+        return 255
+    elseif b < 0 then
+        return 0
+    else
+        return b
+    end
+end
+
+-- but not now.
+
+local tobyte = number.fractiontobyte
+
+function colors.rgbbytes(name)
+    local v = colorvalues[name and attributes_list[a_color][name] or attributes_list[a_color].black]
+    return char(tobyte(v[3]),tobyte(v[4]),tobyte(v[5]))
+end

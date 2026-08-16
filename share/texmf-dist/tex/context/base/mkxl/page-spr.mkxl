@@ -29,6 +29,7 @@
          \freezetextwidth
          \hsize\textwidth   % local variant of \sethsize
          \boxmaxdepth\maxdepth
+         \page_otr_flush_top_content
          \noindent          % content can be < \hsize
          \page_otr_command_package_contents#2#3}}%
    \dp#1\zeropoint
@@ -89,8 +90,8 @@
   {\bgroup
    \page[\v!left]%
   %\setsystemmode{spread}%
-   \settrue\c_page_spread_busy
-   \expanded{\setuplayout[\c!textwidth=\the\dimexpr2\textwidth+2\backspace\relax]}%
+   \c_page_spread_busy\conditionaltrue
+   \expanded{\setuplayout[\c!textwidth=\todimension{2\textwidth+2\backspace}]}%
    \enforced\let\stopspread\page_spread_stop_yes}
 
 \permanent\protected\def\page_spread_stop_yes

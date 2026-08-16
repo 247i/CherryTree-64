@@ -42,15 +42,15 @@
 \installcommandhandler \??makeup {makeup} \??makeup
 
 \appendtoks
-   \frozen\instance\setuevalue{\e!start\currentmakeup\e!makeup}{\startmakeup[\currentmakeup]}%
-   \frozen\instance\setuevalue{\e!stop \currentmakeup\e!makeup}{\stopmakeup}%
+   \protected\frozen\instance\edefcsname\e!start\currentmakeup\e!makeup\endcsname{\startmakeup[\currentmakeup]}%
+   \protected\frozen\instance\edefcsname\e!stop \currentmakeup\e!makeup\endcsname{\stopmakeup}%
    \doifelselayoutdefined\currentmakeup\donothing{\definelayout[\currentmakeup]}% new
 \to \everydefinemakeup
 
 %D The \type {\start}||\type {\stop} macros are used for both the direct and
 %D indirect way. The parameterless call will build a simple box.
 
-\permanent\tolerant\protected\def\startmakeup[#1]#*[#2]%
+\permanent\tolerant\protected\def\startmakeup[#1]#*[#S#2]%
   {\ifparameters
       \expandafter\page_makeup_start_nop
    \else
@@ -61,7 +61,7 @@
 
 %D The simple case: just a box with text dimensions.
 
-\protected\def\page_makeup_start_nop[#name][#settings]% dummies
+\protected\def\page_makeup_start_nop[#name][#S#settings]% dummies
   {\page
    \setupheader[\c!state=\v!empty]%
    \setupfooter[\c!state=\v!empty]%
@@ -104,24 +104,28 @@
 % \definelayout[whatever][height=2cm]
 % \setuplayout[whatever]
 
-\def\page_makeup_start_indeed[#name][#settings]%
+\lettonothing\m_page_makeup_parent
+\lettonothing\m_page_makeup_name
+
+\def\page_makeup_start_indeed[#name][#S#settings]%
   {% the next grouping hack is somewhat messy:
    \begingroup
    % we need to figure out the current layout
-   \xdef\m_page_makeup_name{#name}%
+   \global\cdef\m_page_makeup_name{#name}%
    \let\currentmakeup\m_page_makeup_name
    \let\currentlayout\m_page_makeup_name
-   \xdef\m_page_makeup_layout_parent{\layoutparameter\s!parent}%
+   \xdef\m_page_makeup_parent{\layoutparameter\s!parent}%
    \setupcurrentmakeup[#settings]%
-   \edef\p_page{\makeupparameter\c!page}%
+   \edef\p_page {\makeupparameter\c!page}%
    \ifempty\p_page
      \endgroup
      \page % new, so best not have dangling mess here like references (we could capture then and flush embedded)
+     \relax
    \orelse\ifx\p_page\v!no
      % nothing
      \endgroup
    \else
-     \normalexpanded{\endgroup\page[\p_page]}%
+     \expanded{\endgroup\page[\p_page]}%
    \fi
    % some dirty trickery (sorry) for determining if we have
    %  - a layout definition at all
@@ -129,9 +133,9 @@
    %  - inherit from the current layout otherwise
    \ifx\m_page_makeup_name\currentlayout
       % we already use the layout
-   \orelse\ifx\m_page_makeup_layout_parent\??layout
+   \orelse\ifx\m_page_makeup_parent\??layout
      % we inherit from the current layout
-     \normalexpanded{\setuplayout[#name][\s!parent=\??layout\currentlayout]}% is remembered but checked later anyway
+     \expanded{\setuplayout[#name][\s!parent=\??layout\currentlayout]}% is remembered but checked later anyway
  % \else
       % we have an inherited layout
    \fi
@@ -141,13 +145,13 @@
    \let\currentmakeup\m_page_makeup_name
    \setupcurrentmakeup[#settings]%
    \setsystemmode\v!makeup
-   \the\t_page_makeup_every_setup
+   \expand\t_page_makeup_every_setup
    \makeupparameter\c!commands % hm, what is this one doing here ?
    \forgetall % else indented flush
    \dontcomplain
-   \global\setbox\b_page_makeup\vbox to \makeupparameter\c!height \bgroup
+   \global\setbox\b_page_makeup\vbox \s!to {\makeupparameter\c!height}\bgroup
      \usemakeupstyleandcolor\c!style\c!color
-     \hsize\makeupparameter\c!width
+     \hsize{\makeupparameter\c!width}%
      \usealignparameter\makeupparameter
      \usesetupsparameter\makeupparameter % lua(..),xml(...,..),tex(..)
      \makeupparameter\c!top
@@ -164,12 +168,18 @@
        \ht\b_page_makeup\vsize % is already set to \textheight (maybe set dp to 0)
      \fi
      \setuppagenumber[\c!state=\makeupparameter\c!pagestate]%
-     \doif{\makeupparameter\c!location}\v!top{\topskip\zeropoint}%
+     \ifcstok{\makeupparameter\c!location}\v!top
+       \topskip\zeroskip
+     \fi
      \edef\p_reference{\makeupparameter\c!reference}%
+     \edef\p_label{\makeupparameter\c!label}%
+     \ifempty\p_label\else
+       \expanded{\setuppagenumber[\c!label=\p_label]}%
+     \fi
      \dontleavehmode
      \usereferenceparameter\makeupparameter
      \box\b_page_makeup % could be whole box being destination
-     \the\t_page_makeup_every_setup
+     \expand\t_page_makeup_every_setup
      \page
    \endgroup
    \makeupparameter\c!after\relax
@@ -180,16 +190,17 @@
    \egroup
    \stoplayout % includes \page
    \ifx\m_page_makeup_name\currentlayout
-   \orelse\ifx\m_page_makeup_layout_parent\??layout
-     \normalexpanded{\setuplayout[\m_page_makeup_name][\s!parent=\??layout]}% is remembered but checked later anyway
+   \orelse\ifx\m_page_makeup_parent\??layout
+%      \expanded{\setuplayout[\m_page_makeup_name][\s!parent=\??layout]}% is remembered but checked later anyway
+     \expanded{\setuplayout[\m_page_makeup_name][\s!parent=\??layout\currentlayout]}% is remembered but checked later anyway
    \fi}
 
-\setvalue{\??makeupdoublesided\v!yes}%
+\defcsname\??makeupdoublesided\v!yes\endcsname
   {\emptyhbox
    \page}
 
-\setvalue{\??makeupdoublesided\v!empty}%
-  {\the\t_page_makeup_every_setup
+\defcsname\??makeupdoublesided\v!empty\endcsname
+  {\expand\t_page_makeup_every_setup
   % == \page[\v!dummy]
    \page[\v!blank]%
    \emptyhbox
@@ -200,8 +211,7 @@
 \permanent\protected\def\startcolumnmakeup % don't change
   {\bgroup
    \getrawnoflines\textheight % raw as we can have topskip
-   \setbox\scratchbox\vbox to \dimexpr\noflines\lineheight-\lineheight+\topskip\relax
-     \bgroup
+   \setbox\scratchbox\vbox \s!to {\noflines\lineheight-\lineheight+\topskip}\bgroup
      \forgetall}
 
 \permanent\protected\def\stopcolumnmakeup

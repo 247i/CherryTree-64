@@ -330,7 +330,7 @@ local function validcommand(name,program,template,checkers,defaults,variables,re
                     -- for now, we will have a "flags" checker
                 else
                     local checker = validators[chktype]
-                    if checker then
+                    if checker and type(value) == "string" then
                         value = checker(unquoted(value),strict)
                         if value then
                             variables[variable] = optionalquoted(value)
@@ -350,7 +350,7 @@ local function validcommand(name,program,template,checkers,defaults,variables,re
                     local chktype = checkers[variable]
                     if chktype == "verbose" then
                         -- for now, we will have a "flags" checker
-                    else
+                    elseif type(default) == "string" then
                         local checker = validators[chktype]
                         if checker then
                             default = checker(unquoted(default),strict)
@@ -394,6 +394,7 @@ local runners = {
             if trace then
                 report("resultof: %s",command)
             end
+--             local handle = iopopen(command,"rb") -- already has flush
             local handle = iopopen(command,"r") -- already has flush
             if handle then
                 local result = handle:read("*all") or ""
@@ -419,6 +420,15 @@ local runners = {
                 report("pipeto: %s",command)
             end
             return iopopen(command,"w") -- already has flush
+        end
+    end,
+    command = function(...)
+        local command = validcommand(...)
+        if command then
+            if trace then
+                report("command: %s",command)
+            end
+            return command
         end
     end,
 }

@@ -43,7 +43,7 @@
 %D and such are now more or less default in \CONTEXT\ so we can simplify some of the
 %D code. We also use the new penalty mechanism.
 
-\newcount\compoundhyphenpenalty
+\newinteger\compoundhyphenpenalty
 
 % \ifcase\contextlmtxmode
 %     \hyphenpenaltymode\plusfour
@@ -54,7 +54,7 @@
 \automatichyphenpenalty   50 % -
 \explicithyphenpenalty    50 % \-
 \compoundhyphenpenalty    50
-\exceptionpenalty       1000
+\exceptionpenalty          0 % MS dislikes 1000, zero == \hyphenpenalty * factor
 
 %D This command can change! At some point we will keep the setting with the
 %D paragraph and then the \type {\par} can go.
@@ -62,13 +62,25 @@
 \installcorenamespace{hyphenation}
 \installcorenamespace{hyphenationfeatures}
 
-\installparameterhandler \??hyphenation {hyphenation}
-\installsetuphandler     \??hyphenation {hyphenation}
+\installparameterhandler     \??hyphenation {hyphenation}
+\installrootparameterhandler \??hyphenation {hyphenation}
+\installsetuphandler         \??hyphenation {hyphenation}
+
+% \installbasicsetuphandler  \??hyphenation {hyphenation}
 
 \setuphyphenation
   [\c!method=\s!default,
+   \c!hyphens=\v!yes,
    \s!righthyphenchar=0, % number tzt g: etc
    \s!lefthyphenchar=0]  % number
+
+\appendtoks
+   \ifcstok{\hyphenationparameter\c!hyphens}\v!no
+     \nohyphencollapsing
+   \else
+     \dohyphencollapsing
+   \fi
+\to \everysetuphyphenation
 
 \appendtoks
     \clf_sethyphenationmethod{\hyphenationparameter\c!method}%
@@ -92,20 +104,20 @@
 % \setuphyphenation
 %   [\c!method=\s!traditional] % no translations
 
-\permanent\tolerant\protected\def\definehyphenationfeatures[#1]#*[#2]%
-  {\begingroup
-   \letdummyparameter\c!characters     \empty     % maybe \s!characters
-   \letdummyparameter\c!hyphens        \empty     % maybe \s!hyphens
-   \letdummyparameter\c!joiners        \empty     % maybe \s!joiners
-   \letdummyparameter\c!rightwords     \zerocount % maybe \s!rightwords
-   \letdummyparameter\s!lefthyphenmin  \zerocount
-   \letdummyparameter\s!righthyphenmin \zerocount
-   \letdummyparameter\s!hyphenmin      \zerocount
-   \letdummyparameter\s!lefthyphenchar \zerocount
-   \letdummyparameter\s!righthyphenchar\zerocount
-   \letdummyparameter\c!alternative    \empty
-   \letdummyparameter\c!rightedge      \empty
-   \letdummyparameter\c!rightchars     \empty
+\permanent\tolerant\protected\def\definehyphenationfeatures[#1]#*[#S#2]%
+  {\begingroup % maybe simple handler
+   \resetdummyparameter\c!characters                % maybe \s!characters
+   \resetdummyparameter\c!hyphens                   % maybe \s!hyphens
+   \resetdummyparameter\c!joiners                   % maybe \s!joiners
+   \letdummyparameter  \c!rightwords     \zerocount % maybe \s!rightwords
+   \letdummyparameter  \s!lefthyphenmin  \zerocount
+   \letdummyparameter  \s!righthyphenmin \zerocount
+   \letdummyparameter  \s!hyphenmin      \zerocount
+   \letdummyparameter  \s!lefthyphenchar \zerocount
+   \letdummyparameter  \s!righthyphenchar\zerocount
+   \resetdummyparameter\c!alternative
+   \resetdummyparameter\c!rightedge
+   \resetdummyparameter\c!rightchars
    \getdummyparameters[#2]%
    \clf_definehyphenationfeatures
       {#1}%
@@ -113,13 +125,13 @@
         characters   {\dummyparameter\c!characters}%
         hyphens      {\dummyparameter\c!hyphens}%
         joiners      {\dummyparameter\c!joiners}%
-        rightwordmin \numexpr\dummyparameter\c!rightwords\relax
+        rightwordmin {\dummyparameter\c!rightwords}%
         rightchars   {\dummyparameter\c!rightchars}%
-        charmin      \numexpr\dummyparameter\s!hyphenmin\relax
-        leftcharmin  \numexpr\dummyparameter\s!lefthyphenmin\relax
-        rightcharmin \numexpr\dummyparameter\s!righthyphenmin\relax
-        leftchar     \numexpr\dummyparameter\s!lefthyphenchar\relax
-        rightchar    \numexpr\dummyparameter\s!righthyphenchar\relax
+        charmin      {\dummyparameter\s!hyphenmin}%
+        leftcharmin  {\dummyparameter\s!lefthyphenmin}%
+        rightcharmin {\dummyparameter\s!righthyphenmin}%
+        leftchar     {\dummyparameter\s!lefthyphenchar}%
+        rightchar    {\dummyparameter\s!righthyphenchar}%
         alternative  {\dummyparameter\c!alternative}%
         rightedge    {\dummyparameter\c!rightedge}%
       % autohyphen   {\dummyparameter\c!autohyphen}
@@ -138,16 +150,16 @@
 
 % todo: \start ... \stop too
 
-\permanent\tolerant\protected\def\registerhyphenationpattern[#1]#*[#2]%
+\permanent\tolerant\protected\def\registerhyphenationpattern[#S#1]#*[#S#2]%
   {\clf_registerhyphenationpattern\ifparameter#2\or{#1}{#2}\else{\currentlanguage}{#1}\fi\s!true\relax}
 
-\permanent\tolerant\protected\def\unregisterhyphenationpattern[#1]#*[#2]%
+\permanent\tolerant\protected\def\unregisterhyphenationpattern[#S#1]#*[#S#2]%
   {\clf_registerhyphenationpattern\ifparameter#2\or{#1}{#2}\else{\currentlanguage}{#1}\fi\s!false\relax}
 
-\permanent\tolerant\protected\def\registerhyphenationexception[#1]#*[#2]%
+\permanent\tolerant\protected\def\registerhyphenationexception[#S#1]#*[#S#2]%
   {\clf_registerhyphenationexception\ifparameter#2\or{#1}{#2}\else{\currentlanguage}{#1}\fi\relax}
 
-\permanent\tolerant\protected\def\showhyphenationtrace[#1]#*[#2]%
+\permanent\tolerant\protected\def\showhyphenationtrace[#S#1]#*[#S#2]%
   {\begingroup
    \tt
    \clf_showhyphenationtrace\ifparameter#2\or{#1}{#2}\else{\currentlanguage}{#1}\fi\relax
@@ -196,8 +208,58 @@
 % \sethyphenationfeatures
 %   [default,fences]
 
-% \setuphyphenation % will be default
-%   [method=expanded]
+%D When we have \OPENTYPE\ fonts with many replacements we can end up with collapsed
+%D discretionaries with relative long snippets. When investigating a buglet in the
+%D font handler (a final discretionary with no trailing glyph got no ligatures) I
+%D got an empty line due to an empty post.
+%D
+%D \startbuffer
+%D \showmakeup[line]
+%D \discretionaryoptions\zerocount
+%D % We need to force an end of line situation:
+%D \hsize\widthofstring{sciencefiction}
+%D % We had no ligatures in the replacement (fixed):
+%D science\discretionary{\red fict-}{\green ion}{\blue fiction}\par
+%D % We got an empty line in the par builder:
+%D science\discretionary{\red f\kern0ptiction}{}{\blue fiction}\par
+%D % Regular cases (with a simple hyphen only pre):
+%D science\-fiction\par
+%D % Just a (par builder criterium) test case:
+%D science\discretionary{-}{}{\blue fiction}\par
+%D \hyphenation{science-fiction}
+%D % Nothing special:
+%D sciencefiction\par
+%D \stopbuffer
+%D
+%D \typebuffer % \startpacked \getbuffer \stoppacked
+%D
+%D Changes are slim that this will happen in real documents (the buglet was more
+%D likely to show up). Anyhow, we now catch the border case in the linebreak
+%D routine:
+
+\discretionaryoptions\prefernobreakdiscoptioncode
+
+%D Here is an example with optional content (at least, the original idea as
+%D we now do it differently:
+%D
+%D \start
+%D     \tttf
+%D     \hsize\widthofstring{short}
+%D     --:\par
+%D     \discretionaryoptions\zerocount
+%D     \discretionary{before}{after}{short}\par
+%D     \discretionary{before}{}{short}\blank
+%D     nb:\par
+%D     \discretionaryoptions\prefernobreakdiscoptioncode
+%D     \discretionary{before}{after}{short}\par
+%D     \discretionary{before}{}{short}\blank
+%D     br:\par
+%D     \discretionaryoptions\preferbreakdiscoptioncode
+%D     \discretionary{before}{after}{short}\par
+%D     \discretionary{before}{}{short}\blank
+%D \stop
+%D
+%D Todo: examples with break and nobreak keywords.
 
 \protect \endinput
 

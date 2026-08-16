@@ -25,13 +25,14 @@
 %D The reimplementation (or rather experimenting with the complete rewrite) was done
 %D while looping over \quotation {Wende Snijders No.9}.
 %D
-%D Remark: marknotes are gone, at least for a while.
+%D This mechanism is sort of obsolete. Take a look at columnsets with sub streams
+%D and such.
 
-\registerctxluafile{page-str}{}
+\registerctxluafile{page-str}{autosuffix}
 
 \unprotect
 
-\mutable\let\currentoutputstream\empty
+\mutable\lettonothing\currentoutputstream
 
 \newif   \ifinoutputstream        % will become a conditional or mode
 \newtoks \everyenableoutputstream
@@ -46,7 +47,7 @@
 
 \permanent\protected\def\enableoutputstream[#1]% could be \startoutputsubstream
   {\initializeoutputstreams
-   \the\everyenableoutputstream
+   \expand\everyenableoutputstream
    \inoutputstreamtrue
    \xdef\currentoutputstream{#1}%
    \clf_enablestream{#1}
@@ -60,7 +61,7 @@
 \permanent\protected\def\startoutputstream[#1]%
   {\begingroup
    \initializeoutputstreams
-   \the\everyenableoutputstream
+   \expand\everyenableoutputstream
    \inoutputstreamtrue
    \xdef\currentoutputstream{#1}%
    \clf_startstream{#1}}

@@ -13,6 +13,8 @@
 
 \unprotect
 
+\startcontextdefinitioncode
+
 %D The old one:
 
 \definemixedcolumns
@@ -26,10 +28,11 @@
 
 %D This will be replaced by mixed box.
 
-\permanent\tolerant\protected\def\startsimplecolumns[#1]%
+\permanent\tolerant\protected\def\startsimplecolumns[#S#1]%
   {\bgroup
    \setsimplecolumnshsize[#1]%
    \nopenalties
+   \enforced\permanent\protected\def\column{\vfill\break}% quick hack
    \setbox\scratchbox\vbox\bgroup
    \forgetall} % \blank[\v!disable]
 
@@ -39,7 +42,7 @@
    \rigidcolumnbalance\scratchbox
    \egroup}
 
-\permanent\protected\def\setsimplecolumnshsize[#1]%
+\permanent\protected\def\setsimplecolumnshsize[#S#1]%
   {\getdummyparameters
      [\c!width=\hsize,
       \c!distance=1.5\bodyfontsize,
@@ -49,8 +52,10 @@
    \edef\rigidcolumnlines
      {\directdummyparameter\c!lines}%
    \setrigidcolumnhsize
-     {\directdummyparameter\c!width}%
-     {\directdummyparameter\c!distance}%
+     {\directdummyparameter\c!width}
+     {\directdummyparameter\c!distance}
      {\directdummyparameter\c!n}}
+
+\stopcontextdefinitioncode
 
 \protect \endinput

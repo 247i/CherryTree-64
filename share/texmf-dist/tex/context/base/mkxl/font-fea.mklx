@@ -128,6 +128,9 @@
 \permanent\protected\def\fontfeatureslist[#name]#spacer[#separator]% todo: arg voor type
   {\clf_featurelist{#name}{\detokenize{#separator}}}
 
+\permanent\protected\def\definefontscriptset[#name]#*[#list]%
+  {\clf_definefontscriptset{#name}{#list}}
+
 \attribute\zerocount\attributeunsetvalue
 
 \glyphdatafield\zerocount
@@ -136,12 +139,10 @@
 
 % beware: these are global features on top of existing font features
 
-\mutable\let\currentfeature\s!current
-
-\let\m_font_feature_list \s!current
-\let\m_font_feature_asked\empty
-
-\newconstant\c_font_feature_state
+\mutable\let \currentfeature      \s!current
+\let         \m_font_feature_list \s!current
+\lettonothing\m_font_feature_asked
+\newconstant \c_font_feature_state
 
 \newevery\everyfontfeatureswitch
 
@@ -174,7 +175,7 @@
    \edef\m_font_feature_list{\m_font_feature_list+\m_font_feature_asked}% also + at the lua end
    \c_font_feature_state\plusone
    \let\currentfeature\m_font_feature_asked
-   \the\everyfontfeatureswitch}
+   \expand\everyfontfeatureswitch}
 
 \protected\def\font_feature_subtract
   {\ifnum\c_font_feature_state=\minusone
@@ -190,10 +191,10 @@
    \edef\m_font_feature_list{\m_font_feature_list-\m_font_feature_asked}% also - at the lua end
    \c_font_feature_state\minusone
    \let\currentfeature\m_font_feature_asked
-   \the\everyfontfeatureswitch}
+   \expand\everyfontfeatureswitch}
 
 \protected\def\font_feature_replace
-  {\ifnum\c_font_feature_state=\zerocount
+  {\ifzero\c_font_feature_state
      \ifx\m_font_feature_asked\currentfeature\else
        \font_feature_replace_indeed
      \fi
@@ -206,7 +207,7 @@
    \edef\m_font_feature_list{\m_font_feature_list=\m_font_feature_asked}% also = at the lua end
    \c_font_feature_state\zerocount
    \let\currentfeature\m_font_feature_asked
-   \the\everyfontfeatureswitch}
+   \expand\everyfontfeatureswitch}
 
 \permanent\protected\def\resetfeature
   {\ifx\currentfeature\s!current \else
@@ -214,9 +215,9 @@
    \fi}
 
 \protected\def\font_feature_reset_indeed
-  {\let\m_font_feature_asked\empty
-   \let\currentfeature      \s!current
-   \let\m_font_feature_list \s!current
+  {\lettonothing\m_font_feature_asked
+   \let\currentfeature\s!current
+   \let\m_font_feature_list\s!current
    \clf_resetfeature}
 
 \permanent\protected\def\revivefeature
@@ -241,7 +242,7 @@
    \edef\m_font_feature_list{\s!current+\m_font_feature_asked}% also + at the lua end
    \c_font_feature_state\plusone
    \let\currentfeature\m_font_feature_asked
-   \the\everyfontfeatureswitch}
+   \expand\everyfontfeatureswitch}
 
 \installcorenamespace{featureshortcut}
 

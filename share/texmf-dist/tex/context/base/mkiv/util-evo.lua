@@ -44,7 +44,7 @@ local formatters = string.formatters
 local floor, div = math.floor, math.div
 local resultof, ostime, osdate, ossleep = os.resultof, os.time, os.date, os.sleep
 local jsontolua, jsontostring = json.tolua, json.tostring
-local savetable, loadtable, sortedkeys = table.save, table.load, table.sortedkeys
+local savetable, loadtable, sortedkeys, sortedhash = table.save, table.load, table.sortedkeys, table.sortedhash
 local setmetatableindex, setmetatablenewindex = table.setmetatableindex, table.setmetatablenewindex
 local replacer = utilities.templates.replacer
 local lower = string.lower -- no utf support yet (encoding needs checking in evohome)
@@ -172,9 +172,11 @@ local function loadedtable(filename)
     return { }
 end
 
-local function savedtable(filename,data)
+local function savedtable(filename,data,trace)
     savetable(filename,data)
-    report("file %a saved",filename)
+    if trace then
+        report("file %a saved",filename)
+    end
 end
 
 local function loadpresets(filename)
@@ -217,6 +219,10 @@ local function result(t,fmt,a,b,c)
     end
 end
 
+-- the token is kind of generic and shared
+
+-- 91db1612-73fd-4500-91b2-e63b069b185c
+
 local f = replacer (
     [[curl ]] ..
     [[--silent --insecure ]] ..
@@ -224,6 +230,7 @@ local f = replacer (
     [[-H "Authorization: Basic YjAxM2FhMjYtOTcyNC00ZGJkLTg4OTctMDQ4YjlhYWRhMjQ5OnRlc3Q=" ]] ..
     [[-H "Accept: application/json, application/xml, text/json, text/x-json, text/javascript, text/xml" ]] ..
     [[-d "Content-Type=application/x-www-form-urlencoded; charset=utf-8" ]] ..
+ -- [[-H "applicationId: %applicationid%" ]] ..
     [[-d "Host=rs.alarmnet.com/" ]] ..
     [[-d "Cache-Control=no-store no-cache" ]] ..
     [[-d "Pragma=no-cache" ]] ..
@@ -243,6 +250,7 @@ local function getaccesstoken(presets)
             password      = c.password,
             applicationid = applicationid,
         }
+ print(s)
         local r = s and resultof(s)
         local t = r and jsontolua(r)
         return result(t,"getting access token %a")
@@ -823,11 +831,12 @@ local function settask(presets,when,tag,action)
                 done     = false,
                 category = category,
                 action   = action,
+                tag      = tag,
             }
         else
             list[tag] = nil
         end
-        savedtable(presets.files.schedules,list)
+        savedtable(presets.files.schedules,list,false)
     end
 end
 
@@ -990,6 +999,15 @@ local function poller(presets)
     return step, process, presets
 end
 
+local function alloff(presets)
+    local zones = getzonenames(presets)
+    if zones then
+        for i=1,#zones do
+            setzonestate(presets,zones[i],5,true)
+        end
+    end
+end
+
 --
 
 evohome = {
@@ -1023,6 +1041,8 @@ evohome = {
         schedule           = schedule,           -- presets, name
         permanent          = permanent,          -- presets, name
         --
+        alloff             = alloff,             -- presets
+        --
         settomorrow        = settomorrow,        -- presets, tag, function
         resettomorrow      = resettomorrow,      -- presets, tag
         tomorrowset        = tomorrowset,        -- presets, tag
@@ -1035,9 +1055,11 @@ if utilities then
     utilities.evohome = evohome
 end
 
--- local presets = evohome.helpers.loadpresets("c:/data/develop/domotica/code/evohome-presets.lua")
+-- local presets = evohome.helpers.loadpresets("c:/data/develop/domotica/evohome/evohome-presets.lua")
+-- inspect(evohome.helpers.geteverything(presets))
 -- evohome.helpers.setzonestate(presets,"Voorkamer",22)
 -- evohome.helpers.setzonestate(presets,"Voorkamer")
+-- inspect(presets)
 
 return evohome
 

@@ -1551,7 +1551,8 @@
    \fi}
 
 \def\tabl_tabulate_vrule_reset_indeed
-  {\dofastloopcs\c_tabl_tabulate_max_vrulecolumn\tabl_tabulate_vrule_reset_step
+  {\gletcsname\??tabulatevrule0\endcsname\undefined
+   \dofastloopcs\c_tabl_tabulate_max_vrulecolumn\tabl_tabulate_vrule_reset_step
    \global\c_tabl_tabulate_max_vrulecolumn\zerocount}
 
 \def\tabl_tabulate_vrule_reset_step % undefined or relax
@@ -2019,6 +2020,10 @@
 \unexpanded\def\tabl_tabulate_bbskip_second_split_yes
   {\ifvoid\b_tabl_tabulate_current\c_tabl_tabulate_column
      \ifx\tabl_tabulate_flush_collected_indeed\empty\else
+% like in mkxl
+%        \dostarttagged\t!tabulatecell\empty
+%        \dotagtabulatesignal
+%        \dostoptagged
        \setbox0\hbox
      \fi
   \fi}

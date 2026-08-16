@@ -60,21 +60,19 @@ local setprev           = nuts.setprev
 local isglyph           = nuts.isglyph -- unchecked
 local ischar            = nuts.ischar  -- checked
 
------ traverse_id       = nuts.traverse_id
------ traverse_char     = nuts.traverse_char
 local nextboundary      = nuts.traversers.boundary
 local nextdisc          = nuts.traversers.disc
 local nextchar          = nuts.traversers.char
 
-local flush_node        = nuts.flush
+local flushnode         = nuts.flush
 
 local disc_code         = nodecodes.disc
 local boundary_code     = nodecodes.boundary
 
 local wordboundary_code = boundarycodes.word
 
-local protect_glyphs    = nuts.protect_glyphs
-local unprotect_glyphs  = nuts.unprotect_glyphs
+local protectglyphs     = nuts.protectglyphs
+local unprotectglyphs   = nuts.unprotectglyphs
 
 local setmetatableindex = table.setmetatableindex
 
@@ -196,7 +194,7 @@ do
     local a, u, b, r
 
     local function protectnone()
-        protect_glyphs(firstnone,lastnone)
+        protectglyphs(firstnone,lastnone)
         firstnone = nil
     end
 
@@ -392,7 +390,7 @@ do
                         end
                     end
                 end
-                flush_node(r)
+                flushnode(r)
             end
         end
 
@@ -457,7 +455,7 @@ do
             local attr = a > 0 and 0 or false -- 0 is the savest way
             for font, processors in next, usedfonts do -- unordered
                 for i=1,#processors do
-                    head = processors[i](head,font,attr,direction,u)
+                    head = processors[i](head,font,attr,direction)
                 end
             end
         end
@@ -474,7 +472,7 @@ do
             for font, dynamics in next, attrfonts do
                 for attribute, processors in next, dynamics do -- unordered, attr can switch in between
                     for i=1,#processors do
-                        head = processors[i](head,font,attribute,direction,a)
+                        head = processors[i](head,font,attribute,direction)
                     end
                 end
             end
@@ -542,5 +540,8 @@ do
 
 end
 
-handlers.protectglyphs   = protect_glyphs
-handlers.unprotectglyphs = unprotect_glyphs
+handlers.protectglyphs   = protectglyphs
+handlers.unprotectglyphs = unprotectglyphs
+
+function handlers.protectglyphs  (h) return protectglyphs  (h) end -- no alias, otherwise weird second argument
+function handlers.unprotectglyphs(h) return unprotectglyphs(h) end -- no alias, otherwise weird second argument

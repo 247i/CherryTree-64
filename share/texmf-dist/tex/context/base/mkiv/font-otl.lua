@@ -26,7 +26,7 @@ if not modules then modules = { } end modules ['font-otl'] = {
 local lower = string.lower
 local type, next, tonumber, tostring, unpack = type, next, tonumber, tostring, unpack
 local abs = math.abs
-local derivetable = table.derive
+local derivetable, sortedhash, remove = table.derive, table.sortedhash, table.remove
 local formatters = string.formatters
 
 local setmetatableindex   = table.setmetatableindex
@@ -52,7 +52,7 @@ local report_otf          = logs.reporter("fonts","otf loading")
 local fonts               = fonts
 local otf                 = fonts.handlers.otf
 
-otf.version               = 3.113 -- beware: also sync font-mis.lua and in mtx-fonts
+otf.version               = 3.150 -- beware: also sync font-mis.lua and in mtx-fonts
 otf.cache                 = containers.define("fonts", "otl", otf.version, true)
 otf.svgcache              = containers.define("fonts", "svg", otf.version, true)
 otf.pngcache              = containers.define("fonts", "png", otf.version, true)
@@ -218,6 +218,9 @@ function otf.load(filename,sub,instance)
             if cleanup == 0 then
                 checkmemory(used,threshold,tracememory)
             end
+            if context then
+                otfreaders.condense(data)
+            end
             otfreaders.pack(data)
             report_otf("loading done")
             report_otf("saving %a in cache",filename)
@@ -308,13 +311,13 @@ end
 -- instance protruding info and loop over characters; one is not supposed
 -- to change descriptions and if one does so one should make a copy!
 
-local function copytotfm(data,cache_id)
+local function copytotfm(data,cache_id,wipemath)
     if data then
         local metadata       = data.metadata
         local properties     = derivetable(data.properties)
         local descriptions   = derivetable(data.descriptions)
         local goodies        = derivetable(data.goodies)
-        local characters     = { }
+        local characters     = { } -- newtable if we know how many
         local parameters     = { }
         local mathparameters = { }
         --
@@ -332,15 +335,70 @@ local function copytotfm(data,cache_id)
             minsize    = 100
             maxsize    = 100
         end
-        if mathspecs then
-            for name, value in next, mathspecs do
-                mathparameters[name] = value
-            end
-        end
+        --
         for unicode in next, data.descriptions do -- use parent table
             characters[unicode] = { }
         end
-        if mathspecs then
+        --
+        -- we need a runtime lookup because of running from cdrom or zip, brrr (shouldn't
+        -- we use the basename then?)
+        --
+        local filename = constructors.checkedfilename(resources)
+        local fontname = metadata.fontname
+        local fullname = metadata.fullname or fontname
+        local psname   = fontname or fullname
+        local subfont  = metadata.subfontindex
+        local units    = metadata.units or 1000
+        --
+        if units == 0 then -- catch bugs in fonts
+            units = 1000 -- maybe 2000 when ttf
+            metadata.units = 1000
+            report_otf("changing %a units to %a",0,units)
+        end
+        --
+        if not mathspecs then
+            -- go on
+        elseif wipemath then
+            -- No way that we let a non (or partial) math font register itself as math and interfere
+            -- in bad ways (apart from unwanted overhead). I've seen some examples and it proofs how
+            -- instable and unpredictable fonts can become.
+            local wiped     = false
+            local features  = resources.features
+            local sequences = resources.sequences
+            if features then
+                local gsub = features.gsub
+                if gsub and gsub.ssty then
+                    gsub.ssty = nil
+                    wiped = true
+                end
+            end
+            if sequences then
+                for i=#sequences,1,-1 do
+                    local sequence = sequences[i]
+                    local features = sequence.features
+                    if features then
+                        if features.ssty then
+                            remove(sequences,i)
+                            wiped = true
+                        end
+                    end
+                end
+            end
+            if resources.mathconstants then
+                resources.mathconstants = nil
+                wiped = true
+            end
+            if resources.math then
+                metadata.math = nil
+                wiped = true
+            end
+            if wiped then
+                report_otf("math data wiped from %a",fullname)
+            end
+        else
+            for name, value in next, mathspecs do
+                mathparameters[name] = value
+            end
             for unicode, character in next, characters do
                 local d = descriptions[unicode] -- we could use parent table here
                 local m = d.math
@@ -400,20 +458,6 @@ local function copytotfm(data,cache_id)
                     end
                 end
             end
-        end
-        -- we need a runtime lookup because of running from cdrom or zip, brrr (shouldn't
-        -- we use the basename then?)
-        local filename = constructors.checkedfilename(resources)
-        local fontname = metadata.fontname
-        local fullname = metadata.fullname or fontname
-        local psname   = fontname or fullname
-        local subfont  = metadata.subfontindex
-        local units    = metadata.units or 1000
-        --
-        if units == 0 then -- catch bugs in fonts
-            units = 1000 -- maybe 2000 when ttf
-            metadata.units = 1000
-            report_otf("changing %a units to %a",0,units)
         end
         --
         local monospaced  = metadata.monospaced
@@ -494,22 +538,17 @@ local function copytotfm(data,cache_id)
         parameters.units      = units
         parameters.vheight    = metadata.defaultvheight
         --
-        properties.space      = spacer
-        properties.format     = data.format or formats.otf
-        properties.filename   = filename
-        properties.fontname   = fontname
-        properties.fullname   = fullname
-        properties.psname     = psname
-        properties.name       = filename or fullname
-        properties.subfont    = subfont
-        --
-if not CONTEXTLMTXMODE or CONTEXTLMTXMODE == 0 then
+        properties.space         = spacer
+        properties.format        = data.format or formats.otf
+        properties.filename      = filename
+        properties.fontname      = fontname
+        properties.fullname      = fullname
+        properties.psname        = psname
+        properties.name          = filename or fullname
+        properties.subfont       = subfont
         properties.encodingbytes = 2
-end
-        --
      -- properties.name          = specification.name
      -- properties.sub           = specification.sub
-        --
         properties.private       = properties.private or data.private or privateoffset
         --
         return {
@@ -566,9 +605,7 @@ local function otftotfm(specification)
     local cache_id = specification.hash
     local tfmdata  = containers.read(constructors.cache,cache_id)
     if not tfmdata then
-
         checkconversion(specification) -- for the moment here
-
         local name     = specification.name
         local sub      = specification.sub
         local subindex = specification.subindex
@@ -579,7 +616,7 @@ local function otftotfm(specification)
         if rawdata and next(rawdata) then
             local descriptions = rawdata.descriptions
             rawdata.lookuphash = { } -- to be done
-            tfmdata = copytotfm(rawdata,cache_id)
+            tfmdata = copytotfm(rawdata,cache_id,features and features.wipemath)
             if tfmdata and next(tfmdata) then
                 -- at this moment no characters are assigned yet, only empty slots
                 local features     = constructors.checkedfeatures("otf",features)
@@ -619,25 +656,33 @@ local function read_from_otf(specification)
     return tfmdata
 end
 
-local function checkmathsize(tfmdata,mathsize)
-    local mathdata = tfmdata.shared.rawdata.metadata.math
-    local mathsize = tonumber(mathsize)
-    if mathdata then -- we cannot use mathparameters as luatex will complain
-        local parameters = tfmdata.parameters
-        parameters.scriptpercentage       = mathdata.ScriptPercentScaleDown
-        parameters.scriptscriptpercentage = mathdata.ScriptScriptPercentScaleDown
-        parameters.mathsize               = mathsize -- only when a number !
-    end
-end
-
-registerotffeature {
-    name         = "mathsize",
-    description  = "apply mathsize specified in the font",
-    initializers = {
-        base = checkmathsize,
-        node = checkmathsize,
-    }
-}
+-- if context then
+--
+--     -- so the next will go to some generic module instead
+--
+-- else
+--
+--     local function checkmathsize(tfmdata,mathsize)
+--         local mathdata = tfmdata.shared.rawdata.metadata.math
+--         local mathsize = tonumber(mathsize)
+--         if mathdata then -- we cannot use mathparameters as luatex will complain
+--             local parameters = tfmdata.parameters
+--             parameters.scriptpercentage       = mathdata.ScriptPercentScaleDown
+--             parameters.scriptscriptpercentage = mathdata.ScriptScriptPercentScaleDown
+--             parameters.mathsize               = mathsize -- only when a number !
+--         end
+--     end
+--
+--     registerotffeature {
+--         name         = "mathsize",
+--         description  = "apply mathsize specified in the font",
+--         initializers = {
+--             base = checkmathsize,
+--             node = checkmathsize,
+--         }
+--     }
+--
+-- end
 
 -- readers
 

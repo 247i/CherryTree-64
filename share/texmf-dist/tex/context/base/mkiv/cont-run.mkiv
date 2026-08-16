@@ -42,6 +42,9 @@
       state  {\p_state}%
       method {\dummyparameter\c!method}%
    \relax
+   \ifx\p_state\v!repeat
+     \let\p_state\v!start
+   \fi
    \ifx\p_state\v!start
      \glet\synctexpause   \clf_synctexpause
      \glet\synctexresume  \clf_synctexresume
@@ -53,7 +56,9 @@
 \unexpanded\def\blocksynctexfile[#1]%
   {\processcommacommand{#1}\synctexblockfilename}
 
-\def\continuewhenlmtxmode
+\let\continuewhenmkivmode\relax
+
+\unexpanded\def\continuewhenlmtxmode
   {\starttext
    \startTEXpage[\c!offset=2ex,\c!foregroundstyle=\tttf]%
       This file needs \LuaMetaTeX\ and \ConTeXt\ \LMTX.%

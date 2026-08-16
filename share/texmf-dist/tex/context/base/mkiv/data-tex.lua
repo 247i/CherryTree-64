@@ -85,11 +85,11 @@ local function splitlines(str)
 end
 
 -- not really a bottleneck, but it might become:
---
--- local splitlines = string.splitlines or function(str)
+
+-- local splitlines = string.splitintolines or function(str)
 --     return lpegmatch(linesplitter,str)
 -- end
---
+
 -- directives.register("system.linesplitmethod",function(v)
 --     linesplitter = linesplitters[tonumber(v) or 1] or linesplitters[1]
 --     splitlines = function(str)
@@ -163,8 +163,7 @@ local function textopener(tag,filename,filehandle,coding)
             if trace_locating then
                 report_tex("%a closer: %a closed",tag,filename)
             end
-            handler = nil
-            lines   = nil
+            lines = nil
         end,
         reader      = function(self)
             self = self or handler
@@ -175,9 +174,10 @@ local function textopener(tag,filename,filehandle,coding)
                 currentline = currentline + 1
              -- self.currentline = currentline
                 local content = lines[currentline]
--- lines[currentline] = nil
+             -- lines[currentline] = false
                 if content == "" then
-                    return ""
+                 -- return ""
+                    return content
              -- elseif content == ctrl_d or ctrl_z then
              --     return nil -- we need this as \endinput does not work in prints
                 elseif content then

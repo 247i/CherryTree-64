@@ -84,11 +84,12 @@
 \ifdefined\makeMPintoPDFobject    \else \newconstant\makeMPintoPDFobject    \fi
 \ifdefined\everyMPtoPDFconversion \else \newtoks    \everyMPtoPDFconversion \fi
 
-\let\lastPDFMPobject    \!!zerocount
-\let\currentPDFresources\empty
-\let\setMPextensions    \relax
+\let\lastPDFMPobject\!!zerocount
+\let\setMPextensions\relax
 
-\def\PDFMPformoffset{\ifdefined\objectoffset\objectoffset\else\zeropoint\fi}
+\lettonothing\currentPDFresources
+
+\def\PDFMPformoffset{\ifdefined\objectoffset\objectoffset\else\zeropoint\fi} % no longer used
 
 \def\resetMPvariables#1#2#3%
   {\glet\MPwidth    \!!zeropoint
@@ -139,7 +140,7 @@
 
 %D A common hook.
 
-\let\MPfshowcommand\empty
+\lettonothing\MPfshowcommand
 
 %D Objects.
 
@@ -169,7 +170,7 @@
    \fi}
 
 \def\setMPPDFobject#1#2% resources boxnumber
-  {\ifdefined\everyPDFxform\the\everyPDFxform\fi
+  {\ifdefined\everyPDFxform\expand\everyPDFxform\fi
    \immediate\saveboxresource resources{#1}#2%
    \edef\getMPPDFobject{\noexpand\useboxresource\the\lastsavedboxresourceindex}}
 
@@ -233,7 +234,7 @@
 %D from to n inner_r g b x y radius outer_r g b x y radius
 %D \stoptyping
 
-\newconditional\manyMPspecials \settrue\manyMPspecials
+\newconditional\manyMPspecials \manyMPspecials\conditionaltrue
 
 %D In case of \PDF, we need to prepare resourcs.
 
@@ -252,13 +253,8 @@
   \glet\currentPDFresources\empty % kind of redundant
 \to \MPstartresources
 
-% \appendtoks
-%    \collectPDFresources
-%    \glet\currentPDFresources\collectedPDFresources
-% \to \MPstopresources
-
-\appendtoksonce
-   \the\everyPDFxform
+\appendtoks
+   \expand\everyPDFxform
 \to \MPstopresources
 
 %D Special number~1 is dedicated to \CMYK\ support. If you
@@ -465,7 +461,7 @@
 %D \NC /N      \NC smaller values, bigger inner circles \NC \NR
 %D \stoptabulate
 
-% \newcount\currentPDFshade  % 0  % global (document wide) counter
+% \newinteger\currentPDFshade  % 0  % global (document wide) counter
 %
 % \def\dosetMPsomePDFshade#1#2%
 %   {\immediate\pdfobj
@@ -480,7 +476,7 @@
 %         /Function \the\pdflastobj\space 0 R
 %         /Coords [\MPshadeC]
 %         /Extend [true true]>>}%
-%    \global\advance\currentPDFshade \plusone
+%    \global\advanceby\currentPDFshade \plusone
 %    \ctxlua{lpdf.adddocumentshade("Sh\the\currentPDFshade",lpdf.reference(\the\pdflastobj))}%
 %    \setxvalue{\@@MPSK#2}{\noexpand\dohandleMPshade{\the\currentPDFshade}}}
 %
@@ -488,38 +484,38 @@
 % \def\dosetMPcircularshade{\dosetMPsomePDFshade3}% #1
 %
 % \defineMPspecial{30}
-%   {\normalexpanded{\noexpand\resolveMPrgbcolor{\gMPs4}{\gMPs5}{\gMPs6}}\to\MPshadeA
-%    \normalexpanded{\noexpand\resolveMPrgbcolor{\gMPs{9}}{\gMPs{10}}{\gMPs{11}}}\to\MPshadeB
+%   {\expanded{\noexpand\resolveMPrgbcolor{\gMPs4}{\gMPs5}{\gMPs6}}\to\MPshadeA
+%    \expanded{\noexpand\resolveMPrgbcolor{\gMPs{9}}{\gMPs{10}}{\gMPs{11}}}\to\MPshadeB
 %    \edef\MPshadeC{\gMPs7 \gMPs8 \gMPs{12} \gMPs{13}}%
 %    \dosetMPlinearshade{\gMPs{14}}}
 %
 % \defineMPspecial{31}
-%   {\normalexpanded{\noexpand\resolveMPrgbcolor{\gMPs4}{\gMPs5}{\gMPs6}}\to\MPshadeA
-%    \normalexpanded{\noexpand\resolveMPrgbcolor{\gMPs{10}}{\gMPs{11}}{\gMPs{12}}}\to\MPshadeB
+%   {\expanded{\noexpand\resolveMPrgbcolor{\gMPs4}{\gMPs5}{\gMPs6}}\to\MPshadeA
+%    \expanded{\noexpand\resolveMPrgbcolor{\gMPs{10}}{\gMPs{11}}{\gMPs{12}}}\to\MPshadeB
 %    \edef\MPshadeC{\gMPs7 \gMPs8 \gMPs9 \gMPs{13} \gMPs{14} \gMPs{15}}%
 %    \dosetMPcircularshade{\gMPs{16}}}
 %
 % \defineMPspecial{32}
-%   {\normalexpanded{\noexpand\resolveMPcmykcolor{\gMPs4}{\gMPs5}{\gMPs6}{\gMPs7}}\to\MPshadeA
-%    \normalexpanded{\noexpand\resolveMPcmykcolor{\gMPs{10}}{\gMPs{11}}{\gMPs{12}}{\gMPs{13}}}\to\MPshadeB
+%   {\expanded{\noexpand\resolveMPcmykcolor{\gMPs4}{\gMPs5}{\gMPs6}{\gMPs7}}\to\MPshadeA
+%    \expanded{\noexpand\resolveMPcmykcolor{\gMPs{10}}{\gMPs{11}}{\gMPs{12}}{\gMPs{13}}}\to\MPshadeB
 %    \edef\MPshadeC{\gMPs8 \gMPs9 \gMPs{14} \gMPs{15}}%
 %    \dosetMPlinearshade{\gMPs{16}}}
 %
 % \defineMPspecial{33}
-%   {\normalexpanded{\noexpand\resolveMPcmykcolor{\gMPs4}{\gMPs5}{\gMPs6}{\gMPs7}}\to\MPshadeA
-%    \normalexpanded{\noexpand\resolveMPcmykcolor{\gMPs{11}}{\gMPs{12}}{\gMPs{13}}{\gMPs{14}}}\to\MPshadeB
+%   {\expanded{\noexpand\resolveMPcmykcolor{\gMPs4}{\gMPs5}{\gMPs6}{\gMPs7}}\to\MPshadeA
+%    \expanded{\noexpand\resolveMPcmykcolor{\gMPs{11}}{\gMPs{12}}{\gMPs{13}}{\gMPs{14}}}\to\MPshadeB
 %    \edef\MPshadeC{\gMPs8 \gMPs9 \gMPs{10} \gMPs{15} \gMPs{16} \gMPs{17}}%
 %    \dosetMPcircularshade{\gMPs{18}}}
 %
 % \defineMPspecial{34}
-%   {\normalexpanded{\noexpand\resolveMPspotcolor{\gMPs4}{\gMPs5}{\gMPs6}{\gMPs7}}\to\MPshadeA
-%    \normalexpanded{\noexpand\resolveMPspotcolor{\gMPs{10}}{\gMPs{11}}{\gMPs{12}}{\gMPs{13}}}\to\MPshadeB
+%   {\expanded{\noexpand\resolveMPspotcolor{\gMPs4}{\gMPs5}{\gMPs6}{\gMPs7}}\to\MPshadeA
+%    \expanded{\noexpand\resolveMPspotcolor{\gMPs{10}}{\gMPs{11}}{\gMPs{12}}{\gMPs{13}}}\to\MPshadeB
 %    \edef\MPshadeC{\gMPs8 \gMPs9 \gMPs{14} \gMPs{15}}%
 %    \dosetMPlinearshade{\gMPs{16}}}
 %
 % \defineMPspecial{35}
-%   {\normalexpanded{\noexpand\resolveMPcmykcolor{\gMPs4}{\gMPs5}{\gMPs6}{\gMPs7}}\to\MPshadeA
-%    \normalexpanded{\noexpand\resolveMPcmykcolor{\gMPs{11}}{\gMPs{12}}{\gMPs{13}}{\gMPs{14}}}\to\MPshadeB
+%   {\expanded{\noexpand\resolveMPcmykcolor{\gMPs4}{\gMPs5}{\gMPs6}{\gMPs7}}\to\MPshadeA
+%    \expanded{\noexpand\resolveMPcmykcolor{\gMPs{11}}{\gMPs{12}}{\gMPs{13}}{\gMPs{14}}}\to\MPshadeB
 %    \edef\MPshadeC{\gMPs8 \gMPs9 \gMPs{10} \gMPs{15} \gMPs{16} \gMPs{17}}%
 %    \dosetMPcircularshade{\gMPs{18}}}
 %
@@ -527,7 +523,7 @@
 %
 % \def\dohandleMPshade#1%
 %   {\revokeMPtransparencyspecial
-%    \settrue\ignoreMPpath
+%    \ignoreMPpath\conditionaltrue
 %    \def\extraMPpathcode{/Sh#1 sh Q}%
 %    \pdfliteral{q /Pattern cs}}
 %
@@ -666,8 +662,8 @@ implementing the special more convenient.
 
 \def\MPSboundingbox#1#2#3#4%
   {\xdef\MPllx   {#1}\xdef\MPlly{#2}\xdef\MPurx{#3}\xdef\MPury{#4}%
-   \xdef\MPwidth {\the\dimexpr#3\onebasepoint-#1\onebasepoint\relax}%
-   \xdef\MPheight{\the\dimexpr#4\onebasepoint-#2\onebasepoint\relax}}
+   \xdef\MPwidth {\todimension{#3\onebasepoint-#1\onebasepoint}}%
+   \xdef\MPheight{\todimension{#4\onebasepoint-#2\onebasepoint}}}
 
 \MPSboundingbox0000
 
@@ -709,7 +705,7 @@ implementing the special more convenient.
 
 % \def\dohandleMPshade#1%
 %   {\revokeMPtransparencyspecial
-%    \settrue\ignoreMPpath
+%    \ignoreMPpath\conditionaltrue
 %    \def\extraMPpathcode{/#1 sh Q}%
 %    \pdfliteral{q /Pattern cs}}
 

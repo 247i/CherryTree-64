@@ -40,9 +40,9 @@
 \permanent\tolerant\protected\def\filler[#1]%
   {\removeunwantedspaces
    \begingroup
-   \edef\currentfiller{#1}%
+   \cdef\currentfiller{#1}%
    \usefillerstyleandcolor\c!style\c!color
-   \scratchdimen\fillerparameter\c!leftmargin\relax
+   \scratchdimen{\fillerparameter\c!leftmargin}%
    \ifzeropt\scratchdimen\else
      \hskip\scratchdimen
    \fi
@@ -71,23 +71,25 @@
 \permanent\tolerant\protected\def\fillupto[#1]#:#2%
   {\removeunwantedspaces
    \begingroup
-   \edef\currentfiller{#1}%
-   \scratchdimen\dimexpr\fillerparameter\c!rightmargindistance\relax
+   \cdef\currentfiller{#1}%
+   \scratchdimen{\fillerparameter\c!rightmargindistance}%
    \ifzeropt\scratchdimen\else
      \parfillskip \scratchdimen\s!plus \plusone\s!fil\relax
    \fi
    \filler[#1]%
-   \doifsomething{#2}{\hbox{#2}}%
+   \ifempty{#2}\else
+     \hbox{#2}%
+   \fi
    \par
    \endgroup
    \ignorespaces}
 
-\setvalue{\??filleralternative\s!unknown}%
+\defcsname\??filleralternative\s!unknown\endcsname
   {}
 
-\setvalue{\??filleralternative\v!symbol}%
+\defcsname\??filleralternative\v!symbol\endcsname
   {\expandnamespaceparameter\??fillerleadermethod\fillerparameter\c!method\v!local
-     \ifdim\fillerparameter\c!offset>\zeropoint
+     \ifdim{\fillerparameter\c!offset}>\zeropoint
         \simplealignedspreadbox
           {2\dimexpr\fillerparameter\c!offset\relax}%
           {\fillerparameter\c!align}%
@@ -100,23 +102,23 @@
      \fi
    \hfill}
 
-\setvalue{\??filleralternative\v!stretch}%
+\defcsname\??filleralternative\v!stretch\endcsname
   {\hfill}
 
-\setvalue{\??filleralternative\v!space}%
-  {\hskip\fillerparameter\c!distance\relax}
+\defcsname\??filleralternative\v!space\endcsname
+  {\hskip\glueexpr\fillerparameter\c!distance\relax\relax}
 
-\setvalue{\??filleralternative\v!rule}%
+\defcsname\??filleralternative\v!rule\endcsname
   {\expandnamespaceparameter\??fillerleadermethod\fillerparameter\c!method\v!local
      \hrule
-       \s!height\fillerparameter\c!height
-       \s!depth \fillerparameter\c!depth
+       \s!height{\fillerparameter\c!height}%
+       \s!depth {\fillerparameter\c!depth}%
    \hfill}
 
-\letvalue{\??fillerleadermethod\s!local }\normalleaders  % overflow ends up inbetween (current box)
-\letvalue{\??fillerleadermethod\v!global}\normalgleaders % overflow ends up inbetween (outermost box)
-\letvalue{\??fillerleadermethod\v!middle}\normalcleaders % overflow ends up before, after (current box)
-\letvalue{\??fillerleadermethod\v!broad }\normalxleaders % overflow ends up before, inbetween, after (current box)
+\letcsname\??fillerleadermethod\s!local \endcsname\normalleaders  % overflow ends up inbetween (current box)
+\letcsname\??fillerleadermethod\v!global\endcsname\normalgleaders % overflow ends up inbetween (outermost box)
+\letcsname\??fillerleadermethod\v!middle\endcsname\normalcleaders % overflow ends up before, after (current box)
+\letcsname\??fillerleadermethod\v!broad \endcsname\normalxleaders % overflow ends up before, inbetween, after (current box)
 
 \setupfillers
   [\c!width=\emwidth,

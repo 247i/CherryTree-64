@@ -16,13 +16,29 @@ local round = math.round
 local concat = table.concat
 local suffixonly = file.suffix
 
-local newreader         = io.newreader
+local newreader         = io.newreader               -- needs checking 0/1 based
 local setmetatableindex = table.setmetatableindex
 local setmetatablecall  = table.setmetatablecall
 
 local graphics       = graphics or { }
 local identifiers    = { }
 graphics.identifiers = identifiers
+
+if not resolvers.loadbinfile then
+    function resolvers.loadbinfile(filename)
+        local data = io.loaddata(filename)
+        return type(data) == "string", data
+    end
+end
+
+local function checkedmethod(filename,method)
+    if method ~= "string" then
+        local found, data = resolvers.loadbinfile(filename)
+        return data, "string"
+    else
+        return filename, method
+    end
+end
 
 do
 
@@ -222,6 +238,7 @@ do
             specification.error = "invalid filename"
             return specification -- error
         end
+        filename, method = checkedmethod(filename,method)
         local f = newreader(filename,method)
         if not f then
             specification.error = "unable to open file"
@@ -240,6 +257,7 @@ do
         end
         local xres         = 0
         local yres         = 0
+        local units        = 1
         local orientation  = 1
         local okay         = false
         local filesize     = f:getsize() -- seek end
@@ -343,6 +361,8 @@ do
         specification.length      = filesize
         return specification
     end
+
+    identifiers.jpeg = identifiers.jpg
 
 end
 
@@ -454,6 +474,7 @@ do
             specification.error = "invalid filename"
             return specification -- error
         end
+        filename, method = checkedmethod(filename,method)
         local f = newreader(filename,method)
         if not f then
             specification.error = "unable to open file"
@@ -496,6 +517,7 @@ do
             f:setposition(pos)
         end
         --
+        local filesize = f:getsize() -- seek end
         f:close()
         if not okay then
             specification.error = "invalid file"
@@ -558,19 +580,20 @@ do
             specification.error = "invalid filename"
             return specification -- error
         end
+        filename, method = checkedmethod(filename,method)
         local f = newreader(filename,method)
         if not f then
             specification.error = "unable to open file"
             return specification -- error
         end
+        local filesize = f:getsize() -- seek end
         specification.xres        = 0
         specification.yres        = 0
         specification.orientation = 1
         specification.totalpages  = 1
         specification.pagenum     = 1
         specification.offset      = 0
-        specification.length      = 0
-        local filesize = f:getsize() -- seek end
+        specification.length      = filesize
         local tables   = { }
         local banner   = f:readstring(8)
         if banner ~= "\137PNG\013\010\026\010" then
@@ -727,22 +750,45 @@ end
 
 function graphics.identify(filename,filetype)
     local identify = filetype and identifiers[filetype]
+    if not identify then
+        identify = identifiers[suffixonly(filename)]
+    end
     if identify then
         return identify(filename)
-    end
-    local identify = identifiers[suffixonly(filename)]
-    if identify then
-        identify = identify(filename)
     else
-        identify = {
+        return {
             filename = filename,
             filetype = filetype,
             error    = "identification failed",
         }
     end
- -- inspect(identify)
-    return identify
 end
+
+function graphics.bpsize(specification,factor)
+    local xsize = specification.xsize or 0
+    local ysize = specification.ysize or 0
+    local xres  = specification.xres or 0
+    local yres  = specification.yres or 0
+    if not factor then
+        factor = 72
+    end
+    if xres == 0 then
+        xres = factor
+    end
+    if yres == 0 then
+        yres = factor
+    end
+    return round(xsize/(xres/factor)), round(ysize/(yres/factor))
+end
+
+graphics.colorspaces = {
+    [0] = "gray",
+    [1] = "gray", -- indexed
+    [2] = "rgb",
+    [3] = "cmyk",
+}
 
 -- inspect(identifiers.jpg("t:/sources/hacker.jpg"))
 -- inspect(identifiers.png("t:/sources/mill.png"))
+
+return graphics

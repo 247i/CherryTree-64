@@ -55,36 +55,37 @@
 %D
 %D \typebuffer \getbuffer
 
-\newcount\c_strc_indentedtexts_nesting
-\newdimen\d_strc_indentedtexts_width
-\newdimen\d_strc_indentedtexts_distance
+\newinteger  \c_strc_indentedtexts_nesting
+\newdimension\d_strc_indentedtexts_width
+\newdimension\d_strc_indentedtexts_distance
 
 \appendtoks
-   \frozen\instance\setuevalue    {\e!start\currentindentedtext}{\strc_indentedtexts_start{\currentindentedtext}\c_strc_indentedtexts_nesting}%
-   \frozen\instance\setuevalue    {\e!stop \currentindentedtext}{\strc_indentedtexts_stop}%
+   \protected\frozen\instance\edefcsname\e!start\currentindentedtext\endcsname{\strc_indentedtexts_start{\currentindentedtext}\c_strc_indentedtexts_nesting}%
+   \protected\frozen\instance\edefcsname\e!stop \currentindentedtext\endcsname{\strc_indentedtexts_stop}%
    % to be avoided ... might go away
-   \frozen\instance\setuevalue            {\currentindentedtext}{\strc_indentedtexts_direct{\currentindentedtext}{0}}%
-   \frozen\instance\setuevalue      {\v!sub\currentindentedtext}{\strc_indentedtexts_direct{\currentindentedtext}{1}}%
-   \frozen\instance\setuevalue{\v!sub\v!sub\currentindentedtext}{\strc_indentedtexts_direct{\currentindentedtext}{2}}%
+   \protected\frozen\instance\edefcsname            \currentindentedtext\endcsname{\strc_indentedtexts_direct{\currentindentedtext}{0}}%
+   \protected\frozen\instance\edefcsname      \v!sub\currentindentedtext\endcsname{\strc_indentedtexts_direct{\currentindentedtext}{1}}%
+   \protected\frozen\instance\edefcsname\v!sub\v!sub\currentindentedtext\endcsname{\strc_indentedtexts_direct{\currentindentedtext}{2}}%
 \to \everydefineindentedtext
 
 \protected\def\strc_indentedtexts_start#1#2% we need to get rid of \spr
   {\par
    \begingroup
-   \edef\currentindentedtext{#1}%
+   \cdef\currentindentedtext{#1}%
    \c_strc_indentedtexts_nesting#2\relax
    \indentedtextparameter\c!before
-   \d_strc_indentedtexts_distance\indentedtextparameter\c!distance\relax
-   \doifnothing{\indentedtextparameter\c!sample}
-     {\setindentedtextparameter\c!sample{\indentedtextparameter\c!text}}%
+   \d_strc_indentedtexts_distance{\indentedtextparameter\c!distance}%
+   \ifempty{\indentedtextparameter\c!sample}%
+     \setindentedtextparameter\c!sample{\indentedtextparameter\c!text}%
+   \fi
    \assignwidth
-     {\indentedtextparameter\c!width}
-     {\d_strc_indentedtexts_width}
+     {\indentedtextparameter\c!width}%
+     {\d_strc_indentedtexts_width}%
      {\useindentedtextstyleandcolor\c!headstyle\c!headcolor
       \indentedtextparameter\c!sample
-      \spr{\indentedtextparameter\c!separator}}
+      \spr{\indentedtextparameter\c!separator}}%
      {\d_strc_indentedtexts_distance}%
-   \advance\d_strc_indentedtexts_width \d_strc_indentedtexts_distance
+   \advanceby\d_strc_indentedtexts_width \d_strc_indentedtexts_distance
    \setbox\scratchbox\hbox to \d_strc_indentedtexts_width
      {\useindentedtextstyleandcolor\c!headstyle\c!headcolor
       \strut
@@ -94,7 +95,7 @@
       \hskip\d_strc_indentedtexts_distance}%
    \parindent\zeropoint
    \hskip\c_strc_indentedtexts_nesting\d_strc_indentedtexts_width
-   \advance\c_strc_indentedtexts_nesting\plusone
+   \advanceby\c_strc_indentedtexts_nesting\plusone
    \dontleavehmode\box\scratchbox
    \hangindent\c_strc_indentedtexts_nesting\d_strc_indentedtexts_width
    \useindentedtextstyleandcolor\c!style\c!color}
@@ -109,8 +110,11 @@
 
 \permanent\let\stopindentedtext\strc_indentedtexts_stop
 
-\protected\def\strc_indentedtexts_direct#1#2#3\par % no longer clever grabpar trickery
-  {\strc_indentedtexts_start{#1}{#2}#3\strc_indentedtexts_stop}
+% \protected\def\strc_indentedtexts_direct#1#2#3\par % no longer clever grabpar trickery
+%   {\strc_indentedtexts_start{#1}{#2}#3\strc_indentedtexts_stop}
+
+\protected\def\strc_indentedtexts_direct#1#2% more modern anyway
+  {\strc_indentedtexts_start{#1}{#2}\wrapuppar{\strc_indentedtexts_stop}}
 
 \setupindentedtext
   [\c!style=\v!normal,

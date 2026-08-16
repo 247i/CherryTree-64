@@ -54,19 +54,19 @@
 
 \installframedcommandhandler \??multicolumns {multicolumns} \??multicolumns
 
-\newdimen      \d_page_mcl_available_width
-\newdimen      \d_page_mcl_distance
-\newdimen      \d_page_mcl_leftskip
-\newdimen      \d_page_mcl_rightskip
-\newdimen      \d_page_mcl_used_width
-\newdimen      \d_page_mcl_temp
-\newdimen      \d_page_mcl_saved_pagetotal  % brrr, still needed ?
+\newdimension   \d_page_mcl_available_width
+\newdimension   \d_page_mcl_distance
+\newdimension   \d_page_mcl_leftskip
+\newdimension   \d_page_mcl_rightskip
+\newdimension   \d_page_mcl_used_width
+\newdimension   \d_page_mcl_temp
+\newdimension   \d_page_mcl_saved_pagetotal  % brrr, still needed ?
 
-\newcount      \c_page_mcl_balance_minimum
-\newcount      \c_page_mcl_n_of_lines
+\newinteger    \c_page_mcl_balance_minimum
+\newinteger    \c_page_mcl_n_of_lines
 
 \newbox        \b_page_mcl_preceding
-\newdimen      \d_page_mcl_preceding_height
+\newdimension  \d_page_mcl_preceding_height
 \newconditional\c_page_mcl_preceding_present
 
 \newbox        \b_page_mcl_rest_of_page
@@ -85,64 +85,56 @@
 
 \newbox        \b_page_mcl_balance_content
 \newconstant   \c_page_mcl_balance_tries_max
-\newcount      \c_page_mcl_balance_tries
-\newdimen      \d_page_mcl_balance_target
-\newdimen      \d_page_mcl_balance_natural_height
-\newdimen      \d_page_mcl_balance_step
+\newinteger    \c_page_mcl_balance_tries
+\newdimension  \d_page_mcl_balance_target
+\newdimension  \d_page_mcl_balance_natural_height
+\newdimension  \d_page_mcl_balance_step
 \newconditional\c_page_mcl_balance_possible
 
 \c_page_mcl_balance_tries_max 250 % 100 is too small when floats are involved
 
-%def\m_page_mcl_overshoot_ratio{\ifgridsnapping0\else.5\fi}
 \def\m_page_mcl_overshoot_ratio{.5}
 
 \fi
 
 \protected\def\page_mcl_command_set_hsize
-  {\d_page_mcl_available_width\dimexpr
+  {\d_page_mcl_available_width{%
       \makeupwidth
      -\d_page_mcl_leftskip
      -\d_page_mcl_rightskip
      -\nofcolumns\d_page_mcl_distance
      +\d_page_mcl_distance
-   \relax
-   \d_page_mcl_used_width\dimexpr
+   }%
+   \d_page_mcl_used_width{%
       \d_page_mcl_available_width/\nofcolumns
-   \relax
+   }%
    \textwidth\d_page_mcl_used_width
    \hsize\d_page_mcl_used_width}
 
 \protected\def\page_mcl_set_n_of_lines#1%
-  {\d_page_mcl_temp\dimexpr
+  {\d_page_mcl_temp{%
      +\textheight
       \ifdim\d_page_mcl_preceding_height>\zeropoint -\d_page_mcl_preceding_height \fi
 %       \ifdim\ht\b_page_mcl_preceding>\zeropoint -\ht\b_page_mcl_preceding \fi
      -#1%
-   \relax
+   }%
    \getnoflines\d_page_mcl_temp
    \ifnum\layoutlines>\zerocount \ifnum\noflines>\layoutlines
      \noflines\layoutlines
    \fi \fi
    \c_page_mcl_n_of_lines\noflines}
 
-% \protected\def\page_mcl_command_set_vsize
-%   {%%\page_one_command_set_vsize % indeed?
-%    \page_mcl_set_n_of_lines\zeropoint
-%    \d_page_mcl_temp\nofcolumns\dimexpr
-%       \c_page_mcl_n_of_lines\openlineheight
-%     %      +\m_page_mcl_overshoot_ratio\openlineheight % collect enough data
-%    \relax
-%    \global\vsize   \d_page_mcl_temp
-%    \global\pagegoal\d_page_mcl_temp} % let's do it only here, reports maxdimen anyway
-
 \protected\def\page_mcl_command_set_vsize
-  {\global\vsize\dimexpr\nofcolumns\textheight+\nofcolumns\lineheight\relax
-   \pagegoal\dimexpr
+  {\global\vsize{%
+     \nofcolumns\textheight
+    +\nofcolumns\lineheight
+   }%
+   \pagegoal{%
      \vsize
-%   -\d_page_floats_inserted_top    % needs checking
-%   -\d_page_floats_inserted_bottom % needs checking
+  % -\d_page_floats_inserted_top    % needs checking
+  % -\d_page_floats_inserted_bottom % needs checking
     -\c_page_mix_n_of_columns\insertheights
-   \relax}
+   }}
 
 \protected\def\page_mcl_command_routine
   {\ifcase\c_page_mcl_routine
@@ -184,11 +176,11 @@
   {\unvbox\b_page_mcl_preceding}
 
 \def\page_mcl_flush_preceding_ongrid
-  {\scratchdimen\dimexpr
+  {\scratchdimen{%
      \d_page_mcl_saved_pagetotal
     -\d_page_mcl_preceding_height
-    -\topskip
-   \relax
+  % -\topskip % no, this is already part of the saved total
+   }%
    \box\b_page_mcl_preceding
    \kern\scratchdimen}
 
@@ -200,16 +192,18 @@
   {\bgroup
    \page_mcl_flush_packaged_columns_indeed
    \getnoflines{\htdp\b_page_mcl_page}%
-   \ht\b_page_mcl_page\dimexpr
+   \ht\b_page_mcl_page{%
      \noflines\openlineheight
      -\openstrutdepth
-     \ifgridsnapping
+     \ifgridlinesnapping
+        % gridlinesnapping: to be decided
+     \orelse\ifgridsnapping
         % quick hack (at least it works with itemize)
      \else
        -\openlineheight
        +\topskip
      \fi
-   \relax
+   }%
    \dp\b_page_mcl_page\openstrutdepth
    \box\b_page_mcl_page
    \egroup}
@@ -219,9 +213,9 @@
 
 \def\page_mcl_flush_packaged_columns_indeed
   {\ifvoid\b_page_mcl_preceding
-     \setfalse\c_page_mcl_preceding_present % will be set elsewhere
+     \c_page_mcl_preceding_present\conditionalfalse % will be set elsewhere
    \else
-     \settrue\c_page_mcl_preceding_present
+     \c_page_mcl_preceding_present\conditionaltrue
      \page_apply_postprocessors_box\b_page_mcl_preceding
    \fi
    \forgetall
@@ -239,8 +233,11 @@
          \unskip
          \hskip\ifconditional\c_page_mcl_reverse\d_page_mcl_leftskip\else\d_page_mcl_rightskip\fi}}%
    \ifconditional\c_page_mcl_preceding_present
-     \settrue\c_page_mcl_preceding_present
-     \ifgridsnapping
+     \c_page_mcl_preceding_present\conditionaltrue
+     \ifgridlinesnapping
+        % gridlinesnapping: to be decided
+       \page_mcl_flush_preceding_ongrid
+     \orelse\ifgridsnapping
        \page_mcl_flush_preceding_ongrid % obey grid settings, force on grid
      \else
        \page_mcl_flush_preceding_normal % ignore grid settings, not on grid
@@ -249,11 +246,13 @@
    \global\d_page_mcl_preceding_height\zeropoint
    \page_otr_command_set_vsize
    \dosomebreak\nobreak % hm, only needed when topstuff
-   \ifgridsnapping \else
-     \ifconditional\c_page_mcl_preceding_present
-       \nointerlineskip
-       \vskip\dimexpr\openstrutheight-\topskip\relax
-     \fi
+   \ifgridlinesnapping
+     % gridlinesnapping: to be decided
+   \orelse\ifgridsnapping
+     % nothing
+   \orelse\ifconditional\c_page_mcl_preceding_present
+     \nointerlineskip
+     \vskip{\openstrutheight-\topskip}%
    \fi
    \prevdepth\openstrutdepth
    \nointerlineskip
@@ -290,22 +289,22 @@
    \setbox\b_page_mcl_balance_content\vpack{\unvbox\normalpagebox}%
    \ifdim\ht\b_page_mcl_balance_content>\openlineheight % at least one line
      \ifnum\c_page_mcl_balance_minimum<\plustwo % balance anyway
-       \settrue\c_page_mcl_balance_possible
+       \c_page_mcl_balance_possible\conditionaltrue
      \else % check criterium to available lines
        \getnoflines{\ht\b_page_mcl_balance_content}%
-       \divide\noflines \nofcolumns \relax
+       \divideby\noflines \nofcolumns \relax
        \ifnum\noflines<\c_page_mcl_balance_minimum \relax
-         \ifdim\dimexpr\ht\b_page_mcl_balance_content+\openlineheight\relax>\makeupheight
-           \settrue\c_page_mcl_balance_possible % column exceeding text height
+         \ifdim{\ht\b_page_mcl_balance_content+\openlineheight}>\makeupheight
+           \c_page_mcl_balance_possible\conditionaltrue % column exceeding text height
          \else
-           \setfalse\c_page_mcl_balance_possible % it seems to fit
+           \c_page_mcl_balance_possible\conditionalfalse % it seems to fit
          \fi
        \else
-         \settrue\c_page_mcl_balance_possible % balance indeed
+         \c_page_mcl_balance_possible\conditionaltrue % balance indeed
        \fi
      \fi
    \else
-     \setfalse\c_page_mcl_balance_possible % balancing does not make sense
+     \c_page_mcl_balance_possible\conditionalfalse % balancing does not make sense
    \fi
    \ifconditional\c_page_mcl_balance_possible % start balancing, was: \ifdim\ht\b_page_mcl_balance_content>\openlineheight
      \page_mcl_balance_try_one
@@ -324,12 +323,14 @@
 % \showmakeup
 
 \def\page_mcl_balance_try_one
-  {\d_page_mcl_balance_target\dimexpr\ht\b_page_mcl_balance_content+\topskip-\baselineskip\relax
-   \divide\d_page_mcl_balance_target \nofcolumns
+  {\d_page_mcl_balance_target{\ht\b_page_mcl_balance_content+\topskip-\baselineskip}%
+   \divideby\d_page_mcl_balance_target \nofcolumns
    \vbadness\plustenthousand
    \c_page_mcl_balance_tries\zerocount
    \bgroup
-   \ifgridsnapping
+   \ifgridlinesnapping
+     \d_page_mcl_balance_step\lineheight
+   \orelse\ifgridsnapping
      \d_page_mcl_balance_step\lineheight
    \else
      \d_page_mcl_balance_step\spacingfactor\onepoint % rubish
@@ -344,18 +345,18 @@
    \egroup}
 
 \def\page_mcl_balance_try_one_attempt
-  {\advance\c_page_mcl_balance_tries \plusone
+  {\advanceby\c_page_mcl_balance_tries \plusone
    \global\setbox\b_page_mcl_rest_of_page\copy\b_page_mcl_balance_content\relax
    \dohandleallcolumns{\page_mcl_split_column\b_page_mcl_rest_of_page\d_page_mcl_balance_target}%
    \d_page_mcl_balance_natural_height\zeropoint
    \dohandleallcolumns\page_mcl_balance_try_one_attempt_step
-\advance\d_page_mcl_balance_natural_height-33\scaledpoint % some slack
+\advanceby\d_page_mcl_balance_natural_height-33\scaledpoint % some slack
    \ifnum\c_page_mcl_balance_tries>\c_page_mcl_balance_tries_max\relax
      \exitloop
    \orelse\ifdim\ht\b_page_mcl_rest_of_page>\zeropoint
-     \advance\d_page_mcl_balance_target\d_page_mcl_balance_step\relax
+     \advanceby\d_page_mcl_balance_target\d_page_mcl_balance_step\relax
    \orelse\ifdim\d_page_mcl_balance_natural_height>\ht\firstcolumnbox\relax
-     \advance\d_page_mcl_balance_target\d_page_mcl_balance_step\relax
+     \advanceby\d_page_mcl_balance_target\d_page_mcl_balance_step\relax
    \else
      \exitloop
    \fi}
@@ -379,7 +380,7 @@
   {%\global\setbox\currentcolumnbox\box\currentcolumnbox
    \ht\currentcolumnbox\ht\firstcolumnbox}
 
-\permanent\tolerant\protected\def\startmulticolumns[#1]%
+\permanent\tolerant\protected\def\startmulticolumns[#S#1]%
   {\bgroup
    \ifinsidecolumns
      \page_mcl_start_nop
@@ -411,18 +412,16 @@
    %
    \d_page_mcl_distance\multicolumnsparameter\c!distance\relax
    %
-   \edef\p_direction{\multicolumnsparameter\c!direction}%
-   \ifx\p_direction\v!right
-       \setfalse\c_page_mcl_reverse
+   \ifcstok{\multicolumnsparameter\c!direction}\v!right
+     \c_page_mcl_reverse\conditionalfalse
    \else
-       \settrue\c_page_mcl_reverse
+     \c_page_mcl_reverse\conditionaltrue
    \fi
    %
-   \edef\p_balance{\multicolumnsparameter\c!balance}%
-   \ifx\p_balance\v!yes
-       \settrue\c_page_mcl_balance
+   \ifcstok{\multicolumnsparameter\c!balance}\v!yes
+     \c_page_mcl_balance\conditionaltrue
    \else
-       \setfalse\c_page_mcl_balance
+     \c_page_mcl_balance\conditionalfalse
    \fi
    %
    \usealignparameter\multicolumnsparameter
@@ -441,15 +440,15 @@
    %
    \d_page_mcl_leftskip \leftskip
    \d_page_mcl_rightskip\rightskip
-   \leftskip            \zeropoint
-   \rightskip           \zeropoint
+   \leftskip            \zeroskip
+   \rightskip           \zeroskip
    \hangafter           \zerocount
    \hangindent          \zeropoint
    %
    \widowpenalty        \zerocount % will become option
    \clubpenalty         \zerocount % will become option
    %
-   \ifdim\dimexpr\pagetotal+\parskip+\openlineheight\relax<\pagegoal
+   \ifdim{\pagetotal+\parskip+\openlineheight}<\pagegoal
      \allowbreak
    \else
      \break % sometimes fails
@@ -457,14 +456,14 @@
    \appendtoks
      \topskip1\topskip % best a switch
    \to \everybodyfont
-   \the\everybodyfont  % ugly here
+   \expand\everybodyfont  % ugly here
    \saveinterlinespace % ugly here
    %
    \initializecolumns\nofcolumns
    %
    \reseteverypar % todo
    %
-   \ifdim\pagetotal=\zeropoint \else
+   \ifzeropt\pagetotal\else
      \verticalstrut
      \vskip-\struttotal
    \fi

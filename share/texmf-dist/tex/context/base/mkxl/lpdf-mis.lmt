@@ -20,15 +20,15 @@ local format, gsub, formatters = string.format, string.gsub, string.formatters
 local concat, flattened = table.concat, table.flattened
 local settings_to_array = utilities.parsers.settings_to_array
 
-local backends, lpdf, nodes = backends, lpdf, nodes
-
-local nodeinjections       = backends.pdf.nodeinjections
-local codeinjections       = backends.pdf.codeinjections
-local registrations        = backends.pdf.registrations
+local pdfbackend           = backends and backends.registered.pdf or { }
+local nodeinjections       = pdfbackend.nodeinjections
+local codeinjections       = pdfbackend.codeinjections
+local registrations        = pdfbackend.registrations
 
 local getpagedimensions    = layouts.getpagedimensions
 local getcanvas            = layouts.getcanvas
 
+local nodes                = nodes
 local nuts                 = nodes.nuts
 local copy_node            = nuts.copy
 
@@ -36,6 +36,7 @@ local nodepool             = nuts.pool
 local setstate             = nodepool.setstate
 local register             = nodepool.register
 
+local lpdf                 = lpdf
 local pdfdictionary        = lpdf.dictionary
 local pdfarray             = lpdf.array
 local pdfconstant          = lpdf.constant
@@ -44,50 +45,41 @@ local pdfunicode           = lpdf.unicode
 local pdfverbose           = lpdf.verbose
 local pdfstring            = lpdf.string
 local pdfaction            = lpdf.action
+local pdfflushobject       = lpdf.flushobject
+local pdfflushstreamobject = lpdf.flushstreamobject
+local pdfmajorversion      = lpdf.majorversion
+local pdfminorversion      = lpdf.minorversion
 
-local pdfflushobject
-local pdfflushstreamobject
-local pdfminorversion
-
-updaters.register("backend.update.lpdf",function()
-    pdfflushobject       = lpdf.flushobject
-    pdfflushstreamobject = lpdf.flushstreamobject
-    pdfminorversion      = lpdf.minorversion
-end)
-
-local formattedtimestamp   = lpdf.pdftimestamp
 local adddocumentextgstate = lpdf.adddocumentextgstate
 local addtocatalog         = lpdf.addtocatalog
 local addtoinfo            = lpdf.addtoinfo
 local addtopageattributes  = lpdf.addtopageattributes
 local addtonames           = lpdf.addtonames
 
-local pdfgetmetadata       = lpdf.getmetadata
-
 local texset               = tex.set
 
 local variables            = interfaces.variables
 
-local v_stop               = variables.stop
-local v_none               = variables.none
-local v_max                = variables.max
-local v_bookmark           = variables.bookmark
-local v_fit                = variables.fit
-local v_doublesided        = variables.doublesided
-local v_singlesided        = variables.singlesided
-local v_default            = variables.default
-local v_auto               = variables.auto
-local v_fixed              = variables.fixed
-local v_landscape          = variables.landscape
-local v_portrait           = variables.portrait
-local v_page               = variables.page
-local v_paper              = variables.paper
-local v_attachment         = variables.attachment
-local v_layer              = variables.layer
-local v_lefttoright        = variables.lefttoright
-local v_righttoleft        = variables.righttoleft
-local v_title              = variables.title
-local v_nomenubar          = variables.nomenubar
+local v_stop               <const> = variables.stop
+local v_none               <const> = variables.none
+local v_max                <const> = variables.max
+local v_bookmark           <const> = variables.bookmark
+local v_fit                <const> = variables.fit
+local v_doublesided        <const> = variables.doublesided
+local v_singlesided        <const> = variables.singlesided
+local v_default            <const> = variables.default
+local v_auto               <const> = variables.auto
+local v_fixed              <const> = variables.fixed
+local v_landscape          <const> = variables.landscape
+local v_portrait           <const> = variables.portrait
+local v_page               <const> = variables.page
+local v_paper              <const> = variables.paper
+local v_attachment         <const> = variables.attachment
+local v_layer              <const> = variables.layer
+local v_lefttoright        <const> = variables.lefttoright
+local v_righttoleft        <const> = variables.righttoleft
+local v_title              <const> = variables.title
+local v_nomenubar          <const> = variables.nomenubar
 
 local positive             = register(setstate("/GSpositive gs"))
 local negative             = register(setstate("/GSnegative gs"))
@@ -195,80 +187,9 @@ end
 lpdf.registerpagefinalizer    (flushpageactions,    "page actions")
 lpdf.registerdocumentfinalizer(flushdocumentactions,"document actions")
 
---- info : this can change and move elsewhere
+-- the code above will move to scrn-ini
 
-local identity = { }
-
-function codeinjections.setupidentity(specification)
-    for k, v in next, specification do
-        if v ~= "" then
-            identity[k] = v
-        end
-    end
-end
-
-function codeinjections.getidentityvariable(name)
-    return identity[name]
-end
-
-local done = false  -- using "setupidentity = function() end" fails as the meaning is frozen in register
-
-local function setupidentity()
-    if not done then
-        local metadata = pdfgetmetadata()
-        local creator  = metadata.creator
-        local version  = metadata.contextversion
-        local time     = metadata.time
-        local jobname  = environment.jobname or tex.jobname or "unknown"
-        --
-        local title = identity.title
-        if not title or title == "" then
-            title = tex.jobname
-        end
-        addtoinfo("Title", pdfunicode(title), title)
-        local subtitle = identity.subtitle or ""
-        if subtitle ~= "" then
-            addtoinfo("Subject", pdfunicode(subtitle), subtitle)
-        end
-        local author = identity.author or ""
-        if author ~= "" then
-            addtoinfo("Author",  pdfunicode(author), author) -- '/Author' in /Info, 'Creator' in XMP
-        end
-        addtoinfo("Creator", pdfunicode(creator), creator)
-        addtoinfo("CreationDate", pdfstring(formattedtimestamp(time)))
-        local date = identity.date or ""
-        local pdfdate = date and formattedtimestamp(date)
-        if pdfdate then
-            addtoinfo("ModDate", pdfstring(pdfdate), date)
-        else
-            -- users should enter the date in 2010-01-19T23:27:50+01:00 format
-            -- and if not provided that way we use the creation time instead
-            addtoinfo("ModDate", pdfstring(formattedtimestamp(time)),time)
-        end
-        local keywords = identity.keywords or ""
-        if keywords ~= "" then
-            keywords = concat(settings_to_array(keywords), " ")
-            addtoinfo("Keywords", pdfunicode(keywords), keywords)
-        end
-        local id = lpdf.id()
-        addtoinfo("ID", pdfstring(id), id) -- needed for pdf/x
-        --
-        addtoinfo("ConTeXt.Version",version)
-        addtoinfo("ConTeXt.Time",os.date("%Y-%m-%d %H:%M"))
-        addtoinfo("ConTeXt.Jobname",jobname)
-        addtoinfo("ConTeXt.Url","www.pragma-ade.com")
-        addtoinfo("ConTeXt.Support","contextgarden.net")
-        addtoinfo("TeX.Support","tug.org")
-        --
-        done = true
-    else
-        -- no need for a message
-    end
-end
-
-lpdf.registerpagefinalizer(setupidentity,"identity")
-
--- or when we want to be able to set things after pag e1:
+-- or when we want to be able to set things after page 1:
 --
 -- lpdf.registerdocumentfinalizer(setupidentity,1,"identity")
 
@@ -363,7 +284,7 @@ local pagespecs = {
     [v_doublesided] = {
         mode   = "UseNone",
         layout = "TwoColumnRight",
-        fit = true,
+        fit    = true,
     },
     [v_singlesided] = {
         mode   = "UseNone"
@@ -447,7 +368,6 @@ local function documentspecification()
             end
         end
     end
-
     -- maybe interfaces.variables
     local layout    = spec.layout
     local mode      = spec.mode
@@ -478,7 +398,9 @@ local function documentspecification()
             prints = pdfarray(flattened(pages.toranges(marked)))
         end
     end
-    if fit or fixed or duplex or copies or paper or prints or title or direction or nomenubar then
+    -- The ua spec demands that the DisplayDocTitle should be set, with the argument
+    -- that otherwise viewers can't show it correctly. Who cares anyway.
+ -- if fit or fixed or duplex or copies or paper or prints or title or direction or nomenubar then
         addtocatalog("ViewerPreferences",pdfdictionary {
             FitWindow         = fit       and true                   or nil,
             PrintScaling      = fixed     and pdfconstant("None")    or nil,
@@ -486,24 +408,18 @@ local function documentspecification()
             NumCopies         = copies    and copies                 or nil,
             PickTrayByPDFSize = paper     and true                   or nil,
             PrintPageRange    = prints                               or nil,
-            DisplayDocTitle   = title     and true                   or nil,
+            DisplayDocTitle   = true,
             Direction         = direction and pdfconstant(direction) or nil,
             HideMenubar       = nomenubar and true                   or nil,
         })
-    end
-    addtoinfo   ("Trapped", pdfconstant("False")) -- '/Trapped' in /Info, 'Trapped' in XMP
-    addtocatalog("Version", pdfconstant(format("1.%s",pdfminorversion())))
+ -- end
+ -- addtoinfo   ("Trapped", pdfconstant("False")) -- '/Trapped' in /Info, 'Trapped' in XMP
+    addtocatalog("Version", pdfconstant(format("%s.%s",pdfmajorversion(),pdfminorversion())))
+ -- local language = languages.names[texgetcount("mainlanguagenumber")]
     addtocatalog("Lang",    pdfstring(tokens.getters.macro("currentmainlanguage")))
 end
 
--- temp hack: the mediabox is not under our control and has a precision of 5 digits
-
-local factor  = number.dimenfactors.bp
-local f_value = formatters["%.6N"]
-
-local function boxvalue(n) -- we could share them
-    return pdfverbose(f_value(factor * n))
-end
+local bpfactor <const> = number.dimenfactors.bp
 
 local function pagespecification()
     local canvas      = getcanvas()
@@ -520,10 +436,10 @@ local function pagespecification()
     local function extrabox(WhatBox,offset,always)
         if offset ~= 0 or always then
             addtopageattributes(WhatBox, pdfarray {
-                boxvalue(llx + offset),
-                boxvalue(lly + offset),
-                boxvalue(urx - offset),
-                boxvalue(ury - offset),
+                (llx + offset) * bpfactor,
+                (lly + offset) * bpfactor,
+                (urx - offset) * bpfactor,
+                (ury - offset) * bpfactor,
             })
         end
     end
@@ -547,6 +463,15 @@ lpdf.registerdocumentfinalizer(documentspecification,"document specification")
 -- extra bytes due to lack of collapsing. Anyhow, for that we need a stupid prefix
 -- variant and that's not on the agenda now.
 
+-- % \disabledirectives[backends.pdf.pagelabels]
+-- \setupfittingpage[pagestate=start] % make page labels okay
+
+local enabled = true
+
+directives.register("backend.pdf.pagelabels", function(v)
+    enabled = v
+end)
+
 local map = {
     numbers       = "D",
     Romannumerals = "R",
@@ -555,58 +480,32 @@ local map = {
     characters    = "a",
 }
 
--- local function featurecreep()
---     local pages, lastconversion, list = structures.pages.tobesaved, nil, pdfarray()
---     local getstructureset = structures.sets.get
---     for i=1,#pages do
---         local p = pages[i]
---         if not p then
---             return -- fatal error
---         else
---             local numberdata = p.numberdata
---             if numberdata then
---                 local conversionset = numberdata.conversionset
---                 if conversionset then
---                     local conversion = getstructureset("structure:conversions",p.block,conversionset,1,"numbers")
---                     if conversion ~= lastconversion then
---                         lastconversion = conversion
---                         list[#list+1] = i - 1 -- pdf starts numbering at 0
---                         list[#list+1] = pdfdictionary { S = pdfconstant(map[conversion] or map.numbers) }
---                     end
---                 end
---             end
---             if not lastconversion then
---                 lastconversion = "numbers"
---                 list[#list+1] = i - 1 -- pdf starts numbering at 0
---                 list[#list+1] = pdfdictionary { S = pdfconstant(map.numbers) }
---             end
---         end
---     end
---     addtocatalog("PageLabels", pdfdictionary { Nums = list })
--- end
-
 local function featurecreep()
-    local pages        = structures.pages.tobesaved
-    local list         = pdfarray()
-    local getset       = structures.sets.get
-    local stopped      = false
-    local oldlabel     = nil
-    local olconversion = nil
+    if not enabled then
+        return
+    end
+    --
+    local pages         = structures.pages.tobesaved
+    local list          = pdfarray()
+    local getset        = structures.sets.get
+    local stopped       = false
+    local oldprefix     = nil
+    local oldconversion = nil
     for i=1,#pages do
         local p = pages[i]
         if not p then
             return -- fatal error
         end
-        local label = p.viewerprefix or ""
-        if p.status == v_stop then
+        local prefix = p.viewerprefix or ""
+        if p.state == v_stop then
             if not stopped then
                 list[#list+1] = i - 1 -- pdf starts numbering at 0
                 list[#list+1] = pdfdictionary {
-                    P = pdfunicode(label),
+                    P = pdfunicode(prefix),
                 }
                 stopped = true
             end
-            oldlabel      = nil
+            oldprefix     = nil
             oldconversion = nil
             stopped       = false
         else
@@ -619,16 +518,18 @@ local function featurecreep()
                     conversion = getset("structure:conversions",p.block,conversionset,1,"numbers")
                 end
             end
+            -- If needed we can do some preroll on a prefix (prefix) but this is a rather useless
+            -- feature (creep) anyway so why bother.
             conversion = conversion and map[conversion] or map.numbers
-            if number == 1 or oldlabel ~= label or oldconversion ~= conversion then
+            if number == 1 or oldprefix ~= prefix or oldconversion ~= conversion then
                 list[#list+1] = i - 1 -- pdf starts numbering at 0
                 list[#list+1] = pdfdictionary {
                     S  = pdfconstant(conversion),
-                    St = number,
-                    P  = label ~= "" and pdfunicode(label) or nil,
+                    St = number > 0 and number or 1, -- there is no 'nonumber' and we need to be >= 1
+                    P  = prefix ~= "" and pdfunicode(prefix) or nil,
                 }
             end
-            oldlabel      = label
+            oldprefix     = prefix
             oldconversion = conversion
             stopped       = false
         end

@@ -342,7 +342,7 @@
 \newtoks\t_btx_cmd
 \newbox \b_btx_cmd
 
-\t_btx_cmd{\global\setbox\b_btx_cmd\hpack{\clf_btxcmdstring}}
+\t_btx_cmd{\global\setbox\b_btx_cmd\hbox{\clf_btxcmdstring}} % no \hpack, otherwise prerolling --- doesn't work
 
 \let\btxcmd\btxcommand
 
@@ -417,9 +417,12 @@
 \unexpanded\def\btxnbsp                  {\removeunwantedspaces\nbsp}         % the same anyway
 \unexpanded\def\btxperiod                {\removeunwantedspaces.\space}
 \unexpanded\def\btxcomma                 {\removeunwantedspaces,\space}
+\unexpanded\def\btxserialcomma           {\removeunwantedspaces,\space} % (aka Oxford comma) redefine to disable
+\unexpanded\def\btxellipsis              {\removeunwantedspaces\nobreakspace\textellipsis\space}
 \unexpanded\def\btxcommabreak            {\removeunwantedspaces,\hskip\zeropoint plus .5\emwidth\relax}
 \unexpanded\def\btxcolon                 {\removeunwantedspaces:\space}
 \unexpanded\def\btxsemicolon             {\removeunwantedspaces;\space}
+\unexpanded\def\btxhyphen                {\removeunwantedspaces-}
 \unexpanded\def\btxlparent               {\removeunwantedspaces\space(} % obsolete
 \unexpanded\def\btxrparent               {\removeunwantedspaces)\space} % obsolete
 \unexpanded\def\btxleftparenthesis       {\removeunwantedspaces\space(}
@@ -799,9 +802,13 @@
 \unexpanded\def\btxdoifelsecombiinlist#1#2%
   {\clf_btxdoifelsecombiinlist{#1}{#2}}
 
+\unexpanded\def\btxdoifelsecitedone#1#2%
+  {\clf_btxdoifelsecitedone{#1}{#2}}
+
 \let\btxdoifsameaspreviouscheckedelse\btxdoifelsesameaspreviouschecked
 \let\btxdoifsameaspreviouselse       \btxdoifelsesameasprevious
 \let\btxdoifcombiinlistelse          \btxdoifelsecombiinlist
+\let\btxdoifcitedoneelse             \btxdoifelsecitedone
 
 \def\publ_place_list_indeed#1#2[#3][#4]%
   {\begingroup
@@ -1491,6 +1498,12 @@
    \btxparameter\c!right
    \endgroup}
 
+\unexpanded\def\btxstarttaggedcite
+  {}% \dostarttagged\t!cite{\currentbtxdataset::\currentbtxtag}}
+
+\unexpanded\def\btxstoptaggedcite
+  {}% \dostoptagged}
+
 \unexpanded\def\btxlistcitation
   {\dontleavehmode
    \begingroup
@@ -1536,6 +1549,9 @@
 
 \unexpanded\def\btxmissing#1%
   {\dontleavehmode{\tttf<#1>}}
+
+\permanent\protected\def\currentbtxmissingreference
+  {\btxmissing{\currentbtxreference}}
 
 %D Compatibility:
 
@@ -1991,8 +2007,9 @@
    \c!otherstext={\btxspace et al.},
    \c!separator:firstnames={\btxspace},
    \c!separator:juniors={\btxspace},
-   \c!separator:vons={\btxspace},
+   \c!separator:vons={\btxnobreakspace},
    \c!separator:initials={\btxspace},
+   \c!connector:initials={\btxhyphen},
    \c!stopper:initials={.},
   %\c!surnamesep={\btxcomma}, % is this used anywhere?
    \c!separator:invertedinitials={\btxcomma},

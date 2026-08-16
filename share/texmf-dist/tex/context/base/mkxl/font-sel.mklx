@@ -19,6 +19,8 @@
 
 \let\selectfont_index\!!zerocount
 
+\lettonothing\p_selectfont_preset
+
 \protected\def\selectfont_register[#style][#settings]%
   {\begingroup
    \edef\currentselectfont{\expandnamespacevalue\??fontshortstyle{#style}\s!rm}%
@@ -269,7 +271,7 @@
      \edef\currentselectfont{\expandnamespacevalue\??fontshortstyle{#style}\s!rm}%
      \setupcurrentselectfont[#settings]%
    \else
-     \let\currentselectfont\empty
+     \lettonothing\currentselectfont
      \setupcurrentselectfont[#style]%
    \fi}
 

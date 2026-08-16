@@ -19,7 +19,7 @@
 \registerctxluafile{util-sac}{optimize}
 \registerctxluafile{util-sto}{} % could also be done in trac-deb.mkiv
 \registerctxluafile{util-pck}{}
-\registerctxluafile{util-prs}{}
+\registerctxluafile{util-prs}{autosuffix}
 \registerctxluafile{util-fmt}{}
 \registerctxluafile{util-dim}{}
 
@@ -45,6 +45,8 @@
 \registerctxluafile{util-soc-imp-http}   {}
 \registerctxluafile{util-soc-imp-tp}     {}
 
+\registerctxluafile{util-zip}{}
+
 \registerctxluafile{data-ini}{}
 \registerctxluafile{data-exp}{}
 \registerctxluafile{data-env}{}
@@ -53,18 +55,19 @@
 \registerctxluafile{data-res}{}
 \registerctxluafile{data-inp}{}
 \registerctxluafile{data-out}{}
-\registerctxluafile{data-fil}{} % opener gets overloaded in data-tex
+\registerctxluafile{data-fil}{autosuffix} % opener gets overloaded in data-tex
 
 \registerctxluafile{data-pre}{} % after data-res
 \registerctxluafile{data-bin}{} % before data-tex
 \registerctxluafile{data-tex}{} % after data-pre
 \registerctxluafile{data-vir}{}
 \registerctxluafile{data-zip}{}
+%registerctxluafile{data-tar}{}
 %registerctxluafile{data-crl}{}
 \registerctxluafile{data-sch}{}
 \registerctxluafile{data-tre}{}
 \registerctxluafile{data-lua}{}
-\registerctxluafile{data-ctx}{}
+%registerctxluafile{data-ctx}{}
 \registerctxluafile{data-con}{}
 \registerctxluafile{data-use}{}
 \registerctxluafile{data-aux}{}
@@ -85,11 +88,15 @@
 \registerctxluafile{luat-mac}{}
 %registerctxluafile{luat-prp}{} % for the moment of not much use
 
+\registerctxluafile{util-lib}{}
+
 \registerctxluafile{lxml-tab}{}
 \registerctxluafile{lxml-lpt}{}
 \registerctxluafile{lxml-xml}{}
 \registerctxluafile{lxml-aux}{}
 \registerctxluafile{lxml-mis}{}
+
+\registerctxluafile{util-jsn}{}
 
 \protected\def\writestatus#1#2{\ctxlua{logs.status([==[#1]==],[==[#2]==])}}
 \protected\def\writestring  #1{\ctxlua{logs.writer([==[#1]==],"\string\n")}}

@@ -97,7 +97,7 @@
 \to \everydefinefontsolution
 
 \permanent\protected\def\setfontsolution[#solution]% just one
-  {\edef\currentfontsolution{#solution}%
+  {\cdef\currentfontsolution{#solution}%
    \clf_setfontsolution
      {\currentfontsolution}%
      {%
@@ -107,11 +107,11 @@
      }%
    \relax}
 
-\let\currentfontsolution\empty
+\lettonothing\currentfontsolution
 
 \permanent\protected\def\resetfontsolution % resets all
   {\clf_resetfontsolution
-   \let\currentfontsolution\empty}
+   \lettonothing\currentfontsolution}
 
 \permanent\protected\def\startfontsolution % [#1]
   {\pushmacro\currentfontsolution

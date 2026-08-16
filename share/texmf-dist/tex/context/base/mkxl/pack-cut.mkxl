@@ -13,6 +13,9 @@
 
 \unprotect
 
+%D When I am in the mood I will implement the main macro in a more modern way using
+%D offsets and such. Or maybe using \METAPOST\ instead
+%D
 %D \macros
 %D   {makecutbox, cuthbox, cutvbox, cutvtop}
 %D
@@ -47,37 +50,38 @@
 %D By setting the next macros one can influence the length of the marks as well as
 %D the horizontal and vertical divisions.
 
-\newdimen\d_pack_cutmarks_width
-\newdimen\d_pack_cutmarks_height
-\newdimen\d_pack_cutmarks_depth
+\newdimension\d_pack_cutmarks_width
+\newdimension\d_pack_cutmarks_height
+\newdimension\d_pack_cutmarks_depth
 
-\newcount\horizontalcutmarks \horizontalcutmarks \plustwo
-\newcount\verticalcutmarks   \verticalcutmarks   \plustwo
-\newcount\cutmarkoffset      \cutmarkoffset      \plusone
+\newinteger  \horizontalcutmarks   \horizontalcutmarks \plustwo
+\newinteger  \verticalcutmarks     \verticalcutmarks   \plustwo
+\newinteger  \cutmarkoffset        \cutmarkoffset      \plusone
 
 \mutable\let\cutmarksymbol       \relax
-\mutable\let\cutmarktoptext      \empty
-\mutable\let\cutmarkbottomtext   \empty
-\mutable\let\cutmarkhoffset      \empty
-\mutable\let\cutmarkvoffset      \empty
 \mutable\def\cutmarklength       {2\bodyfontsize}
 \mutable\def\cutmarkrulethickness{\onepoint}
 
+\mutable\lettonothing\cutmarktoptext
+\mutable\lettonothing\cutmarkbottomtext
+\mutable\lettonothing\cutmarkhoffset
+\mutable\lettonothing\cutmarkvoffset
+
 \permanent\protected\def\horizontalcuts
   {\hpack to \d_pack_cutmarks_width
-     {\dorecurse\horizontalcutmarks{\vrule\s!width\cutmarkrulethickness\s!height\cutmarklength\hfill}%
+     {\localcontrolledrepeat\horizontalcutmarks{\vrule\s!width\cutmarkrulethickness\s!height\cutmarklength\hfill}%
       \unskip}}
 
 \permanent\protected\def\verticalcuts
-  {\vpack to \dimexpr\d_pack_cutmarks_height+\d_pack_cutmarks_depth\relax
+  {\vpack to {\d_pack_cutmarks_height+\d_pack_cutmarks_depth}%
      {\hsize\cutmarklength
-      \dorecurse\verticalcutmarks{\vrule\s!height\cutmarkrulethickness\s!width\hsize\vfill}%
+      \localcontrolledrepeat\verticalcutmarks{\vrule\s!height\cutmarkrulethickness\s!width\hsize\vfill}%
       \unskip}}
 
 \permanent\protected\def\baselinecuts
   {\ifdim\d_pack_cutmarks_depth>\zeropoint
-     \vpack to \dimexpr\d_pack_cutmarks_height+\d_pack_cutmarks_depth\relax
-       {\hsize\dimexpr\cutmarklength/2\relax
+     \vpack to {\d_pack_cutmarks_height+\d_pack_cutmarks_depth}%
+       {\hsize{\cutmarklength/2}%
         \vskip\zeropoint\s!plus\d_pack_cutmarks_height
         \vrule\s!height\cutmarkrulethickness\s!width\hsize
         \vskip\zeropoint\s!plus\d_pack_cutmarks_depth}%
@@ -89,21 +93,21 @@
         {\hss\infofont\cutmarksymbol\hss}%
       \hss
       \vpack to \cutmarklength
-        {\scratchdimen\dimexpr\cutmarklength/2\relax
-         \scratchskip \ifempty\cutmarkhoffset\cutmarkoffset\scratchdimen\else\cutmarkhoffset\fi
+        {\scratchdimen{\cutmarklength/2}%
+         \scratchdistance\ifempty\cutmarkhoffset\cutmarkoffset\scratchdimen\else\cutmarkhoffset\fi
          \vss
          \hbox to \d_pack_cutmarks_width
-           {\llap{\copy\scratchbox\hskip\scratchskip}%
-            \hskip\scratchdimen\hss
+           {\llap{\copy\scratchbox\kern\scratchdistance}%
+            \kern\scratchdimen\hss
             \infofont#1%
-            \hss\hskip\scratchdimen
-            \rlap{\hskip\scratchskip\copy\scratchbox}}%
+            \hss
+            \kern\scratchdimen
+            \rlap{\kern\scratchdistance\copy\scratchbox}}%
          \vss}%
       \hss}}
 
-\permanent\protected\def\makecutbox#1%
-  {\bgroup
-   \d_pack_cutmarks_height\ht#1%
+\permanent\protected\def\makecutbox#1% not grouped !
+  {\d_pack_cutmarks_height\ht#1%
    \d_pack_cutmarks_depth \dp#1%
    \d_pack_cutmarks_width \wd#1%
    \setbox#1\hpack
@@ -111,28 +115,28 @@
       \forgetall
       \boxmaxdepth\maxdimen
       \offinterlineskip
-      \scratchdimen\dimexpr\cutmarklength/2\relax
+      \scratchdimen{\cutmarklength/2}%
       \hsize\d_pack_cutmarks_width
       \setbox\scratchbox\vpack
         {\setbox\scratchbox\hpack{\horizontalcuts}%
-         \scratchskip\ifempty\cutmarkvoffset\cutmarkoffset\scratchdimen\else\cutmarkvoffset\fi
-         \tlap{\copy\scratchbox\vskip\scratchskip}%
+         \scratchdistance\ifempty\cutmarkvoffset\cutmarkoffset\scratchdimen\else\cutmarkvoffset\fi
+         \tlap{\copy\scratchbox\vskip\scratchdistance}%
          \hpack to \d_pack_cutmarks_width
-           {\scratchskip\ifempty\cutmarkhoffset\cutmarkoffset\scratchdimen\else\cutmarkhoffset\fi
+           {\scratchdistance\ifempty\cutmarkhoffset\cutmarkoffset\scratchdimen\else\cutmarkhoffset\fi
             \setbox\scratchbox\hpack{\verticalcuts}%
-            \llap{\copy\scratchbox\hskip\scratchskip}%
-            \ifdim\d_pack_cutmarks_depth=\zeropoint
+            \llap{\copy\scratchbox\kern\scratchdistance}%
+            \ifzeropt\d_pack_cutmarks_depth
               \hfill
             \else
-              \bgroup
+              \begingroup
               \setbox\scratchbox\hpack{\baselinecuts}%
-              \llap{\copy\scratchbox\hskip\scratchskip}%
+              \llap{\copy\scratchbox\kern\scratchdistance}%
               \hfill
-              \rlap{\hskip\scratchskip\copy\scratchbox}%
-              \egroup
+              \rlap{\kern\scratchdistance\copy\scratchbox}%
+              \endgroup
             \fi
-            \rlap{\hskip\scratchskip\copy\scratchbox}}%
-         \blap{\vskip\scratchskip\copy\scratchbox}}%
+            \rlap{\kern\scratchdistance\copy\scratchbox}}%
+         \blap{\vskip\scratchdistance\copy\scratchbox}}%
       \ht\scratchbox\d_pack_cutmarks_height
       \dp\scratchbox\d_pack_cutmarks_depth
       \wd\scratchbox\zeropoint
@@ -140,10 +144,10 @@
       \box\scratchbox
       \ifrelax\cutmarksymbol \else
         \setbox\scratchbox\vpack
-          {\scratchskip\ifempty\cutmarkvoffset\cutmarkoffset\scratchdimen\else\cutmarkvoffset\fi
-           \vskip-\dimexpr\scratchskip+\cutmarklength\relax
+          {\scratchdistance\ifempty\cutmarkvoffset\cutmarkoffset\scratchdimen\else\cutmarkvoffset\fi
+           \vskip{-\scratchdistance-\cutmarklength}%
            \hpack{\cutmarksymbols\cutmarktoptext}%
-           \vskip\dimexpr\scratchskip+\d_pack_cutmarks_height+\d_pack_cutmarks_depth+\scratchskip\relax
+           \vskip{\scratchdistance+\d_pack_cutmarks_height+\d_pack_cutmarks_depth+\scratchdistance}%
            \hpack{\cutmarksymbols\cutmarkbottomtext}}%
         \ht\scratchbox\d_pack_cutmarks_height
         \dp\scratchbox\d_pack_cutmarks_depth
@@ -155,7 +159,7 @@
    \wd#1\d_pack_cutmarks_width
    \ht#1\d_pack_cutmarks_height
    \dp#1\d_pack_cutmarks_depth
-   \egroup}
+   \box#1}
 
 \permanent\protected\def\cuthbox{\hpack\bgroup\dowithnextbox{\makecutbox\nextbox\flushnextbox\egroup}\hbox}
 \permanent\protected\def\cutvbox{\vpack\bgroup\dowithnextbox{\makecutbox\nextbox\flushnextbox\egroup}\vbox}
