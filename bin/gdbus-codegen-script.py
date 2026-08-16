@@ -4,6 +4,8 @@
 #
 # Copyright (C) 2008-2011 Red Hat, Inc.
 #
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
 # License as published by the Free Software Foundation; either
@@ -47,7 +49,7 @@ path = os.path.abspath(path)
 # In these cases our installation cannot be relocatable, but at least we should
 # be able to find the codegen module.
 if not os.path.isfile(os.path.join(path, 'codegen', 'codegen_main.py')):
-    path = os.path.join('/mingw64/share', 'glib-2.0')
+    path = os.path.join('/ucrt64/share', 'glib-2.0')
 
 sys.path.insert(0, path)
 from codegen import codegen_main
